@@ -1,0 +1,13 @@
+# IDE
+.idea/*
+.vscode/*
+.vs/*
+
+# Jetbrains IDEA stuff
+cmake-build-*/*
+
+# intermediate and binary files
+Binaries/*
+Binaries/
+build/*
+build/
