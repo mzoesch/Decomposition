@@ -9,16 +9,31 @@
 using namespace llvm;
 
 #define PLUGIN_NAME "decomposition-plugin"
+#define DP_PLUGIN_NAME "decomposition-plugin-fp"
+#define SCCDP_PLUGIN_NAME "decomposition-plugin-sccp"
 
 namespace
 {
 
 struct DecompositionPass : public PassInfoMixin<DecompositionPass>
 {
-    PreservedAnalyses run(Function& F, FunctionAnalysisManager&)
+    PreservedAnalyses run(Function& F, FunctionAnalysisManager& Fam)
     {
-
         errs() << "F: " << F.getName() << "\n";
+        return PreservedAnalyses::all();
+    }
+};
+
+struct SCCDecompositionPass : public PassInfoMixin<SCCDecompositionPass>
+{
+    PreservedAnalyses run(LazyCallGraph::SCC &SCC, CGSCCAnalysisManager &AM, LazyCallGraph &CG, CGSCCUpdateResult &UR)
+    {
+        for (LazyCallGraph::Node &Node : SCC)
+        {
+            Function &F = Node.getFunction();
+            errs() << "SCC F: " << F.getName() << "\n";
+        }
+
         return PreservedAnalyses::all();
     }
 };
@@ -27,19 +42,26 @@ struct DecompositionPass : public PassInfoMixin<DecompositionPass>
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo()
 {
-    errs() << "Registering decomposition plugin.\n";
-
     return
     {
         LLVM_PLUGIN_API_VERSION, PLUGIN_NAME, LLVM_VERSION_STRING,
-        [](PassBuilder &PB)
+        [](PassBuilder& PB)
         {
-            PB.registerPipelineParsingCallback(
-            [](StringRef Name, FunctionPassManager &FPM, ArrayRef<PassBuilder::PipelineElement>)
+            PB.registerPipelineParsingCallback([](StringRef Name, FunctionPassManager& FPM, ArrayRef<PassBuilder::PipelineElement>)
             {
-                if (Name == PLUGIN_NAME)
+                if (Name == DP_PLUGIN_NAME)
                 {
                     FPM.addPass(DecompositionPass());
+                    return true;
+                }
+
+                return false;
+            });
+            PB.registerPipelineParsingCallback([](StringRef Name, CGSCCPassManager& CGPM, ArrayRef<PassBuilder::PipelineElement>)
+            {
+                if (Name == SCCDP_PLUGIN_NAME)
+                {
+                    CGPM.addPass(SCCDecompositionPass());
                     return true;
                 }
 
@@ -50,3 +72,5 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 }
 
 #undef PLUGIN_NAME
+#undef DP_PLUGIN_NAME
+#undef SCCDP_PLUGIN_NAME
