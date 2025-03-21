@@ -8,15 +8,6 @@ def copy_intermediate_files_to_root_ll(args) -> None:
         raise FileNotFoundError(f'No such directory: {object_dir}')
 
     def _walk_dir(object_dir: str) -> None:
-        def _remove_optnone(file: str) -> None:
-            with open(file, 'r') as f:
-                lines = f.readlines()
-            with open(file, 'w') as f:
-                for line in lines:
-                    line = line.replace(' optnone', '')
-                    f.write(line)
-                    continue
-            return None
         for root, dirs, files in os.walk(object_dir):
             for dir in dirs:
                 _walk_dir(f'{root}/{dir}')
@@ -28,7 +19,6 @@ def copy_intermediate_files_to_root_ll(args) -> None:
                 os.makedirs(os.path.dirname(new_file_path), exist_ok=True)
                 print(f'Copying [{file_path}] to [{new_file_path}].')
                 shutil.copy2(file_path, new_file_path)
-                _remove_optnone(new_file_path)
                 continue
             continue
         return None

@@ -23,37 +23,22 @@ if(NOT DEFINED DECOMPOSITION_PASS_ROOT)
 endif()
 message(STATUS "DECOMPOSITION_PASS_ROOT: ${DECOMPOSITION_PASS_ROOT}")
 
-set(LLVM_MODE "LL" CACHE STRING "LLVM out mode: MC, LL or BC.")
-
 project(
     Example_Simple
     LANGUAGES C
     )
 
 set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -emit-llvm -S")
 
-if(LLVM_MODE STREQUAL "MC")
-    message(STATUS "LLVM_MODE: MC")
-    # Default. Do nothing
-elseif(LLVM_MODE STREQUAL "LL")
-    message(STATUS "LLVM_MODE: MC")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -emit-llvm -S") # => .ll
-elseif(LLVM_MODE STREQUAL "BC")
-    message(STATUS "LLVM_MODE: MC")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -emit-llvm -c") # => .bc
-else()
-    message(FATAL_ERROR "Invalid LLVM_MODE: ${LLVM_MODE}.")
-endif()
-
-add_executable(ESimple main.c)
-set_target_properties(ESimple PROPERTIES
-        COMPILE_FLAGS "-O0 -disable-llvm-passes"
+set(CUR_MODULE "ESimple")
+add_executable(${CUR_MODULE} main.c)
+set_target_properties(${CUR_MODULE} PROPERTIES
+        COMPILE_FLAGS "-O0 -disable-llvm-passes -Xclang -disable-O0-optnone"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
     )
-if(LLVM_MODE STREQUAL "LL")
-add_custom_command(TARGET ESimple POST_BUILD
-    COMMAND ${Python_EXECUTABLE} ${DECOMPOSITION_PASS_ROOT}/compiler_helper.py --Intermediate ${CMAKE_CURRENT_BINARY_DIR} --Source ${CMAKE_SOURCE_DIR} --Module ESimple
+add_custom_command(TARGET ${CUR_MODULE} POST_BUILD
+    COMMAND ${Python_EXECUTABLE} ${DECOMPOSITION_PASS_ROOT}/compiler_helper.py --Intermediate ${CMAKE_CURRENT_BINARY_DIR} --Source ${CMAKE_SOURCE_DIR} --Module ${CUR_MODULE}
     )
-endif()
