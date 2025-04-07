@@ -1,22 +1,21 @@
-### Build and Run LLVM-Pass
-Compile with:
+### Build and Run LLVM-Passes
+Either run the provided `Setup.sh` / `Setup.bat` script or manually set up the environment with cmake:
 ```bash
-mkdir build && cd build && cmake .. -G Ninja && ninja && cd ..
+mkdir build && cd build && cmake .. && cmake --build . && cd ..
 ```
 
 Run with:
 ```bash
-opt -load-pass-plugin Binaries/DecompositionPass.so -passes='decomposition-plugin-sccp' -disable-output <input_file> -o <output_file>
-opt -load-pass-plugin Binaries/DecompositionPass.so -passes='decomposition-plugin-fp' -disable-output <input_file> -o <output_file>
-opt -load-pass-plugin Binaries/DecompositionPass.so -passes='decomposition-plugin-mp' -disable-output <input_file> -o <output_file>
+python3 ./Launch.py -Split -IR <path_to_linked_llvm_bitcode>
 ```
 
 
 ### Build an example
 Generic build layout:
 ```bash
-mkdir build && cmake -S . -B build -G Ninja -DDECOMPOSITION_PASS_ROOT=<root> && ninja -C build
+mkdir build && cd build && cmake .. -DDECOMPOSITION_PASS_ROOT=<root> && cmake --build . && cd ..
 ```
+
 
 ### Build ibpng
 `ibpng` does not support Ninja, so `make` has to be used instead. <br />
@@ -24,6 +23,7 @@ Generate llvm: <br />
 ```bash
 mkdir build && cmake -S . -B build -DCMAKE_INSTALL_PREFIX=build/ -DPNG_HARDWARE_OPTIMIZATIONS=no -DDECOMPOSITION_PLUGIN_PRESENT=on -DDECOMPOSITION_PASS_ROOT=<root> && make -C build
 ```
+
 
 ### Extra stuff
 Dot files: <br />

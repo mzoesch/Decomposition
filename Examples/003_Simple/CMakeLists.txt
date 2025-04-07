@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.21...3.30)
 
+#set(CMAKE_VERBOSE_MAKEFILE ON)
+
 find_package(Python REQUIRED COMPONENTS Interpreter)
 message(STATUS "Python_EXECUTABLE: ${Python_EXECUTABLE}")
 
@@ -29,16 +31,49 @@ project(
     )
 
 set(CMAKE_C_STANDARD 23)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -emit-llvm -S")
 
-set(CUR_MODULE "ESimple")
-add_executable(${CUR_MODULE} main.c)
+if(NOT DEFINED ClANG_PLUGIN_PATH)
+    set(ClANG_PLUGIN_PATH "${DECOMPOSITION_PASS_ROOT}/Binaries/Clang/libDecompositionPreprocessorPass.so")
+endif ()
+message(STATUS "ClANG_PLUGIN_PATH: ${ClANG_PLUGIN_PATH}")
+
+set(MY_FILES
+    main.c
+    Private/mymath.c
+    Private/mystate.c
+    )
+
+set(CUR_MODULE "Simple")
+add_executable(${CUR_MODULE} ${MY_FILES})
 set_target_properties(${CUR_MODULE} PROPERTIES
-        COMPILE_FLAGS "-O0 -disable-llvm-passes -Xclang -disable-O0-optnone"
+        COMPILE_FLAGS "-O0 -g -disable-llvm-passes -Xclang -disable-O0-optnone"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
+)
+target_include_directories(${CUR_MODULE} PRIVATE ${CMAKE_SOURCE_DIR})
+
+set(CUR_MODULE "SimpleToIr")
+add_executable(${CUR_MODULE} ${MY_FILES})
+set_target_properties(${CUR_MODULE} PROPERTIES
+    LINKER_LANGUAGE NONE
+    COMPILE_FLAGS "-emit-llvm -S -O0 -g -disable-llvm-passes -Xclang -disable-O0-optnone"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
     )
+target_include_directories(${CUR_MODULE} PRIVATE ${CMAKE_SOURCE_DIR})
 add_custom_command(TARGET ${CUR_MODULE} POST_BUILD
-    COMMAND ${Python_EXECUTABLE} ${DECOMPOSITION_PASS_ROOT}/compiler_helper.py --Intermediate ${CMAKE_CURRENT_BINARY_DIR} --Source ${CMAKE_SOURCE_DIR} --Module ${CUR_MODULE}
+    COMMAND ${Python_EXECUTABLE} ${DECOMPOSITION_PASS_ROOT}/Source/Python/compiler_helper.py --Intermediate ${CMAKE_CURRENT_BINARY_DIR} --Source ${CMAKE_SOURCE_DIR} --Module ${CUR_MODULE}
     )
+
+set(CUR_MODULE "SimpleWithPlugin")
+add_executable(${CUR_MODULE} ${MY_FILES})
+set_target_properties(${CUR_MODULE} PROPERTIES
+    LINKER_LANGUAGE NONE
+    COMPILE_FLAGS "-emit-llvm -S -O0 -g -disable-llvm-passes -Xclang -disable-O0-optnone -Xclang -load -Xclang ${ClANG_PLUGIN_PATH} -Xclang -plugin -Xclang decomposition-plugin-preprocessor"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
+    )
+target_include_directories(${CUR_MODULE} PRIVATE ${CMAKE_SOURCE_DIR})

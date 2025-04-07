@@ -5,6 +5,7 @@ import subprocess
 
 F_SFX: str = '.c.o'
 F_OUT_SFX: str = '.ll' # .ll or .bc
+F_LNK_SFX: str = '.bc'
 
 def copy_intermediate_files_to_root_ll(args) -> None:
     object_dir: str = f'{args.Intermediate}/CMakeFiles/{args.Module}.dir'
@@ -12,21 +13,18 @@ def copy_intermediate_files_to_root_ll(args) -> None:
         raise FileNotFoundError(f'No such directory: {object_dir}')
 
     def _walk_dir(object_dir: str, touched_files) -> None:
-        for root, dirs, files in os.walk(object_dir):
+        for root, _, files in os.walk(object_dir):
             rel_dir: str = os.path.relpath(root, object_dir)
             if rel_dir == '.':
                 rel_dir = ''
             else:
                 rel_dir = f'{rel_dir}/'
 
-            for dir in dirs:
-                _walk_dir(f'{root}/{dir}', touched_files)
-
             for file in files:
                 if file.endswith('.c.o') is False:
                     continue
                 file_path = f'{root}/{file}'
-                new_file_path = f'{args.Source}/LlvmIr/{rel_dir}{file.replace(F_SFX, F_OUT_SFX)}'
+                new_file_path = f'{args.Source}/Saved/Ir/{rel_dir}{file.replace(F_SFX, F_OUT_SFX)}'
                 os.makedirs(os.path.dirname(new_file_path), exist_ok=True)
                 print(f'Copying [{file_path}] to [{new_file_path}].')
                 shutil.copy2(file_path, new_file_path)
@@ -39,7 +37,7 @@ def copy_intermediate_files_to_root_ll(args) -> None:
     touched_files: list[str] = []
     _walk_dir(object_dir, touched_files)
 
-    f_lnk_out: str = f'{args.Source}/LlvmIr/{args.Module.upper()}{F_OUT_SFX}'
+    f_lnk_out: str = f'{args.Source}/Saved/{args.Module}{F_LNK_SFX}'
     if f_lnk_out in touched_files:
         touched_files.remove(f_lnk_out)
 
