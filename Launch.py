@@ -2,11 +2,11 @@ import os
 from Source.Python.split import *
 from Source.Python.tasks import run_any_task
 
-def _get_default_llvm_pass() -> str: # TODO: Make thi more robust by searching for the file, Win: .dll, etc.
+def _get_default_llvm_pass() -> str: # TODO: Make this more robust by searching for the file, Win: .dll, etc.
     return 'Binaries/Llvm/DecompositionPass.so'
 
 
-def _get_default_clang_pass() -> str: # TODO: Make thi more robust by searching for the file, Win: .dll, etc.
+def _get_default_clang_pass() -> str: # TODO: Make this more robust by searching for the file, Win: .dll, etc.
     return 'Binaries/Clang/libDecompositionPreprocessorPass.so'
 
 
@@ -43,7 +43,7 @@ def default_parse_args() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Wrapper around the LLVM Plugin.")
-    parser.add_argument('-Setup',         action='store_true', help='Setup the environment. Only run once.')
+    parser.add_argument('-Setup',          action='store_true', help='Setup the environment. Only run once.')
 
     parser.add_argument('-LlvmPass',       type=str,            help='Llvm pass to run. Default to [Binaries/Llvm/DecompositionPass.so].')
     parser.add_argument('-ClangPass',      type=str,            help='Clang pass to run. Default to [Binaries/Clang/libDecompositionPreprocessorPass.so].')
