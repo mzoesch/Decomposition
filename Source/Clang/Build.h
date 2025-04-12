@@ -19,6 +19,12 @@
         llvm::report_fatal_error("Check failed: " #Expr); \
     }
 
+#define predcp_noentry(Msg) \
+    llvm::report_fatal_error("No entry: " Msg);
+
+#define predcp_checkcode(Stmt) \
+    do { Stmt; } while (0);
+
 enum : signed char
 {
     INDEX_NONE = -1,

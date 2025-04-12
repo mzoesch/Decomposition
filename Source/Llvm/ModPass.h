@@ -12,6 +12,7 @@ namespace Dcp
 
 struct AnalyzedMod;
 struct ModGlobal;
+struct ModType;
 
 /** Represents a module. */
 struct AnalyzedMod final
@@ -19,12 +20,21 @@ struct AnalyzedMod final
     std::string Identifier;
 
     std::vector<ModGlobal> Globals;
+    std::vector<ModType> Types;
 
     /** @return True if added. */
     DCP_API bool AddNode(ModGlobal&& Node);
+    DCP_API bool AddNode(ModType&& Node);
 };
 
 struct ModGlobal final : public MyNode
+{
+    std::string Type;
+
+    DCP_API bool IsValid() const override;
+};
+
+struct ModType final : public MyNode
 {
 };
 

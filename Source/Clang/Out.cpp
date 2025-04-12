@@ -48,9 +48,10 @@ void EnsureJsonFile(const std::string& FileName)
     return;
 }
 
-std::string GetIntermediateFile()
+std::string GetIntermediateFile(const std::string& InRoot)
 {
-    return "Saved/SccpsIntermediate.json";
+    predcp_check( InRoot.size() > 0 && (InRoot.back() != '/' || InRoot.back() != '\\') )
+    return InRoot + "/Saved/SccpsIntermediate.json";
 }
 
 void PrepareJson(json* JPtr)
@@ -58,13 +59,13 @@ void PrepareJson(json* JPtr)
     predcp_check( JPtr )
     auto& J = *JPtr;
 
-    if (J.contains("Types"))
+    if (J.contains("Files"))
     {
-        predcp_check( J["Types"].is_array())
+        predcp_check( J["Files"].is_array())
     }
     else
     {
-        J["Types"] = json::array();
+        J["Files"] = json::array();
     }
 
     return;
@@ -72,22 +73,22 @@ void PrepareJson(json* JPtr)
 
 } /* ~Namespace <Anonymous> */
 
-void Predcp::InvalidateIntermediateCache()
+void Predcp::InvalidateIntermediateCache(const std::string& InRoot)
 {
-    if (fs::exists(GetIntermediateFile()))
+    if (fs::exists(GetIntermediateFile(InRoot)))
     {
-        fs::remove(GetIntermediateFile());
-        llvm::outs() << "Removed intermediate file: " << GetIntermediateFile() << "\n";
+        fs::remove(GetIntermediateFile(InRoot));
+        llvm::outs() << "Removed intermediate file: " << GetIntermediateFile(InRoot) << "\n";
     }
 
     return;
 }
 
-void Predcp::PutToIntermediate(MyTypeDef&& Type)
+void Predcp::PutToIntermediate(const std::string& InRoot, std::string&& F, std::vector<MyMacroInfo>&& Macros)
 {
-    EnsureJsonFile(GetIntermediateFile());
+    EnsureJsonFile(GetIntermediateFile(InRoot));
 
-    std::ifstream In(GetIntermediateFile());
+    std::ifstream In(GetIntermediateFile(InRoot));
     predcp_check( In.is_open() )
 
     json PrivateJson;
@@ -95,21 +96,195 @@ void Predcp::PutToIntermediate(MyTypeDef&& Type)
     In.close();
 
     PrepareJson(&PrivateJson);
-    auto& TypeCursor = PrivateJson["Types"];
-
-    if (TypeCursor.contains(Type.Identifier))
+    auto& Files = PrivateJson["Files"];
+    nlohmann::basic_json<>* Translation = nullptr;
+    for (auto& T : Files)
     {
-        return;
+        if (T.contains("Identifier") && T["Identifier"] == F)
+        {
+            Translation = &T;
+            break;
+        }
+    }
+    if (Translation == nullptr)
+    {
+        Translation = &Files.emplace_back(json::object());
+        (*Translation)["Identifier"] = F;
+        (*Translation)["Macros"] = json::array();
+        (*Translation)["Includes"] = json::array();
     }
 
-    TypeCursor.emplace_back(json::object());
-    auto& CurType = TypeCursor.back();
-    CurType["Identifier"] = Type.Identifier;
-    CurType["Source"] = Type.Source;
-    CurType["Line"] = Type.Line;
-    CurType["Column"] = Type.Column;
+    auto& MacrosArray = (*Translation)["Macros"];
+    for (const MyMacroInfo& Macro : Macros)
+    {
+        predcp_check( !(Macro.bFunction == false && Macro.Params.size() > 0) )
+        predcp_checkcode
+        (
+            if (MacrosArray.contains(Macro.Identifier))
+            {
+                predcp_noentry()
+            }
+        )
 
-    std::ofstream Out(GetIntermediateFile());
+        MacrosArray.emplace_back(json::object());
+        auto& CurMacro = MacrosArray.back();
+        CurMacro["Identifier"] = Macro.Identifier;
+        CurMacro["Line"] = Macro.Line;
+        CurMacro["Definition"] = Macro.Definition;
+        CurMacro["bFunction"] = Macro.bFunction;
+        CurMacro["Params"] = json::array();
+        for (const std::string& Param : Macro.Params)
+        {
+            CurMacro["Params"].emplace_back(Param);
+        }
+
+        continue;
+    }
+
+    std::ofstream Out(GetIntermediateFile(InRoot));
+    predcp_check( Out.is_open() )
+    Out << std::setw(4) << PrivateJson << std::endl;
+    Out.close();
+
+    return;
+}
+
+void Predcp::PutToIntermediate(const std::string& InRoot, std::map<std::string, std::vector<MyIncludeDirective>>&& InFiles)
+{
+    EnsureJsonFile(GetIntermediateFile(InRoot));
+
+    std::ifstream In(GetIntermediateFile(InRoot));
+    predcp_check( In.is_open() )
+
+    json PrivateJson;
+    In >> PrivateJson;
+    In.close();
+
+    PrepareJson(&PrivateJson);
+
+    auto& Files = PrivateJson["Files"];
+    for (const auto& Header : InFiles)
+    {
+        nlohmann::basic_json<>* HeaderCursor = nullptr;
+        for (auto& H : Files)
+        {
+            if (H.contains("Identifier") && H["Identifier"] == Header.first)
+            {
+                predcp_check( H["Includes"].is_array() )
+                HeaderCursor = &H;
+                break;
+            }
+        }
+        if (HeaderCursor == nullptr)
+        {
+            HeaderCursor = &Files.emplace_back(json::object());
+            (*HeaderCursor)["Identifier"] = Header.first;
+            (*HeaderCursor)["Macros"] = json::array();
+            (*HeaderCursor)["Includes"] = json::array();
+        }
+
+        auto& IncludesArray = (*HeaderCursor)["Includes"];
+        for (const MyIncludeDirective& Include : Header.second)
+        {
+            bool bFound = false;
+            for (auto& I : IncludesArray)
+            {
+                if (I.contains("What") && I["What"] == Include.What)
+                {
+                    bFound = true;
+                    break;
+                }
+            }
+            if (bFound)
+            {
+                continue;
+            }
+
+            IncludesArray.emplace_back(json::object());
+            auto& CurInclude = IncludesArray.back();
+            CurInclude["Line"] = Include.Line;
+            CurInclude["What"] = Include.What;
+            CurInclude["Native"] = Include.Native;
+
+            continue;
+        }
+
+        continue;
+    }
+
+    std::ofstream Out(GetIntermediateFile(InRoot));
+    predcp_check( Out.is_open() )
+    Out << std::setw(4) << PrivateJson << std::endl;
+    Out.close();
+
+    return;
+}
+
+void Predcp::PutToIntermediate(const std::string& InRoot, std::map<std::string, std::vector<MyMacroInfo>>&& InHeaders)
+{
+    EnsureJsonFile(GetIntermediateFile(InRoot));
+
+    std::ifstream In(GetIntermediateFile(InRoot));
+    predcp_check( In.is_open() )
+
+    json PrivateJson;
+    In >> PrivateJson;
+    In.close();
+
+    PrepareJson(&PrivateJson);
+
+    auto& Headers = PrivateJson["Files"];
+    for (const auto& Header : InHeaders)
+    {
+        nlohmann::basic_json<>* HeaderCursor = nullptr;
+        for (auto& H : Headers)
+        {
+            if (H.contains("Identifier") && H["Identifier"] == Header.first)
+            {
+                predcp_check( H["Macros"].is_array() )
+                HeaderCursor = &H;
+                break;
+            }
+        }
+        if (HeaderCursor == nullptr)
+        {
+            HeaderCursor = &Headers.emplace_back(json::object());
+            (*HeaderCursor)["Identifier"] = Header.first;
+            (*HeaderCursor)["Macros"] = json::array();
+            (*HeaderCursor)["Includes"] = json::array();
+        }
+
+        auto& MacrosArray = (*HeaderCursor)["Macros"];
+        for (const MyMacroInfo& Macro : Header.second)
+        {
+            predcp_check( !(Macro.bFunction == false && Macro.Params.size() > 0) )
+            predcp_checkcode
+            (
+                if (MacrosArray.contains(Macro.Identifier))
+                {
+                    predcp_noentry()
+                }
+            )
+
+            MacrosArray.emplace_back(json::object());
+            auto& CurMacro = MacrosArray.back();
+            CurMacro["Identifier"] = Macro.Identifier;
+            CurMacro["Line"] = Macro.Line;
+            CurMacro["Definition"] = Macro.Definition;
+            CurMacro["bFunction"] = Macro.bFunction;
+            CurMacro["Params"] = json::array();
+            for (const std::string& Param : Macro.Params)
+            {
+                CurMacro["Params"].emplace_back(Param);
+            }
+
+            continue;
+        }
+
+        continue;
+    }
+
+    std::ofstream Out(GetIntermediateFile(InRoot));
     predcp_check( Out.is_open() )
     Out << std::setw(4) << PrivateJson << std::endl;
     Out.close();

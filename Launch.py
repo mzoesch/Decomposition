@@ -2,7 +2,6 @@ import os
 from Source.Python.split import *
 from Source.Python.tasks import run_any_task
 
-
 def _get_default_llvm_pass() -> str: # TODO: Make thi more robust by searching for the file, Win: .dll, etc.
     return 'Binaries/Llvm/DecompositionPass.so'
 
@@ -14,17 +13,16 @@ def _get_default_clang_pass() -> str: # TODO: Make thi more robust by searching 
 def launch(parsed_args) -> None:
     """Main pipeline progress."""
 
-    try:
-        os.remove(get_intermediate_file())
-    except FileNotFoundError:
-        pass
+    if parsed_args.ClearOut:
+        clear_out_dir(parsed_args.DisplayName)
 
-    for pass_name in parsed_args.LlvmPassNames:
-        launch_pass(parsed_args.LlvmPass, pass_name, parsed_args.IR)
+    if parsed_args.SkipAnalysis is False:
+        for pass_name in parsed_args.LlvmPassNames:
+            launch_pass(parsed_args.LlvmPass, pass_name, parsed_args.IR)
 
     with open(get_intermediate_file(), 'r') as f: # Check that the intermediate file is valid
         pass
-    operate_on_intermediate_file(parsed_args.DisplayName, get_intermediate_file())
+    operate_on_intermediate_file(parsed_args.DisplayName, parsed_args, get_intermediate_file())
 
     return None
 
@@ -53,11 +51,18 @@ def default_parse_args() -> None:
     parser.add_argument('-ClangPassNames', nargs='+', type=str, help='Pass names to run. Default to [decomposition-plugin-preprocessor].')
 
     parser.add_argument('-Split',          action='store_true', help='Whether to split or just do side tasks.')
+    parser.add_argument('-SkipAnalysis',   action='store_true', help='Whether to skip analysis of LLVM.')
+    parser.add_argument('-ClearOut',       action='store_true', help='Whether to clear the out dir.')
     parser.add_argument('-IR',             type=str,            help='IR file to run the pass on.')
     parser.add_argument('-DisplayName',    type=str,            help='Display name of the IR.')
 
+    parser.add_argument('-Includes',       nargs='+', type=str, help='Native includes of the C program.')
+
     args = parser.parse_args(sys.argv[1:])
     print(args)
+
+    if args.Includes is None:
+        args.Includes = []
 
     if args.Setup:
         setup_environment()

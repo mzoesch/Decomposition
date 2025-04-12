@@ -1,12 +1,12 @@
 #include "Build.h"
 #include "SccPass.h"
 #include "Out.h"
-#include "dwarf.h"
-#include "llvm/IR/DebugLoc.h"
-#include "llvm/Support/Path.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/DebugInfoMetadata.h"
-#include "llvm/IR/DebugInfo.h"
+#include <dwarf.h>
+#include <llvm/IR/DebugLoc.h>
+#include <llvm/Support/Path.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/DebugInfo.h>
 #include <filesystem>
 #include <fstream>
 
@@ -16,9 +16,9 @@ namespace fs = std::filesystem;
 namespace
 {
 
-std::string ToAbsolutePath(const DISubprogram& Disp)
+std::string ToAbsolutePath(const DISubprogram& DiSp)
 {
-    const DIFile* File = Disp.getFile();
+    const DIFile* File = DiSp.getFile();
     dcp_check( File )
 
     const std::string FileName = File->getFilename().str();
@@ -190,8 +190,17 @@ bool Dcp::SccFunction::IsValid() const
         return false;
     }
 
+    for (const Param& Param : this->Params)
+    {
+        if (Param.Identifier.empty() || Param.Type.empty())
+        {
+            return false;
+        }
+    }
+
     return this->EndLine > INDEX_NONE && this->EndLine != std::numeric_limits<int>::max()
-        && this->EndLine >= this->Line;
+        && this->EndLine >= this->Line
+        && this->Ret.size() > 0;
 }
 
 PreservedAnalyses Dcp::SCCDecompositionPass::run
@@ -226,13 +235,13 @@ void Dcp::SCCDecompositionPass::AnalyzeFunctions(AnalyzedScc* Out, const LazyCal
         const Function& F = NativeNode.getFunction();
         dcp_check( F.isDeclaration() == false )
 
-        const DISubprogram* Disp = F.getSubprogram();
-        dcp_check( Disp )
+        const DISubprogram* DiSp = F.getSubprogram();
+        dcp_check( DiSp )
 
         SccFunction Node;
         Node.Identifier = F.getName();
-        Node.Source = ToAbsolutePath(*Disp);
-        Node.Line = static_cast<int>(Disp->getLine());
+        Node.Source = ToAbsolutePath(*DiSp);
+        Node.Line = static_cast<int>(DiSp->getLine());
 
         for (const BasicBlock& Bb : F)
         {
@@ -243,6 +252,134 @@ void Dcp::SCCDecompositionPass::AnalyzeFunctions(AnalyzedScc* Out, const LazyCal
                 Node.EndLine = static_cast<int>(Dl->getLine());
             }
 
+            continue;
+        }
+
+        const Type* RetTy = F.getReturnType();
+        dcp_check( RetTy )
+        if (RetTy->isVoidTy())
+        {
+            Node.Ret = "void";
+        }
+        else
+        {
+            if (const DISubroutineType* Type = DiSp->getType())
+            {
+                /* The first element is the return type. */
+                if (DIType* ReturnType = Type->getTypeArray()[0])
+                {
+                    Node.Ret = ReturnType->getName().str();
+                }
+            }
+        }
+
+        for (const BasicBlock& BB: F)
+        {
+            for (const Instruction& Inst: BB)
+            {
+                for (DbgRecord& Dr: Inst.getDbgRecordRange())
+                {
+                    // How do we handle labels?
+                    dcp_check( Dr.getRecordKind() == DbgRecord::ValueKind )
+
+                    const DbgVariableRecord* Dvr = dyn_cast<DbgVariableRecord>(&Dr);
+                    dcp_check( Dvr )
+
+                    const DILocalVariable* DiLv = Dvr->getVariable();
+                    dcp_check( DiLv )
+                    dcp_check( DiLv->getScope() == DiSp )
+
+                    // If #getArg() == 0, then it is a local variable
+                    if (DiLv->getArg() == 0)
+                    {
+                        continue;
+                    }
+
+                    const DIType* DiTy = DiLv->getType();
+                    dcp_check( DiTy )
+
+                    struct
+                    {
+                        bool bConst = false;
+                        bool bVolatile = false;
+                        bool bRestrict = false;
+                        bool bPointer = false;
+                        std::string Name;
+                    } ParamFactory;
+
+                    const DIType* Cursor = DiTy;
+                    while (Cursor)
+                    {
+                        if (Cursor->getTag() == DW_TAG_const_type)
+                        {
+                            ParamFactory.bConst = true;
+                        }
+                        else if (Cursor->getTag() == DW_TAG_volatile_type)
+                        {
+                            ParamFactory.bVolatile = true;
+                        }
+                        else if (Cursor->getTag() == DW_TAG_restrict_type)
+                        {
+                            ParamFactory.bRestrict = true;
+                        }
+                        else if (Cursor->getTag() == DW_TAG_pointer_type)
+                        {
+                            ParamFactory.bPointer = true;
+                        }
+                        else if (Cursor->getTag() == DW_TAG_base_type)
+                        {
+                            ParamFactory.Name = Cursor->getName().str();
+                            break;
+                        }
+                        else
+                        {
+                            dcp_noentry( "Unknown tag." )
+                        }
+
+                        if (const DIDerivedType* DiDty = dyn_cast<DIDerivedType>(Cursor); DiDty)
+                        {
+                            Cursor = DiDty->getBaseType();
+                        }
+                        else
+                        {
+                            Cursor = nullptr;
+                        }
+
+                        continue;
+                    }
+
+                    dcp_check( ParamFactory.Name.empty() == false )
+                    std::stringstream Ss;
+                    if (ParamFactory.bConst)
+                    {
+                        Ss << "const ";
+                    }
+                    if (ParamFactory.bVolatile)
+                    {
+                        Ss << "volatile ";
+                    }
+                    if (ParamFactory.bRestrict)
+                    {
+                        Ss << "restrict ";
+                    }
+                    Ss << ParamFactory.Name;
+                    if (ParamFactory.bPointer)
+                    {
+                        Ss << " *";
+                    }
+
+                    SccFunction::Param Param;
+                    Param.Identifier = DiLv->getName().str();
+                    Param.Type = Ss.str();
+
+                    dcp_check( DiLv->getArg() == Node.Params.size() + 1 )
+
+                    Node.Params.emplace_back(std::move(Param));
+
+                    continue;
+                }
+                continue;
+            }
             continue;
         }
 
@@ -441,6 +578,7 @@ void Dcp::SCCDecompositionPass::AnalyzeStructs(AnalyzedScc* Out, const Module& M
         if (Def.IsValid() == false)
         {
             errs() << "Failed to find definition for struct: " << STy->getName() << "\n";
+            dcp_noentry()
             continue;
         }
 
@@ -456,7 +594,7 @@ void Dcp::SCCDecompositionPass::AnalyzeStructs(AnalyzedScc* Out, const Module& M
     return;
 }
 
-void Dcp::SCCDecompositionPass::AnalyzeGlobals(AnalyzedScc* Out, const llvm::LazyCallGraph::SCC& Scc)
+void Dcp::SCCDecompositionPass::AnalyzeGlobals(AnalyzedScc* Out, const LazyCallGraph::SCC& Scc)
 {
     SmallPtrSet<const GlobalVariable*, 16> UsedGlobals;
 
@@ -516,7 +654,6 @@ void Dcp::SCCDecompositionPass::AnalyzeGlobals(AnalyzedScc* Out, const llvm::Laz
             SccGlobalRef Global;
             Global.Identifier = DiGv->getName().str();
             Global.Source = std::move(AbsolutePath);
-            // Global.Line = static_cast<int>(DiGv->getLine());
 
             Out->AddNode(std::move(Global));
         }

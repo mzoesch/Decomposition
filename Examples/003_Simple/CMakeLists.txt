@@ -71,7 +71,7 @@ set(CUR_MODULE "SimpleWithPlugin")
 add_executable(${CUR_MODULE} ${MY_FILES})
 set_target_properties(${CUR_MODULE} PROPERTIES
     LINKER_LANGUAGE NONE
-    COMPILE_FLAGS "-emit-llvm -S -O0 -g -disable-llvm-passes -Xclang -disable-O0-optnone -Xclang -load -Xclang ${ClANG_PLUGIN_PATH} -Xclang -plugin -Xclang decomposition-plugin-preprocessor"
+    COMPILE_FLAGS "-emit-llvm -S -O0 -g -disable-llvm-passes -Xclang -disable-O0-optnone -Xclang -load -Xclang ${ClANG_PLUGIN_PATH} -dcp-root ${DECOMPOSITION_PASS_ROOT} -Xclang -plugin -Xclang decomposition-plugin-preprocessor"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/Binaries"

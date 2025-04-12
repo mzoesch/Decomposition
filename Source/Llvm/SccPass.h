@@ -2,8 +2,8 @@
 
 #include "Build.h"
 #include "Shared.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/Passes/PassBuilder.h"
+#include <llvm/IR/PassManager.h>
+#include <llvm/Passes/PassBuilder.h>
 
 #define SCCDP_PLUGIN_NAME "decomposition-plugin-sccp"
 
@@ -47,10 +47,19 @@ struct SccFunctionRef final : public MyNodeRef
 /** Function node definition. */
 struct SccFunction final : public MyNode
 {
+    struct Param
+    {
+        std::string Type;
+        std::string Identifier;
+    };
+
     int EndLine = INDEX_NONE;
 
     /** All includes until function definition. */
     std::vector<std::string> Includes;
+
+    std::string Ret;
+    std::vector<Param> Params;
 
     DCP_API virtual bool operator==(const SccFunction& Other) const;
     DCP_API virtual bool IsValid() const override;

@@ -78,10 +78,32 @@ void ToJson(json* J, const Dcp::SccFunction& Node)
 
     (*J)["EndLine"] = Node.EndLine;
     (*J)["Includes"] = json::array();
+    (*J)["Ret"] = json::string_t();
+    (*J)["Params"] = json::array();
+
     for (const std::string& Include : Node.Includes)
     {
-        (*J)["Includes"].push_back(Include);
+        (*J)["Includes"].emplace_back(Include);
     }
+
+    for (const auto& Param : Node.Params)
+    {
+        json JParam;
+        JParam["Identifier"] = Param.Identifier;
+        JParam["Type"] = Param.Type;
+        (*J)["Params"].emplace_back(std::move(JParam));
+    }
+
+    (*J)["Ret"] = Node.Ret;
+
+    return;
+}
+
+void ToJson(json* J, const Dcp::ModGlobal& Node)
+{
+    ToJson(J, static_cast<const Dcp::MyNode&>(Node));
+
+    (*J)["Type"] = Node.Type;
 
     return;
 }
@@ -117,6 +139,15 @@ nlohmann::basic_json<>* GetCursorToModule(json* JPtr, const std::string& ModuleN
     else
     {
         J["Globals"] = json::array();
+    }
+
+    if (J.contains("Types"))
+    {
+        dcp_check( J["Types"].is_array() )
+    }
+    else
+    {
+        J["Types"] = json::array();
     }
 
     return JPtr;
@@ -220,14 +251,26 @@ void Dcp::PutToIntermediate(AnalyzedMod&& Mod)
     In >> PrivateJson;
     In.close();
 
-    auto& Globals = (*GetCursorToModuleChecked(&PrivateJson, Mod.Identifier))["Globals"];
+    auto& ModCursor = (*GetCursorToModuleChecked(&PrivateJson, Mod.Identifier));
+
+    auto& Globals = ModCursor["Globals"];
+    auto& Types = ModCursor["Types"];
     dcp_check( Globals.is_array() )
+    dcp_check( Types.is_array() )
 
     for (const ModGlobal& Node : Mod.Globals)
     {
         json JNode;
         ToJson(&JNode, Node);
         Globals.emplace_back(std::move(JNode));
+        continue;
+    }
+
+    for (const ModType& Node : Mod.Types)
+    {
+        json JNode;
+        ToJson(&JNode, Node);
+        Types.emplace_back(std::move(JNode));
         continue;
     }
 

@@ -1,12 +1,11 @@
 #include "Build.h"
 #include "ModPass.h"
 #include "Out.h"
-#include "dwarf.h"
-#include "llvm/IR/DebugLoc.h"
-#include "llvm/Support/Path.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/DebugInfoMetadata.h"
-#include "llvm/IR/DebugInfo.h"
+#include <dwarf.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/Support/Path.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/DebugInfo.h>
 
 using namespace llvm;
 
@@ -21,6 +20,29 @@ bool Dcp::AnalyzedMod::AddNode(ModGlobal&& Node)
     }
 
     return false;
+}
+
+bool Dcp::AnalyzedMod::AddNode(ModType&& Node)
+{
+    dcp_check( Node.IsValid() )
+
+    if (std::find(this->Types.begin(), this->Types.end(), Node) == this->Types.end())
+    {
+        this->Types.emplace_back(std::move(Node));
+        return true;
+    }
+
+    return false;
+}
+
+bool Dcp::ModGlobal::IsValid() const
+{
+    if (const bool bValid = MyNode::IsValid(); bValid == false)
+    {
+        return false;
+    }
+
+    return this->Type.size() > 0;
 }
 
 PreservedAnalyses Dcp::ModDecompositionPass::run(Module& M, ModuleAnalysisManager& Mam)
@@ -73,6 +95,10 @@ void Dcp::ModDecompositionPass::GetAllGlobals(AnalyzedMod* Out, const Module& M)
             G.Line = static_cast<int>(DiGv->getLine());
             G.Source = File->getDirectory().str() + '/' + File->getFilename().str();
 
+            const DIType* DiTy = DiGv->getType();
+            dcp_check( DiTy )
+            G.Type = DiTy->getName().str();
+
             break;
         }
 
@@ -86,12 +112,20 @@ void Dcp::ModDecompositionPass::GetAllGlobals(AnalyzedMod* Out, const Module& M)
 void Dcp::ModDecompositionPass::GetAllTypes(AnalyzedMod* Out, const Module& M)
 {
     dcp_check( Out )
-    NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu");
-    if (!CU_Nodes) {
-        errs() << "No debug information found.\n";
-        return;
-    }
+    dcp_check( M.getNamedMetadata("llvm.dbg.cu") )
 
+    for (const StructType* STy : M.getIdentifiedStructTypes())
+    {
+        const DIType* DiTy = FindDiTypeChecked(M, static_cast<dwarf::Tag>(DW_TAG_structure_type), STy->getName());
+
+        ModType Ty;
+        Ty.Identifier = STy->getName().str();
+        Ty.Source = DiTy->getDirectory().str() + '/' + DiTy->getFilename().str();
+        Ty.Line = static_cast<int>(DiTy->getLine());
+
+        Out->AddNode(std::move(Ty));
+        continue;
+    }
 
     return;
 }

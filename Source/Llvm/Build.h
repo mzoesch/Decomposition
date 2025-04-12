@@ -18,6 +18,12 @@
         llvm::report_fatal_error("Check failed: " #Expr); \
     }
 
+#define dcp_noentry(Msg) \
+    llvm::report_fatal_error("No entry: " Msg);
+
+#define dcp_checkcode(Stmt) \
+    do { Stmt; } while (0);
+
 enum : signed char
 {
     INDEX_NONE = -1,

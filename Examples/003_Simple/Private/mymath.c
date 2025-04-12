@@ -9,7 +9,7 @@ Output multiply(const int a, const int b)
 Output add(const int a, const int b)
 {
     ++g_my_state;
-    return inline_add(a, b);
+    return inline_add(&a, &b);
 }
 
 Output square(const int a)
