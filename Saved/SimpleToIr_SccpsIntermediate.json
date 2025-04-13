@@ -1,0 +1,5633 @@
+{
+    "Files": [
+        {
+            "Identifier": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/main.c",
+            "Includes": [
+                {
+                    "Line": 1,
+                    "Native": "stdio.h",
+                    "What": "/usr/include/stdio.h"
+                },
+                {
+                    "Line": 2,
+                    "Native": "mymath.h",
+                    "What": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_STDIO_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__GLIBC_INTERNAL_STARTING_HEADER_IMPLEMENTATION",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_FEATURES_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__KERNEL_STRICT_NAMES",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "((__GNUC__<<16)+__GNUC_MINOR__>=((maj)<<16)+(min))",
+                    "Identifier": "__GNUC_PREREQ",
+                    "Line": 1,
+                    "Params": [
+                        "maj",
+                        "min"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "((__clang_major__<<16)+__clang_minor__>=((maj)<<16)+(min))",
+                    "Identifier": "__glibc_clang_prereq",
+                    "Line": 1,
+                    "Params": [
+                        "maj",
+                        "min"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__GLIBC_USE_##F",
+                    "Identifier": "__GLIBC_USE",
+                    "Line": 1,
+                    "Params": [
+                        "F"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_DEFAULT_SOURCE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_ISOC2Y",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__GLIBC_USE_ISOC23",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC11",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC99",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC95",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX_IMPLICITLY",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_POSIX_SOURCE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "200809L",
+                    "Identifier": "_POSIX_C_SOURCE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX2",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX199309",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX199506",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_XOPEN2K",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC95",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC99",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_XOPEN2K8",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_ATFILE_SOURCE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__WORDSIZE",
+                    "Identifier": "__TIMESIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_TIME_BITS64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_MISC",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ATFILE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__USE_FORTIFY_LEVEL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_DEPRECATED_GETS",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_DEPRECATED_SCANF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__GLIBC_USE_C23_STRTOL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_STDC_PREDEF_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__STDC_IEC_559__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "201404L",
+                    "Identifier": "__STDC_IEC_60559_BFP__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__STDC_IEC_559_COMPLEX__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "201404L",
+                    "Identifier": "__STDC_IEC_60559_COMPLEX__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "201706L",
+                    "Identifier": "__STDC_ISO_10646__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "6",
+                    "Identifier": "__GNU_LIBRARY__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "2",
+                    "Identifier": "__GLIBC__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "41",
+                    "Identifier": "__GLIBC_MINOR__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "((__GLIBC__<<16)+__GLIBC_MINOR__>=((maj)<<16)+(min))",
+                    "Identifier": "__GLIBC_PREREQ",
+                    "Line": 1,
+                    "Params": [
+                        "maj",
+                        "min"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_SYS_CDEFS_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__has_attribute(attr)",
+                    "Identifier": "__glibc_has_attribute",
+                    "Line": 1,
+                    "Params": [
+                        "attr"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__has_builtin(name)",
+                    "Identifier": "__glibc_has_builtin",
+                    "Line": 1,
+                    "Params": [
+                        "name"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__has_extension(ext)",
+                    "Identifier": "__glibc_has_extension",
+                    "Line": 1,
+                    "Params": [
+                        "ext"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__LEAF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__LEAF_ATTR",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__nothrow____LEAF))",
+                    "Identifier": "__THROW",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__nothrow__))",
+                    "Identifier": "__THROWNL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__nothrow____LEAF))fct",
+                    "Identifier": "__NTH",
+                    "Line": 1,
+                    "Params": [
+                        "fct"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__nothrow__))fct",
+                    "Identifier": "__NTHNL",
+                    "Line": 1,
+                    "Params": [
+                        "fct"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__cold__))",
+                    "Identifier": "__COLD",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "args",
+                    "Identifier": "__P",
+                    "Line": 1,
+                    "Params": [
+                        "args"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "args",
+                    "Identifier": "__PMT",
+                    "Line": 1,
+                    "Params": [
+                        "args"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "x##y",
+                    "Identifier": "__CONCAT",
+                    "Line": 1,
+                    "Params": [
+                        "x",
+                        "y"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "#x",
+                    "Identifier": "__STRING",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "void*",
+                    "Identifier": "__ptr_t",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__BEGIN_DECLS",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__END_DECLS",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__overloadable__))",
+                    "Identifier": "__attribute_overloadable__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__builtin_object_size(ptr,__USE_FORTIFY_LEVEL>1)",
+                    "Identifier": "__bos",
+                    "Line": 1,
+                    "Params": [
+                        "ptr"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__builtin_object_size(ptr,0)",
+                    "Identifier": "__bos0",
+                    "Line": 1,
+                    "Params": [
+                        "ptr"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__bos0(__o)",
+                    "Identifier": "__glibc_objsize0",
+                    "Line": 1,
+                    "Params": [
+                        "__o"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__bos(__o)",
+                    "Identifier": "__glibc_objsize",
+                    "Line": 1,
+                    "Params": [
+                        "__o"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__warnattr",
+                    "Line": 1,
+                    "Params": [
+                        "msg"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "externvoidname(void)",
+                    "Identifier": "__errordecl",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "msg"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "[]",
+                    "Identifier": "__flexarr",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__glibc_c99_flexarr_available",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "nameproto__asm__(__ASMNAME(#alias))",
+                    "Identifier": "__REDIRECT",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto__asm__(__ASMNAME(#alias))__THROW",
+                    "Identifier": "__REDIRECT_NTH",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto__asm__(__ASMNAME(#alias))__THROWNL",
+                    "Identifier": "__REDIRECT_NTHNL",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__ASMNAME2(__USER_LABEL_PREFIX__,cname)",
+                    "Identifier": "__ASMNAME",
+                    "Line": 1,
+                    "Params": [
+                        "cname"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__STRING(prefix)cname",
+                    "Identifier": "__ASMNAME2",
+                    "Line": 1,
+                    "Params": [
+                        "prefix",
+                        "cname"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__REDIRECT",
+                    "Identifier": "__REDIRECT_FORTIFY",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__REDIRECT_NTH",
+                    "Identifier": "__REDIRECT_FORTIFY_NTH",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__malloc__))",
+                    "Identifier": "__attribute_malloc__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attribute_alloc_size__",
+                    "Line": 1,
+                    "Params": [
+                        "params"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__alloc_align__param))",
+                    "Identifier": "__attribute_alloc_align__",
+                    "Line": 1,
+                    "Params": [
+                        "param"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__pure__))",
+                    "Identifier": "__attribute_pure__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__const__))",
+                    "Identifier": "__attribute_const__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__unused__))",
+                    "Identifier": "__attribute_maybe_unused__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__used__))",
+                    "Identifier": "__attribute_used__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__noinline__))",
+                    "Identifier": "__attribute_noinline__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__deprecated__))",
+                    "Identifier": "__attribute_deprecated__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__deprecated__(msg)))",
+                    "Identifier": "__attribute_deprecated_msg__",
+                    "Line": 1,
+                    "Params": [
+                        "msg"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__format_arg__(x)))",
+                    "Identifier": "__attribute_format_arg__",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__format__(__strfmon__,a,b)))",
+                    "Identifier": "__attribute_format_strfmon__",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__nonnull__params))",
+                    "Identifier": "__attribute_nonnull__",
+                    "Line": 1,
+                    "Params": [
+                        "params"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute_nonnull__(params)",
+                    "Identifier": "__nonnull",
+                    "Line": 1,
+                    "Params": [
+                        "params"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__returns_nonnull__))",
+                    "Identifier": "__returns_nonnull",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__warn_unused_result__))",
+                    "Identifier": "__attribute_warn_unused_result__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__wur",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__inline__attribute__((__always_inline__))",
+                    "Identifier": "__always_inline",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__artificial__))",
+                    "Identifier": "__attribute_artificial__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "extern__inline__attribute__((__gnu_inline__))",
+                    "Identifier": "__extern_inline",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "extern__always_inline__attribute__((__gnu_inline__))",
+                    "Identifier": "__extern_always_inline",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__extern_always_inline__attribute_artificial__",
+                    "Identifier": "__fortify_function",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__restrict",
+                    "Identifier": "__restrict_arr",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__builtin_expect((cond),0)",
+                    "Identifier": "__glibc_unlikely",
+                    "Line": 1,
+                    "Params": [
+                        "cond"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__builtin_expect((cond),1)",
+                    "Identifier": "__glibc_likely",
+                    "Line": 1,
+                    "Params": [
+                        "cond"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attribute_nonstring__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attribute_copy__",
+                    "Line": 1,
+                    "Params": [
+                        "arg"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__LDOUBLE_REDIRECTS_TO_FLOAT128_ABI",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "nameproto",
+                    "Identifier": "__LDBL_REDIR1",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto",
+                    "Identifier": "__LDBL_REDIR",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto__THROW",
+                    "Identifier": "__LDBL_REDIR1_NTH",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto__THROW",
+                    "Identifier": "__LDBL_REDIR_NTH",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__LDBL_REDIR2_DECL",
+                    "Line": 1,
+                    "Params": [
+                        "name"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__LDBL_REDIR_DECL",
+                    "Line": 1,
+                    "Params": [
+                        "name"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__REDIRECT(name,proto,alias)",
+                    "Identifier": "__REDIRECT_LDBL",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__REDIRECT_NTH(name,proto,alias)",
+                    "Identifier": "__REDIRECT_NTH_LDBL",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "_Pragma(#message)",
+                    "Identifier": "__glibc_macro_warning1",
+                    "Line": 1,
+                    "Params": [
+                        "message"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__glibc_macro_warning1(GCCwarningmessage)",
+                    "Identifier": "__glibc_macro_warning",
+                    "Line": 1,
+                    "Params": [
+                        "message"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_GENERIC_SELECTION",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__fortified_attr_access",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "o",
+                        "s"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attr_access",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attr_access_none",
+                    "Line": 1,
+                    "Params": [
+                        "argno"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attr_dealloc",
+                    "Line": 1,
+                    "Params": [
+                        "dealloc",
+                        "argno"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attr_dealloc_free",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__returns_twice__))",
+                    "Identifier": "__attribute_returns_twice__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__may_alias__))",
+                    "Identifier": "__attribute_struct_may_alias__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub___compat_bdflush",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_chflags",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_fchflags",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_gtty",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_revoke",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_setlogin",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_sigreturn",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_stty",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_LIB_EXT2",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_IEC_60559_BFP_EXT",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__GLIBC_USE_IEC_60559_BFP_EXT_C23",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_IEC_60559_EXT",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_IEC_60559_FUNCS_EXT",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__GLIBC_USE_IEC_60559_FUNCS_EXT_C23",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_IEC_60559_TYPES_EXT",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__need_size_t",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__need_NULL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "_SIZE_T",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "((void*)0)",
+                    "Identifier": "NULL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__need___va_list",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__GNUC_VA_LIST",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_BITS_TYPES_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__WORDSIZE",
+                    "Identifier": "__TIMESIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "shortint",
+                    "Identifier": "__S16_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedshortint",
+                    "Identifier": "__U16_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "int",
+                    "Identifier": "__S32_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedint",
+                    "Identifier": "__U32_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "longint",
+                    "Identifier": "__SLONGWORD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedlongint",
+                    "Identifier": "__ULONGWORD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "longint",
+                    "Identifier": "__SQUAD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedlongint",
+                    "Identifier": "__UQUAD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "longint",
+                    "Identifier": "__SWORD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedlongint",
+                    "Identifier": "__UWORD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "int",
+                    "Identifier": "__SLONG32_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedint",
+                    "Identifier": "__ULONG32_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "longint",
+                    "Identifier": "__S64_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedlongint",
+                    "Identifier": "__U64_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "typedef",
+                    "Identifier": "__STD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_BITS_TYPESIZES_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SLONGWORD_TYPE",
+                    "Identifier": "__SYSCALL_SLONG_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__ULONGWORD_TYPE",
+                    "Identifier": "__SYSCALL_ULONG_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__DEV_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__UID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__GID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__INO_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__INO64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__MODE_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__NLINK_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__FSWORD_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__OFF_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SQUAD_TYPE",
+                    "Identifier": "__OFF64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__S32_TYPE",
+                    "Identifier": "__PID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__RLIM_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__RLIM64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__BLKCNT_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SQUAD_TYPE",
+                    "Identifier": "__BLKCNT64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__FSBLKCNT_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__FSBLKCNT64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__FSFILCNT_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__FSFILCNT64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__ID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__CLOCK_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__TIME_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__USECONDS_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__SUSECONDS_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SQUAD_TYPE",
+                    "Identifier": "__SUSECONDS64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__S32_TYPE",
+                    "Identifier": "__DADDR_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__S32_TYPE",
+                    "Identifier": "__KEY_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__S32_TYPE",
+                    "Identifier": "__CLOCKID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "void*",
+                    "Identifier": "__TIMER_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__BLKSIZE_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "struct{int__val[2];}",
+                    "Identifier": "__FSID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SWORD_TYPE",
+                    "Identifier": "__SSIZE_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__CPU_MASK_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__OFF_T_MATCHES_OFF64_T",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__INO_T_MATCHES_INO64_T",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__RLIM_T_MATCHES_RLIM64_T",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__STATFS_MATCHES_STATFS64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__KERNEL_OLD_TIMEVAL_MATCHES_TIMEVAL64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1024",
+                    "Identifier": "__FD_SETSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_BITS_TIME64_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__TIME_T_TYPE",
+                    "Identifier": "__TIME64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_____fpos_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "____mbstate_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_____fpos64_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "____FILE_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__FILE_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__struct_FILE_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(__glibc_unlikely((_fp)->_IO_read_ptr>=(_fp)->_IO_read_end)?__uflow(_fp):*(unsignedchar*)(_fp)->_IO_read_ptr++)",
+                    "Identifier": "__getc_unlocked_body",
+                    "Line": 1,
+                    "Params": [
+                        "_fp"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__glibc_unlikely((_fp)->_IO_write_ptr>=(_fp)->_IO_write_end)?__overflow(_fp,(unsignedchar)(_ch)):(unsignedchar)(*(_fp)->_IO_write_ptr++=(_ch)))",
+                    "Identifier": "__putc_unlocked_body",
+                    "Line": 1,
+                    "Params": [
+                        "_ch",
+                        "_fp"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "0x0010",
+                    "Identifier": "_IO_EOF_SEEN",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(((_fp)->_flags&_IO_EOF_SEEN)!=0)",
+                    "Identifier": "__feof_unlocked_body",
+                    "Line": 1,
+                    "Params": [
+                        "_fp"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "0x0020",
+                    "Identifier": "_IO_ERR_SEEN",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(((_fp)->_flags&_IO_ERR_SEEN)!=0)",
+                    "Identifier": "__ferror_unlocked_body",
+                    "Line": 1,
+                    "Params": [
+                        "_fp"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "0x8000",
+                    "Identifier": "_IO_USER_LOCK",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__cookie_io_functions_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "_VA_LIST_DEFINED",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__off_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__ssize_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "_IOFBF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_IOLBF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "2",
+                    "Identifier": "_IONBF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "8192",
+                    "Identifier": "BUFSIZ",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(-1)",
+                    "Identifier": "EOF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "SEEK_SET",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "SEEK_CUR",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "2",
+                    "Identifier": "SEEK_END",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "\"/tmp\"",
+                    "Identifier": "P_tmpdir",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "20",
+                    "Identifier": "L_tmpnam",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "238328",
+                    "Identifier": "TMP_MAX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_BITS_STDIO_LIM_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "4096",
+                    "Identifier": "FILENAME_MAX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "9",
+                    "Identifier": "L_ctermid",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "16",
+                    "Identifier": "FOPEN_MAX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "4",
+                    "Identifier": "_PRINTF_NAN_LEN_MAX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "stdin",
+                    "Identifier": "stdin",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "stdout",
+                    "Identifier": "stdout",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "stderr",
+                    "Identifier": "stderr",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attr_dealloc(fclose,1)",
+                    "Identifier": "__attr_dealloc_fclose",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "_BITS_FLOATN_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT128",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT128",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT64X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT64X_LONG_DOUBLE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "x##q",
+                    "Identifier": "__f128",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__cfloat128",
+                    "Identifier": "__CFLOAT128",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__signbitf128",
+                    "Identifier": "__builtin_signbitf128",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "_BITS_FLOATN_COMMON_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__LDOUBLE_REDIRECTS_TO_FLOAT128_ABI",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_FLOAT16",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT32X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_FLOAT128X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__HAVE_FLOAT16",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT16",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT32X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT64X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__HAVE_FLOAT128X",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT128X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(__HAVE_DISTINCT_FLOAT128&&__LDBL_MANT_DIG__!=113)",
+                    "Identifier": "__HAVE_FLOAT128_UNLIKE_LDBL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_FLOATN_NOT_TYPEDEF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "x##f",
+                    "Identifier": "__f32",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "x",
+                    "Identifier": "__f64",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "x",
+                    "Identifier": "__f32x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "x##l",
+                    "Identifier": "__f64x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "_Complexfloat",
+                    "Identifier": "__CFLOAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "_Complexdouble",
+                    "Identifier": "__CFLOAT64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "_Complexdouble",
+                    "Identifier": "__CFLOAT32X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "_Complexlongdouble",
+                    "Identifier": "__CFLOAT64X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(__builtin_huge_valf())",
+                    "Identifier": "__builtin_huge_valf32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_inff())",
+                    "Identifier": "__builtin_inff32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nanf(x))",
+                    "Identifier": "__builtin_nanf32",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nansf(x))",
+                    "Identifier": "__builtin_nansf32",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_huge_val())",
+                    "Identifier": "__builtin_huge_valf64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_inf())",
+                    "Identifier": "__builtin_inff64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nan(x))",
+                    "Identifier": "__builtin_nanf64",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nans(x))",
+                    "Identifier": "__builtin_nansf64",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_huge_val())",
+                    "Identifier": "__builtin_huge_valf32x",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_inf())",
+                    "Identifier": "__builtin_inff32x",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nan(x))",
+                    "Identifier": "__builtin_nanf32x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nans(x))",
+                    "Identifier": "__builtin_nansf32x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_huge_vall())",
+                    "Identifier": "__builtin_huge_valf64x",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_infl())",
+                    "Identifier": "__builtin_inff64x",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nanl(x))",
+                    "Identifier": "__builtin_nanf64x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nansl(x))",
+                    "Identifier": "__builtin_nansf64x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "a*b",
+                    "Identifier": "MULTIPLY",
+                    "Line": 2,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "multiply(a,b)",
+                    "Identifier": "F_MULTIPLY",
+                    "Line": 2,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "a+b",
+                    "Identifier": "ADD",
+                    "Line": 2,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "inline_add_to_ptr(a,b,&res)",
+                    "Identifier": "ADD_PTR",
+                    "Line": 2,
+                    "Params": [
+                        "a",
+                        "b",
+                        "res"
+                    ],
+                    "bFunction": true
+                }
+            ]
+        },
+        {
+            "Identifier": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h",
+            "Includes": [
+                {
+                    "Line": 3,
+                    "Native": "mystate.h",
+                    "What": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mystate.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "a*b",
+                    "Identifier": "MULTIPLY",
+                    "Line": 2,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "multiply(a,b)",
+                    "Identifier": "F_MULTIPLY",
+                    "Line": 2,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "a+b",
+                    "Identifier": "ADD",
+                    "Line": 2,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "inline_add_to_ptr(a,b,&res)",
+                    "Identifier": "ADD_PTR",
+                    "Line": 2,
+                    "Params": [
+                        "a",
+                        "b",
+                        "res"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "a*b",
+                    "Identifier": "MULTIPLY",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "multiply(a,b)",
+                    "Identifier": "F_MULTIPLY",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "a+b",
+                    "Identifier": "ADD",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "inline_add_to_ptr(a,b,&res)",
+                    "Identifier": "ADD_PTR",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b",
+                        "res"
+                    ],
+                    "bFunction": true
+                }
+            ]
+        },
+        {
+            "Identifier": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mystate.h",
+            "Includes": [],
+            "Macros": []
+        },
+        {
+            "Identifier": "/usr/include/bits/floatn-common.h",
+            "Includes": [
+                {
+                    "Line": 23,
+                    "Native": "features.h",
+                    "What": "/usr/include/features.h"
+                },
+                {
+                    "Line": 24,
+                    "Native": "bits/long-double.h",
+                    "What": "/usr/include/bits/long-double.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "",
+                    "Identifier": "_BITS_FLOATN_COMMON_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_FLOAT16",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT32X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_FLOAT128X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__HAVE_FLOAT16",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT16",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT32X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT64X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__HAVE_FLOAT128X",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT128X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(__HAVE_DISTINCT_FLOAT128&&__LDBL_MANT_DIG__!=113)",
+                    "Identifier": "__HAVE_FLOAT128_UNLIKE_LDBL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__HAVE_FLOATN_NOT_TYPEDEF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "x##f",
+                    "Identifier": "__f32",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "x",
+                    "Identifier": "__f64",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "x",
+                    "Identifier": "__f32x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "x##l",
+                    "Identifier": "__f64x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "_Complexfloat",
+                    "Identifier": "__CFLOAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "_Complexdouble",
+                    "Identifier": "__CFLOAT64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "_Complexdouble",
+                    "Identifier": "__CFLOAT32X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "_Complexlongdouble",
+                    "Identifier": "__CFLOAT64X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(__builtin_huge_valf())",
+                    "Identifier": "__builtin_huge_valf32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_inff())",
+                    "Identifier": "__builtin_inff32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nanf(x))",
+                    "Identifier": "__builtin_nanf32",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nansf(x))",
+                    "Identifier": "__builtin_nansf32",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_huge_val())",
+                    "Identifier": "__builtin_huge_valf64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_inf())",
+                    "Identifier": "__builtin_inff64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nan(x))",
+                    "Identifier": "__builtin_nanf64",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nans(x))",
+                    "Identifier": "__builtin_nansf64",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_huge_val())",
+                    "Identifier": "__builtin_huge_valf32x",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_inf())",
+                    "Identifier": "__builtin_inff32x",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nan(x))",
+                    "Identifier": "__builtin_nanf32x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nans(x))",
+                    "Identifier": "__builtin_nansf32x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_huge_vall())",
+                    "Identifier": "__builtin_huge_valf64x",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_infl())",
+                    "Identifier": "__builtin_inff64x",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nanl(x))",
+                    "Identifier": "__builtin_nanf64x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__builtin_nansl(x))",
+                    "Identifier": "__builtin_nansf64x",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/floatn.h",
+            "Includes": [
+                {
+                    "Line": 22,
+                    "Native": "features.h",
+                    "What": "/usr/include/features.h"
+                },
+                {
+                    "Line": 131,
+                    "Native": "bits/floatn-common.h",
+                    "What": "/usr/include/bits/floatn-common.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "",
+                    "Identifier": "_BITS_FLOATN_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT128",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_DISTINCT_FLOAT128",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT64X",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_FLOAT64X_LONG_DOUBLE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "x##q",
+                    "Identifier": "__f128",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__cfloat128",
+                    "Identifier": "__CFLOAT128",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__signbitf128",
+                    "Identifier": "__builtin_signbitf128",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/libc-header-start.h",
+            "Includes": [
+                {
+                    "Line": 33,
+                    "Native": "features.h",
+                    "What": "/usr/include/features.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_LIB_EXT2",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_IEC_60559_BFP_EXT",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__GLIBC_USE_IEC_60559_BFP_EXT_C23",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_IEC_60559_EXT",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_IEC_60559_FUNCS_EXT",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__GLIBC_USE_IEC_60559_FUNCS_EXT_C23",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_IEC_60559_TYPES_EXT",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/long-double.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "0",
+                    "Identifier": "__LDOUBLE_REDIRECTS_TO_FLOAT128_ABI",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__LDOUBLE_REDIRECTS_TO_FLOAT128_ABI",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/stdio_lim.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_BITS_STDIO_LIM_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "4096",
+                    "Identifier": "FILENAME_MAX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/time64.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_BITS_TIME64_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__TIME_T_TYPE",
+                    "Identifier": "__TIME64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/timesize.h",
+            "Includes": [
+                {
+                    "Line": 19,
+                    "Native": "bits/wordsize.h",
+                    "What": "/usr/include/bits/wordsize.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "__WORDSIZE",
+                    "Identifier": "__TIMESIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__WORDSIZE",
+                    "Identifier": "__TIMESIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/types.h",
+            "Includes": [
+                {
+                    "Line": 26,
+                    "Native": "features.h",
+                    "What": "/usr/include/features.h"
+                },
+                {
+                    "Line": 27,
+                    "Native": "bits/wordsize.h",
+                    "What": "/usr/include/bits/wordsize.h"
+                },
+                {
+                    "Line": 28,
+                    "Native": "bits/timesize.h",
+                    "What": "/usr/include/bits/timesize.h"
+                },
+                {
+                    "Line": 141,
+                    "Native": "bits/typesizes.h",
+                    "What": "/usr/include/bits/typesizes.h"
+                },
+                {
+                    "Line": 142,
+                    "Native": "bits/time64.h",
+                    "What": "/usr/include/bits/time64.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_BITS_TYPES_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "shortint",
+                    "Identifier": "__S16_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedshortint",
+                    "Identifier": "__U16_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "int",
+                    "Identifier": "__S32_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedint",
+                    "Identifier": "__U32_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "longint",
+                    "Identifier": "__SLONGWORD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedlongint",
+                    "Identifier": "__ULONGWORD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "longint",
+                    "Identifier": "__SQUAD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedlongint",
+                    "Identifier": "__UQUAD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "longint",
+                    "Identifier": "__SWORD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedlongint",
+                    "Identifier": "__UWORD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "int",
+                    "Identifier": "__SLONG32_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedint",
+                    "Identifier": "__ULONG32_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "longint",
+                    "Identifier": "__S64_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "unsignedlongint",
+                    "Identifier": "__U64_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "typedef",
+                    "Identifier": "__STD_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/types/FILE.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "__FILE_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/types/__FILE.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "____FILE_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/types/__fpos64_t.h",
+            "Includes": [
+                {
+                    "Line": 4,
+                    "Native": "bits/types.h",
+                    "What": "/usr/include/bits/types.h"
+                },
+                {
+                    "Line": 5,
+                    "Native": "bits/types/__mbstate_t.h",
+                    "What": "/usr/include/bits/types/__mbstate_t.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_____fpos64_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/types/__fpos_t.h",
+            "Includes": [
+                {
+                    "Line": 4,
+                    "Native": "bits/types.h",
+                    "What": "/usr/include/bits/types.h"
+                },
+                {
+                    "Line": 5,
+                    "Native": "bits/types/__mbstate_t.h",
+                    "What": "/usr/include/bits/types/__mbstate_t.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_____fpos_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/types/__mbstate_t.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "____mbstate_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/types/cookie_io_functions_t.h",
+            "Includes": [
+                {
+                    "Line": 21,
+                    "Native": "bits/types.h",
+                    "What": "/usr/include/bits/types.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "__cookie_io_functions_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/types/struct_FILE.h",
+            "Includes": [
+                {
+                    "Line": 34,
+                    "Native": "bits/types.h",
+                    "What": "/usr/include/bits/types.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "__struct_FILE_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(__glibc_unlikely((_fp)->_IO_read_ptr>=(_fp)->_IO_read_end)?__uflow(_fp):*(unsignedchar*)(_fp)->_IO_read_ptr++)",
+                    "Identifier": "__getc_unlocked_body",
+                    "Line": 1,
+                    "Params": [
+                        "_fp"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "(__glibc_unlikely((_fp)->_IO_write_ptr>=(_fp)->_IO_write_end)?__overflow(_fp,(unsignedchar)(_ch)):(unsignedchar)(*(_fp)->_IO_write_ptr++=(_ch)))",
+                    "Identifier": "__putc_unlocked_body",
+                    "Line": 1,
+                    "Params": [
+                        "_ch",
+                        "_fp"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "0x0010",
+                    "Identifier": "_IO_EOF_SEEN",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(((_fp)->_flags&_IO_EOF_SEEN)!=0)",
+                    "Identifier": "__feof_unlocked_body",
+                    "Line": 1,
+                    "Params": [
+                        "_fp"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "0x0020",
+                    "Identifier": "_IO_ERR_SEEN",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(((_fp)->_flags&_IO_ERR_SEEN)!=0)",
+                    "Identifier": "__ferror_unlocked_body",
+                    "Line": 1,
+                    "Params": [
+                        "_fp"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "0x8000",
+                    "Identifier": "_IO_USER_LOCK",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/typesizes.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_BITS_TYPESIZES_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SLONGWORD_TYPE",
+                    "Identifier": "__SYSCALL_SLONG_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__ULONGWORD_TYPE",
+                    "Identifier": "__SYSCALL_ULONG_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__DEV_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__UID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__GID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__INO_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__INO64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__MODE_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__NLINK_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__FSWORD_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__OFF_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SQUAD_TYPE",
+                    "Identifier": "__OFF64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__S32_TYPE",
+                    "Identifier": "__PID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__RLIM_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__RLIM64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__BLKCNT_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SQUAD_TYPE",
+                    "Identifier": "__BLKCNT64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__FSBLKCNT_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__FSBLKCNT64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__FSFILCNT_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__UQUAD_TYPE",
+                    "Identifier": "__FSFILCNT64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__ID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__CLOCK_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__TIME_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__U32_TYPE",
+                    "Identifier": "__USECONDS_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__SUSECONDS_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SQUAD_TYPE",
+                    "Identifier": "__SUSECONDS64_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__S32_TYPE",
+                    "Identifier": "__DADDR_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__S32_TYPE",
+                    "Identifier": "__KEY_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__S32_TYPE",
+                    "Identifier": "__CLOCKID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "void*",
+                    "Identifier": "__TIMER_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_SLONG_TYPE",
+                    "Identifier": "__BLKSIZE_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "struct{int__val[2];}",
+                    "Identifier": "__FSID_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SWORD_TYPE",
+                    "Identifier": "__SSIZE_T_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__SYSCALL_ULONG_TYPE",
+                    "Identifier": "__CPU_MASK_TYPE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__OFF_T_MATCHES_OFF64_T",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__INO_T_MATCHES_INO64_T",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__RLIM_T_MATCHES_RLIM64_T",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__STATFS_MATCHES_STATFS64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__KERNEL_OLD_TIMEVAL_MATCHES_TIMEVAL64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1024",
+                    "Identifier": "__FD_SETSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/bits/wordsize.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__WORDSIZE_TIME64_COMPAT32",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "64",
+                    "Identifier": "__SYSCALL_WORDSIZE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/features-time64.h",
+            "Includes": [
+                {
+                    "Line": 20,
+                    "Native": "bits/wordsize.h",
+                    "What": "/usr/include/bits/wordsize.h"
+                },
+                {
+                    "Line": 21,
+                    "Native": "bits/timesize.h",
+                    "What": "/usr/include/bits/timesize.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_TIME_BITS64",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/features.h",
+            "Includes": [
+                {
+                    "Line": 415,
+                    "Native": "features-time64.h",
+                    "What": "/usr/include/features-time64.h"
+                },
+                {
+                    "Line": 502,
+                    "Native": "stdc-predef.h",
+                    "What": "/usr/include/stdc-predef.h"
+                },
+                {
+                    "Line": 524,
+                    "Native": "sys/cdefs.h",
+                    "What": "/usr/include/sys/cdefs.h"
+                },
+                {
+                    "Line": 548,
+                    "Native": "gnu/stubs.h",
+                    "What": "/usr/include/gnu/stubs.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_FEATURES_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__KERNEL_STRICT_NAMES",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "((__GNUC__<<16)+__GNUC_MINOR__>=((maj)<<16)+(min))",
+                    "Identifier": "__GNUC_PREREQ",
+                    "Line": 1,
+                    "Params": [
+                        "maj",
+                        "min"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "((__clang_major__<<16)+__clang_minor__>=((maj)<<16)+(min))",
+                    "Identifier": "__glibc_clang_prereq",
+                    "Line": 1,
+                    "Params": [
+                        "maj",
+                        "min"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__GLIBC_USE_##F",
+                    "Identifier": "__GLIBC_USE",
+                    "Line": 1,
+                    "Params": [
+                        "F"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_DEFAULT_SOURCE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_ISOC2Y",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__GLIBC_USE_ISOC23",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC11",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC99",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC95",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX_IMPLICITLY",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_POSIX_SOURCE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "200809L",
+                    "Identifier": "_POSIX_C_SOURCE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX2",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX199309",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_POSIX199506",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_XOPEN2K",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC95",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ISOC99",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_XOPEN2K8",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_ATFILE_SOURCE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_MISC",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__USE_ATFILE",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__USE_FORTIFY_LEVEL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_DEPRECATED_GETS",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "__GLIBC_USE_DEPRECATED_SCANF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__GLIBC_USE_C23_STRTOL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "6",
+                    "Identifier": "__GNU_LIBRARY__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "2",
+                    "Identifier": "__GLIBC__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "41",
+                    "Identifier": "__GLIBC_MINOR__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "((__GLIBC__<<16)+__GLIBC_MINOR__>=((maj)<<16)+(min))",
+                    "Identifier": "__GLIBC_PREREQ",
+                    "Line": 1,
+                    "Params": [
+                        "maj",
+                        "min"
+                    ],
+                    "bFunction": true
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/gnu/stubs-64.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "",
+                    "Identifier": "__stub___compat_bdflush",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_chflags",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_fchflags",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_gtty",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_revoke",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_setlogin",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_sigreturn",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__stub_stty",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/gnu/stubs.h",
+            "Includes": [
+                {
+                    "Line": 10,
+                    "Native": "gnu/stubs-64.h",
+                    "What": "/usr/include/gnu/stubs-64.h"
+                }
+            ],
+            "Macros": []
+        },
+        {
+            "Identifier": "/usr/include/stdc-predef.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_STDC_PREDEF_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__STDC_IEC_559__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "201404L",
+                    "Identifier": "__STDC_IEC_60559_BFP__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__STDC_IEC_559_COMPLEX__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "201404L",
+                    "Identifier": "__STDC_IEC_60559_COMPLEX__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "201706L",
+                    "Identifier": "__STDC_ISO_10646__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/stdio.h",
+            "Includes": [
+                {
+                    "Line": 28,
+                    "Native": "bits/libc-header-start.h",
+                    "What": "/usr/include/bits/libc-header-start.h"
+                },
+                {
+                    "Line": 34,
+                    "Native": "stddef.h",
+                    "What": "/usr/lib/clang/19/include/stddef.h"
+                },
+                {
+                    "Line": 37,
+                    "Native": "stdarg.h",
+                    "What": "/usr/lib/clang/19/include/stdarg.h"
+                },
+                {
+                    "Line": 39,
+                    "Native": "bits/types.h",
+                    "What": "/usr/include/bits/types.h"
+                },
+                {
+                    "Line": 40,
+                    "Native": "bits/types/__fpos_t.h",
+                    "What": "/usr/include/bits/types/__fpos_t.h"
+                },
+                {
+                    "Line": 41,
+                    "Native": "bits/types/__fpos64_t.h",
+                    "What": "/usr/include/bits/types/__fpos64_t.h"
+                },
+                {
+                    "Line": 42,
+                    "Native": "bits/types/__FILE.h",
+                    "What": "/usr/include/bits/types/__FILE.h"
+                },
+                {
+                    "Line": 43,
+                    "Native": "bits/types/FILE.h",
+                    "What": "/usr/include/bits/types/FILE.h"
+                },
+                {
+                    "Line": 44,
+                    "Native": "bits/types/struct_FILE.h",
+                    "What": "/usr/include/bits/types/struct_FILE.h"
+                },
+                {
+                    "Line": 47,
+                    "Native": "bits/types/cookie_io_functions_t.h",
+                    "What": "/usr/include/bits/types/cookie_io_functions_t.h"
+                },
+                {
+                    "Line": 129,
+                    "Native": "bits/stdio_lim.h",
+                    "What": "/usr/include/bits/stdio_lim.h"
+                },
+                {
+                    "Line": 437,
+                    "Native": "bits/floatn.h",
+                    "What": "/usr/include/bits/floatn.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_STDIO_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__GLIBC_INTERNAL_STARTING_HEADER_IMPLEMENTATION",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__need_size_t",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__need_NULL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__need___va_list",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "_VA_LIST_DEFINED",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__off_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__ssize_t_defined",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "_IOFBF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "_IOLBF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "2",
+                    "Identifier": "_IONBF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "8192",
+                    "Identifier": "BUFSIZ",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "(-1)",
+                    "Identifier": "EOF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "0",
+                    "Identifier": "SEEK_SET",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "SEEK_CUR",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "2",
+                    "Identifier": "SEEK_END",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "\"/tmp\"",
+                    "Identifier": "P_tmpdir",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "20",
+                    "Identifier": "L_tmpnam",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "238328",
+                    "Identifier": "TMP_MAX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "9",
+                    "Identifier": "L_ctermid",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "16",
+                    "Identifier": "FOPEN_MAX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "4",
+                    "Identifier": "_PRINTF_NAN_LEN_MAX",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "stdin",
+                    "Identifier": "stdin",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "stdout",
+                    "Identifier": "stdout",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "stderr",
+                    "Identifier": "stderr",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attr_dealloc(fclose,1)",
+                    "Identifier": "__attr_dealloc_fclose",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/include/sys/cdefs.h",
+            "Includes": [
+                {
+                    "Line": 730,
+                    "Native": "bits/wordsize.h",
+                    "What": "/usr/include/bits/wordsize.h"
+                },
+                {
+                    "Line": 731,
+                    "Native": "bits/long-double.h",
+                    "What": "/usr/include/bits/long-double.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "1",
+                    "Identifier": "_SYS_CDEFS_H",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__has_attribute(attr)",
+                    "Identifier": "__glibc_has_attribute",
+                    "Line": 1,
+                    "Params": [
+                        "attr"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__has_builtin(name)",
+                    "Identifier": "__glibc_has_builtin",
+                    "Line": 1,
+                    "Params": [
+                        "name"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__has_extension(ext)",
+                    "Identifier": "__glibc_has_extension",
+                    "Line": 1,
+                    "Params": [
+                        "ext"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__LEAF",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__LEAF_ATTR",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__nothrow____LEAF))",
+                    "Identifier": "__THROW",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__nothrow__))",
+                    "Identifier": "__THROWNL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__nothrow____LEAF))fct",
+                    "Identifier": "__NTH",
+                    "Line": 1,
+                    "Params": [
+                        "fct"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__nothrow__))fct",
+                    "Identifier": "__NTHNL",
+                    "Line": 1,
+                    "Params": [
+                        "fct"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__cold__))",
+                    "Identifier": "__COLD",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "args",
+                    "Identifier": "__P",
+                    "Line": 1,
+                    "Params": [
+                        "args"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "args",
+                    "Identifier": "__PMT",
+                    "Line": 1,
+                    "Params": [
+                        "args"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "x##y",
+                    "Identifier": "__CONCAT",
+                    "Line": 1,
+                    "Params": [
+                        "x",
+                        "y"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "#x",
+                    "Identifier": "__STRING",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "void*",
+                    "Identifier": "__ptr_t",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__BEGIN_DECLS",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__END_DECLS",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__overloadable__))",
+                    "Identifier": "__attribute_overloadable__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__builtin_object_size(ptr,__USE_FORTIFY_LEVEL>1)",
+                    "Identifier": "__bos",
+                    "Line": 1,
+                    "Params": [
+                        "ptr"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__builtin_object_size(ptr,0)",
+                    "Identifier": "__bos0",
+                    "Line": 1,
+                    "Params": [
+                        "ptr"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__bos0(__o)",
+                    "Identifier": "__glibc_objsize0",
+                    "Line": 1,
+                    "Params": [
+                        "__o"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__bos(__o)",
+                    "Identifier": "__glibc_objsize",
+                    "Line": 1,
+                    "Params": [
+                        "__o"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__warnattr",
+                    "Line": 1,
+                    "Params": [
+                        "msg"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "externvoidname(void)",
+                    "Identifier": "__errordecl",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "msg"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "[]",
+                    "Identifier": "__flexarr",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__glibc_c99_flexarr_available",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "nameproto__asm__(__ASMNAME(#alias))",
+                    "Identifier": "__REDIRECT",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto__asm__(__ASMNAME(#alias))__THROW",
+                    "Identifier": "__REDIRECT_NTH",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto__asm__(__ASMNAME(#alias))__THROWNL",
+                    "Identifier": "__REDIRECT_NTHNL",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__ASMNAME2(__USER_LABEL_PREFIX__,cname)",
+                    "Identifier": "__ASMNAME",
+                    "Line": 1,
+                    "Params": [
+                        "cname"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__STRING(prefix)cname",
+                    "Identifier": "__ASMNAME2",
+                    "Line": 1,
+                    "Params": [
+                        "prefix",
+                        "cname"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__REDIRECT",
+                    "Identifier": "__REDIRECT_FORTIFY",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__REDIRECT_NTH",
+                    "Identifier": "__REDIRECT_FORTIFY_NTH",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__malloc__))",
+                    "Identifier": "__attribute_malloc__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attribute_alloc_size__",
+                    "Line": 1,
+                    "Params": [
+                        "params"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__alloc_align__param))",
+                    "Identifier": "__attribute_alloc_align__",
+                    "Line": 1,
+                    "Params": [
+                        "param"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__pure__))",
+                    "Identifier": "__attribute_pure__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__const__))",
+                    "Identifier": "__attribute_const__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__unused__))",
+                    "Identifier": "__attribute_maybe_unused__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__used__))",
+                    "Identifier": "__attribute_used__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__noinline__))",
+                    "Identifier": "__attribute_noinline__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__deprecated__))",
+                    "Identifier": "__attribute_deprecated__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__deprecated__(msg)))",
+                    "Identifier": "__attribute_deprecated_msg__",
+                    "Line": 1,
+                    "Params": [
+                        "msg"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__format_arg__(x)))",
+                    "Identifier": "__attribute_format_arg__",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__format__(__strfmon__,a,b)))",
+                    "Identifier": "__attribute_format_strfmon__",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__nonnull__params))",
+                    "Identifier": "__attribute_nonnull__",
+                    "Line": 1,
+                    "Params": [
+                        "params"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute_nonnull__(params)",
+                    "Identifier": "__nonnull",
+                    "Line": 1,
+                    "Params": [
+                        "params"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__attribute__((__returns_nonnull__))",
+                    "Identifier": "__returns_nonnull",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__warn_unused_result__))",
+                    "Identifier": "__attribute_warn_unused_result__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__wur",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__inline__attribute__((__always_inline__))",
+                    "Identifier": "__always_inline",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__artificial__))",
+                    "Identifier": "__attribute_artificial__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "extern__inline__attribute__((__gnu_inline__))",
+                    "Identifier": "__extern_inline",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "extern__always_inline__attribute__((__gnu_inline__))",
+                    "Identifier": "__extern_always_inline",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__extern_always_inline__attribute_artificial__",
+                    "Identifier": "__fortify_function",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__restrict",
+                    "Identifier": "__restrict_arr",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__builtin_expect((cond),0)",
+                    "Identifier": "__glibc_unlikely",
+                    "Line": 1,
+                    "Params": [
+                        "cond"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__builtin_expect((cond),1)",
+                    "Identifier": "__glibc_likely",
+                    "Line": 1,
+                    "Params": [
+                        "cond"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attribute_nonstring__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attribute_copy__",
+                    "Line": 1,
+                    "Params": [
+                        "arg"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto",
+                    "Identifier": "__LDBL_REDIR1",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto",
+                    "Identifier": "__LDBL_REDIR",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto__THROW",
+                    "Identifier": "__LDBL_REDIR1_NTH",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "nameproto__THROW",
+                    "Identifier": "__LDBL_REDIR_NTH",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__LDBL_REDIR2_DECL",
+                    "Line": 1,
+                    "Params": [
+                        "name"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__LDBL_REDIR_DECL",
+                    "Line": 1,
+                    "Params": [
+                        "name"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__REDIRECT(name,proto,alias)",
+                    "Identifier": "__REDIRECT_LDBL",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__REDIRECT_NTH(name,proto,alias)",
+                    "Identifier": "__REDIRECT_NTH_LDBL",
+                    "Line": 1,
+                    "Params": [
+                        "name",
+                        "proto",
+                        "alias"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "_Pragma(#message)",
+                    "Identifier": "__glibc_macro_warning1",
+                    "Line": 1,
+                    "Params": [
+                        "message"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "__glibc_macro_warning1(GCCwarningmessage)",
+                    "Identifier": "__glibc_macro_warning",
+                    "Line": 1,
+                    "Params": [
+                        "message"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "1",
+                    "Identifier": "__HAVE_GENERIC_SELECTION",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__fortified_attr_access",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "o",
+                        "s"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attr_access",
+                    "Line": 1,
+                    "Params": [
+                        "x"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attr_access_none",
+                    "Line": 1,
+                    "Params": [
+                        "argno"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attr_dealloc",
+                    "Line": 1,
+                    "Params": [
+                        "dealloc",
+                        "argno"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "",
+                    "Identifier": "__attr_dealloc_free",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__returns_twice__))",
+                    "Identifier": "__attribute_returns_twice__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                },
+                {
+                    "Definition": "__attribute__((__may_alias__))",
+                    "Identifier": "__attribute_struct_may_alias__",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/lib/clang/19/include/__stdarg___gnuc_va_list.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "",
+                    "Identifier": "__GNUC_VA_LIST",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/lib/clang/19/include/__stddef_null.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "((void*)0)",
+                    "Identifier": "NULL",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/lib/clang/19/include/__stddef_size_t.h",
+            "Includes": [],
+            "Macros": [
+                {
+                    "Definition": "",
+                    "Identifier": "_SIZE_T",
+                    "Line": 1,
+                    "Params": [],
+                    "bFunction": false
+                }
+            ]
+        },
+        {
+            "Identifier": "/usr/lib/clang/19/include/stdarg.h",
+            "Includes": [
+                {
+                    "Line": 51,
+                    "Native": "__stdarg___gnuc_va_list.h",
+                    "What": "/usr/lib/clang/19/include/__stdarg___gnuc_va_list.h"
+                }
+            ],
+            "Macros": []
+        },
+        {
+            "Identifier": "/usr/lib/clang/19/include/stddef.h",
+            "Includes": [
+                {
+                    "Line": 93,
+                    "Native": "__stddef_size_t.h",
+                    "What": "/usr/lib/clang/19/include/__stddef_size_t.h"
+                },
+                {
+                    "Line": 108,
+                    "Native": "__stddef_null.h",
+                    "What": "/usr/lib/clang/19/include/__stddef_null.h"
+                }
+            ],
+            "Macros": []
+        },
+        {
+            "Identifier": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c",
+            "Includes": [
+                {
+                    "Line": 1,
+                    "Native": "mymath.h",
+                    "What": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "Macros": [
+                {
+                    "Definition": "a*b",
+                    "Identifier": "MULTIPLY",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "multiply(a,b)",
+                    "Identifier": "F_MULTIPLY",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "a+b",
+                    "Identifier": "ADD",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b"
+                    ],
+                    "bFunction": true
+                },
+                {
+                    "Definition": "inline_add_to_ptr(a,b,&res)",
+                    "Identifier": "ADD_PTR",
+                    "Line": 1,
+                    "Params": [
+                        "a",
+                        "b",
+                        "res"
+                    ],
+                    "bFunction": true
+                }
+            ]
+        },
+        {
+            "Identifier": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c",
+            "Includes": [
+                {
+                    "Line": 1,
+                    "Native": "mystate.h",
+                    "What": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mystate.h"
+                }
+            ],
+            "Macros": []
+        }
+    ],
+    "Globals": [
+        {
+            "Identifier": "g_my_state",
+            "Line": 3,
+            "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c",
+            "Type": "int"
+        },
+        {
+            "Identifier": "g_my_internal_state",
+            "Line": 4,
+            "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c",
+            "Type": "int"
+        }
+    ],
+    "Identifier": "Examples/003_Simple/Saved/SimpleToIr.bc",
+    "Sccs": [
+        {
+            "FunctionRefs": [],
+            "Functions": [
+                {
+                    "EndLine": 30,
+                    "Identifier": "inline_multiply",
+                    "Line": 27,
+                    "Params": [
+                        {
+                            "Identifier": "a",
+                            "Type": "int"
+                        },
+                        {
+                            "Identifier": "b",
+                            "Type": "int"
+                        }
+                    ],
+                    "Ret": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_internal_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(inline_multiply)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ]
+        },
+        {
+            "FunctionRefs": [],
+            "Functions": [
+                {
+                    "EndLine": 37,
+                    "Identifier": "inline_add_to_ptr",
+                    "Line": 33,
+                    "Params": [
+                        {
+                            "Identifier": "a",
+                            "Type": "const int *"
+                        },
+                        {
+                            "Identifier": "b",
+                            "Type": "const int *"
+                        },
+                        {
+                            "Identifier": "c",
+                            "Type": "int *"
+                        }
+                    ],
+                    "Ret": "void",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_internal_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(inline_add_to_ptr)",
+            "TypeRefs": []
+        },
+        {
+            "FunctionRefs": [
+                {
+                    "Identifier": "inline_add_to_ptr",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "Functions": [
+                {
+                    "EndLine": 45,
+                    "Identifier": "inline_add",
+                    "Line": 40,
+                    "Params": [
+                        {
+                            "Identifier": "a",
+                            "Type": "const int *"
+                        },
+                        {
+                            "Identifier": "b",
+                            "Type": "const int *"
+                        }
+                    ],
+                    "Ret": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_internal_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(inline_add)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ]
+        },
+        {
+            "FunctionRefs": [
+                {
+                    "Identifier": "inline_multiply",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "Functions": [
+                {
+                    "EndLine": 6,
+                    "Identifier": "multiply",
+                    "Line": 3,
+                    "Params": [
+                        {
+                            "Identifier": "a",
+                            "Type": "const int"
+                        },
+                        {
+                            "Identifier": "b",
+                            "Type": "const int"
+                        }
+                    ],
+                    "Ret": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(multiply)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ]
+        },
+        {
+            "FunctionRefs": [
+                {
+                    "Identifier": "multiply",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ],
+            "Functions": [
+                {
+                    "EndLine": 51,
+                    "Identifier": "inline_square",
+                    "Line": 48,
+                    "Params": [
+                        {
+                            "Identifier": "a",
+                            "Type": "int"
+                        }
+                    ],
+                    "Ret": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_internal_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(inline_square)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ]
+        },
+        {
+            "FunctionRefs": [
+                {
+                    "Identifier": "inline_square",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "Functions": [
+                {
+                    "EndLine": 18,
+                    "Identifier": "square",
+                    "Line": 15,
+                    "Params": [
+                        {
+                            "Identifier": "a",
+                            "Type": "const int"
+                        }
+                    ],
+                    "Ret": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(square)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ]
+        },
+        {
+            "FunctionRefs": [
+                {
+                    "Identifier": "inline_add",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ],
+            "Functions": [
+                {
+                    "EndLine": 12,
+                    "Identifier": "add",
+                    "Line": 9,
+                    "Params": [
+                        {
+                            "Identifier": "a",
+                            "Type": "const int"
+                        },
+                        {
+                            "Identifier": "b",
+                            "Type": "const int"
+                        }
+                    ],
+                    "Ret": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(add)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ]
+        },
+        {
+            "FunctionRefs": [
+                {
+                    "Identifier": "square",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                },
+                {
+                    "Identifier": "add",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ],
+            "Functions": [
+                {
+                    "EndLine": 24,
+                    "Identifier": "pythagorean",
+                    "Line": 21,
+                    "Params": [
+                        {
+                            "Identifier": "a",
+                            "Type": "const int"
+                        },
+                        {
+                            "Identifier": "b",
+                            "Type": "const int"
+                        }
+                    ],
+                    "Ret": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(pythagorean)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ]
+        },
+        {
+            "FunctionRefs": [
+                {
+                    "Identifier": "printf",
+                    "Source": ""
+                },
+                {
+                    "Identifier": "__isoc23_scanf",
+                    "Source": ""
+                },
+                {
+                    "Identifier": "pythagorean",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ],
+            "Functions": [
+                {
+                    "EndLine": 18,
+                    "Identifier": "main",
+                    "Line": 6,
+                    "Params": [],
+                    "Ret": "int",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/main.c"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                },
+                {
+                    "Identifier": "g_my_internal_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(main)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                }
+            ]
+        },
+        {
+            "FunctionRefs": [
+                {
+                    "Identifier": "complex_calculation",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                },
+                {
+                    "Identifier": "_complex_calculation",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                },
+                {
+                    "Identifier": "llvm.memcpy.p0.p0.i64",
+                    "Source": ""
+                }
+            ],
+            "Functions": [
+                {
+                    "EndLine": 51,
+                    "Identifier": "_complex_calculation",
+                    "Line": 38,
+                    "Params": [
+                        {
+                            "Identifier": "depth",
+                            "Type": "const int"
+                        },
+                        {
+                            "Identifier": "a",
+                            "Type": "const int"
+                        }
+                    ],
+                    "Ret": "InternalOutput",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                },
+                {
+                    "EndLine": 71,
+                    "Identifier": "complex_calculation",
+                    "Line": 53,
+                    "Params": [
+                        {
+                            "Identifier": "depth",
+                            "Type": "const int"
+                        },
+                        {
+                            "Identifier": "a",
+                            "Type": "const int"
+                        }
+                    ],
+                    "Ret": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ],
+            "GlobalRefs": [
+                {
+                    "Identifier": "g_my_state",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mystate.c"
+                }
+            ],
+            "Identifier": "(_complex_calculation, complex_calculation)",
+            "TypeRefs": [
+                {
+                    "Identifier": "Output",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+                },
+                {
+                    "Identifier": "InternalOutput",
+                    "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+                }
+            ]
+        }
+    ],
+    "Types": [
+        {
+            "Identifier": "struct.Output",
+            "Line": 10,
+            "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/mymath.h"
+        },
+        {
+            "Identifier": "struct.InternalOutput",
+            "Line": 30,
+            "Source": "/mnt/sdb1/ba/LlvmPlugin/Plugin/Examples/003_Simple/Private/mymath.c"
+        }
+    ]
+}

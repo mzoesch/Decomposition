@@ -1,0 +1,8 @@
+#pragma push_macro( "MULTIPLY" )
+#define MULTIPLY(a, b) a*b
+#pragma push_macro( "F_MULTIPLY" )
+#define F_MULTIPLY(a, b) multiply(a,b)
+#pragma push_macro( "ADD" )
+#define ADD(a, b) a+b
+#pragma push_macro( "ADD_PTR" )
+#define ADD_PTR(a, b, res) inline_add_to_ptr(a,b,&res)

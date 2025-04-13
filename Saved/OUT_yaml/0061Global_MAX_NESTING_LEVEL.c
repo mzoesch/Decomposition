@@ -1,0 +1,5 @@
+// Global: MAX_NESTING_LEVEL
+
+int MAX_NESTING_LEVEL = 1000;
+
+
