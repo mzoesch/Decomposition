@@ -1,30 +1,35 @@
 ## Getting up and running
 
 ### Docker
-To build a docker image, run the following command:
+Run the `BuildDocker.sh` script or the following command:
 ```bash
 docker build -t dcp . <--build-arg=USE_LOCAL_FILES=true>
 ```
 
-And then run with:
+And then run `RunDocker.sh` or:
 ```bash
-docker run -it -v /path/tot/target/codebase:/host dcp
+docker run -it -v /path/to/target/codebase:/host dcp
 ```
-Then inside your docker image.
 
 ### Native
-Either run the provided `Setup.sh` / `Setup.bat` script or manually set up the environment with cmake:
+Run the provided `Setup.sh` script or:
 ```bash
-mkdir build && cd build && cmake .. && cmake --build . && cd ..
-```
-Run with:
-```bash
-python3 ./Launch.py -Split -IR <path_to_linked_llvm_bitcode>
+python3 ./Launch.py -Setup
 ```
 
 
-### Build an example
-Generic build layout:
+## Split
+
+Split a CMake project:
 ```bash
-mkdir build && cd build && cmake .. -DDECOMPOSITION_PASS_ROOT=<root> && cmake --build . && cd ..
+python3 ./Launch.py \
+  -Analyse -CMakeLocation <path_to_cmake> -CMakeArgs <additional_custom_args> \
+  -Split
+```
+
+Split a non-CMake project:
+```bash
+python3 ./Launch.py \
+  -Analyse -BuildCommand <build_command> \
+  -Split -TargetBuildDir <intermediate_build_dir>
 ```

@@ -8,10 +8,9 @@ def _get_default_clang_plugin() -> str: # TODO: Make this more robust by searchi
 
 
 def _get_abs_build_dir(parsed_args) -> str:
-    if parsed_args.TargetBuildDir is None:
-        parsed_args.TargetBuildDir = 'build'
-
     if parsed_args.UseCMake:
+        if parsed_args.TargetBuildDir is None:
+            parsed_args.TargetBuildDir = 'build'
         cwd = os.getcwd()
         if not os.path.exists(parsed_args.CMakeLocation) or not os.path.isdir(parsed_args.CMakeLocation):
             raise ValueError(f'No such directory [{parsed_args.CMakeLocation}].')
@@ -20,7 +19,9 @@ def _get_abs_build_dir(parsed_args) -> str:
         os.chdir(cwd)
         return out
 
-    return parsed_args.TargetBuildDir
+    if parsed_args.TargetBuildDir is None:
+        raise ValueError('Target build dir must be set.')
+    return os.path.abspath(parsed_args.TargetBuildDir)
 
 
 def _clear_out_dir(path: str) -> None:
@@ -130,12 +131,14 @@ def default_parse_args() -> None:
         args.UseCMake = True
     for arg in unknown:
         args.CMakeArgs.append(arg)
+    if args.BuildDir is None:
+        args.BuildDir = 'build'
 
     if args.Setup:
         setup_environment(args)
-    args.TargetBuildDir = _get_abs_build_dir(args)
 
     if args.Analyse:
+        args.TargetBuildDir = _get_abs_build_dir(args)
         if args.BuildCommand is None and args.UseCMake is False:
             raise ValueError('Either -BuildCommand or -UseCMake must be set.')
         if args.BuildCommand is not None and args.UseCMake:
@@ -151,6 +154,8 @@ def default_parse_args() -> None:
         compile_to_ir(parsed_args=args)
 
     if args.Split:
+        if args.Analyse is False:
+            args.TargetBuildDir = _get_abs_build_dir(args)
         if args.TargetBuildDir is None:
             raise ValueError('Target build dir must be set.')
         if os.path.exists(args.TargetBuildDir) is False or os.path.isdir(args.TargetBuildDir) is False:

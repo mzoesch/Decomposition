@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 archlinux:latest
+FROM archlinux:latest
 
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm git cmake llvm clang make python
@@ -13,8 +13,8 @@ RUN if [ "$USE_LOCAL_FILES" = "false" ]; then \
     git clone $DCP_GIT_URL $DCP_GIT_DIR; \
     fi
 
-COPY . /.dcp_tmp_local_copy
 RUN if [ "$USE_LOCAL_FILES" = "true" ]; then \
+    COPY . /.dcp_tmp_local_copy \
     mkdir -p $DCP_GIT_DIR && cp -r /.dcp_tmp_local_copy/* $DCP_GIT_DIR; \
     fi
 
@@ -22,5 +22,7 @@ WORKDIR $DCP_GIT_DIR
 
 ARG DCP_BUILD_DIR=$DCP_GIT_DIR/build
 RUN python3 ./Launch.py -Setup -BuildDir $DCP_BUILD_DIR
+
+RUN echo "alias ll='ls -las'" >> ~/.bashrc
 
 CMD ["/bin/bash"]
