@@ -1,16 +1,18 @@
 #pragma once
 
 #include "Build.h"
-#include "MyConsumer.h"
+#include "Fwd.h"
+#include <vector>
+#include <llvm/ADT/StringRef.h>
 
-namespace Predcp
+
+namespace Dcp
 {
 
-PREDCP_API void InvalidateIntermediateCache(const std::string& InRoot);
+DCP_API void PutToIntermediate(const llvm::StringRef& File, const std::vector<MyXCompilerInclude>& Include);
+DCP_API void PutToIntermediate(const MyTypeDef& InTypeDef);
+DCP_API void PutToIntermediate(const MyRecord& InRecord);
+DCP_API void PutToIntermediate(const MyFunction& InFunction);
+DCP_API void PutToIntermediate(const MyFunctionRef& InFunctionRef);
 
-PREDCP_API void PutToIntermediate(const std::string& InRoot, std::string&& F, std::vector<MyMacroInfo>&& Macros);
-PREDCP_API void PutToIntermediate(const std::string& InRoot, std::map<std::string, std::vector<MyIncludeDirective>>&& InFiles);
-PREDCP_API void PutToIntermediate(const std::string& InRoot, std::map<std::string, std::vector<MyMacroInfo>>&& InHeaders);
-
-} /* ~Namespace Predcp */
-
+} /* ~Namespace Dcp */

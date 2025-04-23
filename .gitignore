@@ -6,10 +6,13 @@
 # Jetbrains IDEA stuff
 cmake-build-*/*
 
-# intermediate and binary files
+# Intermediate and binary files
 Binaries/*
 Binaries/
 build/*
 build/
 Saved/
 Saved/*
+
+# Python
+__pycache__/
