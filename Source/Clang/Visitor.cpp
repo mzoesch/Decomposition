@@ -1,5 +1,6 @@
 #include "Visitor.h"
 #include "Out.h"
+#include "Collector.h"
 #include <clang/AST/ParentMapContext.h>
 #include <clang/Basic/SourceManager.h>
 
@@ -44,9 +45,71 @@ bool IsDeclInTranslationUnit(const Decl* D)
     return false;
 }
 
+QualType GetBasicName(QualType&& Qt)
+{
+    while (Qt->isPointerType() || Qt->isReferenceType())
+    {
+        Qt = Qt->getPointeeType();
+    }
+
+    Qt = Qt.getUnqualifiedType();
+
+    return Qt;
+}
+
 } /* ~Namespace <Anonymous> */
 
 bool Dcp::MyAstVisitor::VisitTypedefDecl(const TypedefDecl* Td)
+{
+    if (const std::optional<MyTypeDef> TypeDef = this->GetTypeDef(Td); TypeDef)
+    {
+        PutToIntermediate(*TypeDef);
+    }
+
+    return true;
+}
+
+bool Dcp::MyAstVisitor::VisitRecordDecl(const RecordDecl* Rd)
+{
+    if (const std::optional<MyRecord> Record = this->GetRecord(Rd); Record)
+    {
+        PutToIntermediate(*Record);
+    }
+
+    return true;
+}
+
+bool Dcp::MyAstVisitor::VisitEnumDecl(const EnumDecl* Ed)
+{
+    if (const std::optional<MyEnumRecord> Enum = this->GetEnum(Ed); Enum)
+    {
+        PutToIntermediate(*Enum);
+    }
+
+    return true;
+}
+
+bool Dcp::MyAstVisitor::VisitFunctionDecl(FunctionDecl* Fd)
+{
+    if (const std::optional<MyFunction> Func = this->GetFunction(Fd); Func)
+    {
+        PutToIntermediate(*Func);
+    }
+
+    return true;
+}
+
+bool Dcp::MyAstVisitor::VisitCallExpr(const CallExpr* Ce)
+{
+    if (const std::optional<MyFunctionRef> FuncRef = this->GetFunctionRef(Ce); FuncRef)
+    {
+        PutToIntermediate(*FuncRef);
+    }
+
+    return true;
+}
+
+std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* Td)
 {
     const SourceLocation Sl = Td->getLocation();
 
@@ -57,7 +120,7 @@ bool Dcp::MyAstVisitor::VisitTypedefDecl(const TypedefDecl* Td)
     std::string AbsF = Sm.getFilename(Sl).str();
     if (Dcp::IsModuleHeader(AbsF) == false)
     {
-        return true;
+        return { };
     }
 
     const QualType Ut = Td->getUnderlyingType();
@@ -66,35 +129,63 @@ bool Dcp::MyAstVisitor::VisitTypedefDecl(const TypedefDecl* Td)
     Policy.SuppressTagKeyword = false;
 
     MyTypeDef Def;
-    Def.Identifier = Td->getQualifiedNameAsString();
+    Def.Identifier = Td->getName();
+    dcp_check( Def.Identifier.empty() == false )
     Def.Source = std::move(AbsF);
+    dcp_check( Def.Source.empty() == false )
     Def.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Def.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
 
-
-    std::string Buf;
-    llvm::raw_string_ostream OStream(Buf);
-    Ut.print(OStream, Policy, Td->getName());
-    OStream.flush();
-    Def.What = std::move(Buf);
+    if (const RecordType* Rt = Ut->getAs<RecordType>(); Rt)
+    {
+        const RecordDecl* Rd = Rt->getDecl();
+        dcp_check( Rd )
+        if (Rd->getName().empty())
+        {
+            Def.What = '?';
+        }
+        else
+        {
+            Def.Type = Rd->getName();
+        }
+    }
+    else if (const EnumType* Et = Ut->getAs<EnumType>(); Et)
+    {
+        const EnumDecl* Ed = Et->getDecl();
+        dcp_check( Ed )
+        if (Ed->getName().empty())
+        {
+            Def.What = '?';
+        }
+        else
+        {
+            Def.Type = Ed->getName();
+        }
+    }
+    if (Def.What.empty())
+    {
+        std::string Buf;
+        llvm::raw_string_ostream OStream(Buf);
+        Ut.print(OStream, Policy, Td->getName());
+        OStream.flush();
+        Def.What = std::move(Buf);
+    }
 
     dcp_check( Def.What.empty() == false )
 
-    PutToIntermediate(Def);
-
-    return true;
+    return Def;
 }
 
-bool Dcp::MyAstVisitor::VisitRecordDecl(const RecordDecl* Rd)
+std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd)
 {
     if (
            Rd->isThisDeclarationADefinition() == false
         || Rd->isAnonymousStructOrUnion()
         || ::IsDeclInTranslationUnit(Rd) == false
         || Rd->getQualifiedNameAsString().find("::") != std::string::npos
-    )
+        )
     {
-        return true;
+        return { };
     }
 
     dcp_check( Rd->isStruct() || Rd->isUnion() || Rd->isEnum() )
@@ -108,16 +199,16 @@ bool Dcp::MyAstVisitor::VisitRecordDecl(const RecordDecl* Rd)
     std::string AbsF = Sm.getFilename(Sl).str();
     if (Dcp::IsModuleHeader(AbsF) == false)
     {
-        return true;
+        return { };
     }
 
-    if (AbsF.empty() || Rd->getQualifiedNameAsString() == "")
+    if (AbsF.empty() || Rd->getIdentifier() == nullptr)
     {
-        return true;
+        return { };
     }
 
     MyRecord Record;
-    Record.Identifier = Rd->getQualifiedNameAsString();
+    Record.Identifier = Rd->getIdentifier()->getName().str();
     Record.Source = std::move(AbsF);
     Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
@@ -139,39 +230,55 @@ bool Dcp::MyAstVisitor::VisitRecordDecl(const RecordDecl* Rd)
         dcp_check( false )
     }
 
-    PutToIntermediate(Record);
+    for (const FieldDecl* Field: Rd->fields())
+    {
+        Make this scan recursivly through all fields: @see yaml_event_s.h
+        QualType Qt = Field->getType();
+        Qt = ::GetBasicName(std::move(Qt));
 
-    return true;
+        if (Qt->hasUnnamedOrLocalType())
+        {
+            continue;
+        }
+
+        MyRecordRef Ref;
+        Ref.Ref = Qt.getAsString();
+        Record.AddRecord(std::move(Ref));
+
+        continue;
+    }
+
+    return Record;
 }
 
-bool Dcp::MyAstVisitor::VisitEnumDecl(const EnumDecl* Ed)
+std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
 {
     if (Ed->isThisDeclarationADefinition() == false)
     {
-        return true;
+        return { };
     }
 
     dcp_check( Ed->isStruct() || Ed->isUnion() || Ed->isEnum() )
 
     const SourceLocation Sl = Ed->getLocation();
 
-    const SourceManager& Sm = Context.getSourceManager();
+    const SourceManager& Sm = this->Context.getSourceManager();
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
     std::string AbsF = Sm.getFilename(Sl).str();
     if (Dcp::IsModuleHeader(AbsF) == false)
     {
-        return true;
+        return { };
     }
 
-    if (AbsF.empty() || Ed->getQualifiedNameAsString() == "")
+    if (AbsF.empty() || Ed->getIdentifier() == nullptr)
     {
-        return true;
+        return { };
     }
 
-    MyRecord Record;
-    Record.Identifier = Ed->getQualifiedNameAsString();
+    MyEnumRecord Record;
+    Record.Identifier = Ed->getIdentifier()->getName().str();
     Record.Source = std::move(AbsF);
     Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
@@ -193,39 +300,71 @@ bool Dcp::MyAstVisitor::VisitEnumDecl(const EnumDecl* Ed)
         dcp_check( false )
     }
 
-    PutToIntermediate(Record);
+    if (QualType Qt = Ed->getIntegerType(); Qt.isNull() == false)
+    {
+        Record.Enum = Qt.getAsString();
+        Qt = ::GetBasicName(std::move(Qt));
 
-    return true;
+        if (Qt->hasUnnamedOrLocalType() == false)
+        {
+            MyRecordRef Ref;
+            Ref.Ref = Qt.getAsString();
+            Record.AddRecord(std::move(Ref));
+        }
+    }
+
+    return Record;
 }
 
-bool Dcp::MyAstVisitor::VisitFunctionDecl(const FunctionDecl* Fd)
+std::optional<Dcp::MyFunctionForward> Dcp::MyAstVisitor::GetFunctionForward(const FunctionDecl* Fd)
 {
     if (Fd->isThisDeclarationADefinition() == false)
     {
-        return true;
+        return { };
     }
 
     const SourceLocation Sl = Fd->getLocation();
-    const SourceManager& Sm = Context.getSourceManager();
+    const SourceManager& Sm = this->Context.getSourceManager();
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
     std::string AbsF = Sm.getFilename(Sl).str();
     if (Dcp::IsModuleHeader(AbsF) == false)
     {
-        return true;
+        return { };
     }
 
     if (AbsF.empty() || Fd->getName() == "")
     {
-        return true;
+        return { };
     }
 
-    MyFunction Func;
+    dcp_check( Fd->hasBody() )
+
+    MyFunctionForward Func;
     Func.Identifier = Fd->getQualifiedNameAsString();
     Func.Source = std::move(AbsF);
     Func.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Func.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+
+    return Func;
+}
+
+std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
+{
+    std::optional<MyFunctionForward> FwdMaybe = this->GetFunctionForward(Fd);
+    if (!FwdMaybe)
+    {
+        return { };
+    }
+
+    MyFunctionForward& Fwd = *FwdMaybe;
+    MyFunction Func;
+    Func.Identifier = std::move(Fwd.Identifier);
+    Func.Source = std::move(Fwd.Source);
+    Func.Line = Fwd.Line;
+    Func.Column = Fwd.Column;
+
     Func.bStatic = Fd->isStatic();
 
     Func.Ret = Fd->getReturnType().getAsString();
@@ -235,24 +374,45 @@ bool Dcp::MyAstVisitor::VisitFunctionDecl(const FunctionDecl* Fd)
         P.Type = Param->getType().getAsString();
         P.Identifier = Param->getName().str();
         Func.Params.emplace_back(std::move(P));
+
+        QualType Qt = Param->getType();
+        Qt = ::GetBasicName(std::move(Qt));
+        if (Qt->hasUnnamedOrLocalType())
+        {
+            continue;
+        }
+
+        MyRecordRef Ref;
+        Ref.Ref = Qt.getAsString();
+        Func.AddRecord(std::move(Ref));
+
+        continue;
     }
 
-    PutToIntermediate(Func);
+    MyTypeCollector Collector;
+    Collector.TraverseDecl(Fd);
+    for (const auto& Type: Collector.GetCollectables())
+    {
+        MyRecordRef Ref;
+        Ref.Ref = Type.getAsString();
+        Func.AddRecord(std::move(Ref));
+        continue;
+    }
 
-    return true;
+    return Func;
 }
 
-bool Dcp::MyAstVisitor::VisitCallExpr(const CallExpr* Ce)
+std::optional<Dcp::MyFunctionRef> Dcp::MyAstVisitor::GetFunctionRef(const CallExpr* Ce)
 {
     const SourceManager& Sm = this->Context.getSourceManager();
 
     const FunctionDecl* Callee = Ce->getDirectCallee();
     if (Callee == nullptr || Callee->hasBody() || Sm.isInSystemHeader(Callee->getLocation()))
     {
-        return true;
+        return { };
     }
 
-    DynTypedNodeList parents = Context.getParents(DynTypedNode::create(*Ce));
+    DynTypedNodeList parents = this->Context.getParents(DynTypedNode::create(*Ce));
     const FunctionDecl* Caller = nullptr;
     while (parents.empty() == false)
     {
@@ -270,21 +430,14 @@ bool Dcp::MyAstVisitor::VisitCallExpr(const CallExpr* Ce)
             break;
         }
 
-        parents = Context.getParents(parents[0]);
+        parents = this->Context.getParents(parents[0]);
         continue;
     }
     dcp_check( Caller )
 
-    const SourceLocation CallLoc = Caller->getLocation();
-
     MyFunctionRef Ref;
-    Ref.Caller.Identifier = Caller->getQualifiedNameAsString();
-    Ref.Caller.Source = Sm.getFilename(CallLoc).str();
-    Ref.Caller.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(CallLoc));
-    Ref.Caller.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(CallLoc));
+    Ref.Caller = this->GetFunctionForward(Caller).value();
     Ref.Ref = Callee->getQualifiedNameAsString();
 
-    PutToIntermediate(Ref);
-
-    return true;
+    return Ref;
 }

@@ -28,7 +28,7 @@ class MyMacroCollector final : public clang::PPCallbacks
 {
 public:
 
-    explicit MyMacroCollector(const clang::Preprocessor& Pp, const MyAstConsumer* Consumer) : Pp(&Pp), Consumer(Consumer) {}
+    explicit MyMacroCollector(const clang::Preprocessor& Pp, const MyAstConsumer* Consumer) : Pp(&Pp), Consumer(Consumer) { }
 
     DCP_API void MacroDefined(const clang::Token& MToken, const clang::MacroDirective* Md) override;
     DCP_API void InclusionDirective(
@@ -54,9 +54,6 @@ private:
 
     const clang::Preprocessor* Pp;
     const MyAstConsumer* Consumer = nullptr;
-
-    /** The cursor for directives of the main file. Used by transitive includes. */
-    int MainLineCursor = INDEX_NONE; /* Index None means not used. */
 
     std::vector<MyMacroInfo> ActiveMacros;
 

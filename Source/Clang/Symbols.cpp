@@ -19,4 +19,14 @@ bool MySymbol::operator==(const MySymbol& InOther) const
         && this->Column == InOther.Column;
 }
 
+bool MySymbolRef::IsValid() const
+{
+    return this->Ref.empty() != false;
+}
+
+bool MySymbolRef::operator==(const MySymbolRef& InOther) const
+{
+    return this->Ref == InOther.Ref;
+}
+
 } /* ~Namespace Dcp */

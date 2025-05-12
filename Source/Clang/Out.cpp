@@ -1,6 +1,7 @@
 #include "Out.h"
 #include "MyXCompiler.h"
 #include "Symbols.h"
+#include "Consumer.h"
 #include "json_nlohmann.h"
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Error.h>
@@ -208,6 +209,41 @@ void Dcp::PutToIntermediate(const llvm::StringRef& File, const std::vector<MyXCo
     return;
 }
 
+void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyIncludeDirective>>& Files)
+{
+    IrOut Out;
+    auto& J = Out.GetHandle();
+
+    for (const auto& [File, Directives] : Files)
+    {
+        json& FileHandle = GetOrMakeObjectHandle(&J["Files"], "Identifier", File);
+
+        for (const MyIncludeDirective& Directive : Directives)
+        {
+            dcp_check( File == Directive.Source )
+            if (ArrayContainsObject(FileHandle["Includes"], "Identifier", Directive.Identifier))
+            {
+                continue;
+            }
+
+
+            json IncludeEntry = json::object();
+            IncludeEntry["Identifier"] = Directive.Identifier;
+            IncludeEntry["ModuleHeader"] = IsModuleHeader(Directive.Identifier);
+            IncludeEntry["Line"] = Directive.Line;
+            IncludeEntry["Column"] = Directive.Column;
+            IncludeEntry["Native"] = Directive.Native;
+            FileHandle["Includes"].emplace_back(std::move(IncludeEntry));
+
+            continue;
+        }
+
+        continue;
+    }
+
+    return;
+}
+
 void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
 {
     IrOut Out;
@@ -220,6 +256,15 @@ void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
         dcp_check( Obj->operator[]("Column") == InTypeDef.Column )
         dcp_check( Obj->operator[]("What")   == InTypeDef.What   )
 
+        if (InTypeDef.Type.empty())
+        {
+            dcp_check( Obj->operator[]("Type")== nullptr )
+        }
+        else
+        {
+            dcp_check( Obj->operator[]("Type") == InTypeDef.Type )
+        }
+
         return;
     }
 
@@ -229,6 +274,14 @@ void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
     TypeDefEntry["Line"] = InTypeDef.Line;
     TypeDefEntry["Column"] = InTypeDef.Column;
     TypeDefEntry["What"] = InTypeDef.What;
+    if (InTypeDef.Type.empty())
+    {
+        TypeDefEntry["Type"] = nullptr;
+    }
+    else
+    {
+        TypeDefEntry["Type"] = InTypeDef.Type;
+    }
     J["Typedefs"].emplace_back(std::move(TypeDefEntry));
 
     return;
@@ -245,17 +298,96 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
         dcp_check(  Obj->operator[]("Line") == InRecord.Line   )
         dcp_check( Obj->operator[]("Column") == InRecord.Column )
         dcp_check( Obj->operator[]("Type") == InRecord.Type )
+        dcp_check( Obj->operator[]("Records").is_array() )
+        dcp_check( Obj->operator[]("Records").size() == InRecord.Records.size() )
+        for (size_t i = 0; i < InRecord.Records.size(); ++i)
+        {
+            dcp_check( Obj->operator[]("Records")[i]["Identifier"] == InRecord.Records[i].Ref )
+        }
 
         return;
     }
 
-    json TypeDefEntry = json::object();
-    TypeDefEntry["Identifier"] = InRecord.Identifier;
-    TypeDefEntry["Source"] = InRecord.Source;
-    TypeDefEntry["Line"] = InRecord.Line;
-    TypeDefEntry["Column"] = InRecord.Column;
-    TypeDefEntry["Type"] = InRecord.Type;
-    J["Records"].emplace_back(std::move(TypeDefEntry));
+    json Entry = json::object();
+    Entry["Identifier"] = InRecord.Identifier;
+    Entry["Source"] = InRecord.Source;
+    Entry["Line"] = InRecord.Line;
+    Entry["Column"] = InRecord.Column;
+    Entry["Type"] = InRecord.Type;
+    Entry["Records"] = json::array();
+    Entry["Enum"] = nullptr;
+    for (const auto& Record : InRecord.Records)
+    {
+        json RecordEntry = json::object();
+        RecordEntry["Identifier"] = Record.Ref;
+        Entry["Records"].emplace_back(std::move(RecordEntry));
+    }
+
+    J["Records"].emplace_back(std::move(Entry));
+
+    return;
+}
+
+void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
+{
+    PutToIntermediate(static_cast<const MyRecord&>(InEnumRecord));
+
+    IrOut Out;
+    auto& J = Out.GetHandle();
+    json* Obj = GetArrayObjectChecked(J["Records"], "Identifier", InEnumRecord.Identifier);
+
+    if (InEnumRecord.Enum.has_value())
+    {
+        if (Obj->contains("Enum") == false)
+        {
+            Obj->operator[]("Enum") = InEnumRecord.Enum.value();;
+        }
+        else if (Obj->operator[]("Enum").is_null())
+        {
+            Obj->operator[]("Enum") = InEnumRecord.Enum.value();
+        }
+        else
+        {
+            dcp_check( Obj->operator[]("Enum").is_string() )
+            dcp_check( Obj->operator[]("Enum") == InEnumRecord.Enum.value() )
+        }
+    }
+    else
+    {
+        if (Obj->contains("Enum") == false)
+        {
+            Obj->operator[]("Enum") = nullptr;
+        }
+        else if (Obj->operator[]("Enum").is_null() == false)
+        {
+            dcp_check( Obj->operator[]("Enum").is_null() )
+        }
+    }
+
+    return;
+}
+
+void Dcp::PutToIntermediate(const MyFunctionForward& InFunction)
+{
+    IrOut Out;
+    json& J = Out.GetHandle();
+
+    if (const json* Obj = GetArrayObject(J["Functions"], "Identifier", InFunction.Identifier); Obj)
+    {
+        dcp_check( Obj->operator[]("Source") == InFunction.Source )
+        dcp_check( Obj->operator[]("Line")   == InFunction.Line   )
+        dcp_check( Obj->operator[]("Column") == InFunction.Column )
+
+        return;
+    }
+
+    json Entry = json::object();
+    Entry["Identifier"] = InFunction.Identifier;
+    Entry["Source"] = InFunction.Source;
+    Entry["Line"] = InFunction.Line;
+    Entry["Column"] = InFunction.Column;
+
+    J["Functions"].emplace_back(std::move(Entry));
 
     return;
 }
@@ -263,7 +395,7 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
 void Dcp::PutToIntermediate(const MyFunction& InFunction)
 {
     IrOut Out;
-    auto& J = Out.GetHandle();
+    json& J = Out.GetHandle();
 
     if (json* Obj = GetArrayObject(J["Functions"], "Identifier", InFunction.Identifier); Obj)
     {
@@ -305,7 +437,7 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
             for (size_t i = 0; i < InFunction.Params.size(); ++i)
             {
                 dcp_check( Obj->operator[]("Params")[i]["Identifier"] == InFunction.Params[i].Identifier )
-                dcp_check( Obj->operator[]("Params")[i]["Type"] == InFunction.Params[i].Type )
+                dcp_check( Obj->operator[]("Params")[i]["Type"]       == InFunction.Params[i].Type       )
             }
         }
 
@@ -318,25 +450,61 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
             dcp_check( Obj->operator[]("bStatic") == InFunction.bStatic )
         }
 
+        if (Obj->contains("Records") == false)
+        {
+            Obj->operator[]("Records") = json::array();
+        }
+        else
+        {
+            dcp_check( Obj->operator[]("Records").is_array() )
+        }
+
+        if (Obj->operator[]("Records").empty())
+        {
+            for (const auto& Record : InFunction.Records)
+            {
+                json RecordEntry = json::object();
+                RecordEntry["Identifier"] = Record.Ref;
+                Obj->operator[]("Records").emplace_back(std::move(RecordEntry));
+            }
+        }
+        else
+        {
+            dcp_check( Obj->operator[]("Records").size() == InFunction.Records.size() )
+            for (size_t i = 0; i < InFunction.Records.size(); ++i)
+            {
+                dcp_check( Obj->operator[]("Records")[i]["Identifier"] == InFunction.Records[i].Ref )
+            }
+        }
+
         return;
     }
 
-    json TypeDefEntry = json::object();
-    TypeDefEntry["Identifier"] = InFunction.Identifier;
-    TypeDefEntry["Source"] = InFunction.Source;
-    TypeDefEntry["Line"] = InFunction.Line;
-    TypeDefEntry["Column"] = InFunction.Column;
-    TypeDefEntry["Ret"] = InFunction.Ret;
-    TypeDefEntry["bStatic"] = InFunction.bStatic;
-    TypeDefEntry["Params"] = json::array();
+    json Entry = json::object();
+    Entry["Identifier"] = InFunction.Identifier;
+    Entry["Source"] = InFunction.Source;
+    Entry["Line"] = InFunction.Line;
+    Entry["Column"] = InFunction.Column;
+    Entry["Ret"] = InFunction.Ret;
+    Entry["bStatic"] = InFunction.bStatic;
+    Entry["Params"] = json::array();
     for (const auto& Param : InFunction.Params)
     {
         json ParamEntry = json::object();
         ParamEntry["Identifier"] = Param.Identifier;
         ParamEntry["Type"] = Param.Type;
-        TypeDefEntry["Params"].emplace_back(std::move(ParamEntry));
+        Entry["Params"].emplace_back(std::move(ParamEntry));
     }
-    J["Functions"].emplace_back(std::move(TypeDefEntry));
+    Entry["Callees"] = json::array();
+    Entry["Records"] = json::array();
+    for (const auto& Record : InFunction.Records)
+    {
+        json RecordEntry = json::object();
+        RecordEntry["Identifier"] = Record.Ref;
+        Entry["Records"].emplace_back(std::move(RecordEntry));
+    }
+
+    J["Functions"].emplace_back(std::move(Entry));
 
     return;
 }
@@ -356,12 +524,7 @@ void Dcp::PutToIntermediate(const MyFunctionRef& InFunctionRef)
     }
     else
     {
-        MyFunction F;
-        F.Identifier = InFunctionRef.Caller.Identifier;
-        F.Source = InFunctionRef.Caller.Source;
-        F.Line = InFunctionRef.Caller.Line;
-        F.Column = InFunctionRef.Caller.Column;
-        PutToIntermediate(F);
+        PutToIntermediate(InFunctionRef.Caller);
         PutToIntermediate(InFunctionRef);
         return;
     }

@@ -32,6 +32,7 @@ add_library(Decomposition MODULE
     Source/Clang/Launch.cpp
     Source/Clang/Consumer.cpp
     Source/Clang/Visitor.cpp
+    Source/Clang/Collector.cpp
     Source/Clang/Fwd.cpp
     Source/Clang/Out.cpp
     Source/Clang/Symbols.cpp

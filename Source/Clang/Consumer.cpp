@@ -1,5 +1,6 @@
 #include "Consumer.h"
 
+#include "Out.h"
 #include "Visitor.h"
 
 using namespace clang;
@@ -13,7 +14,6 @@ bool MyMacroInfo::operator==(const MyMacroInfo& InOther) const
         && this->Definition == InOther.Definition
         && this->bFunctionLike == InOther.bFunctionLike
         && (this->bFunctionLike ? this->Params == InOther.Params : true);
-
 }
 
 bool MyIncludeDirective::operator==(const MyIncludeDirective& InOther) const
@@ -55,6 +55,46 @@ void MyMacroCollector::InclusionDirective(
         FileType
         );
 
+    if (!File)
+    {
+        return;
+    }
+
+    const SourceManager& Sm = this->Pp->getSourceManager();
+
+
+    /* The file that triggered the inclusion directive. */
+    FileID DirectiveF = Sm.getFileID(HashLoc);
+    std::string DirectiveStr = Sm.getFileEntryForID(DirectiveF)->tryGetRealPathName().str();
+
+    /* We only care about headers that are part of this module that is being split. */
+    if (!IsModuleHeader(DirectiveStr))
+    {
+        return;
+    }
+
+    /* The actual absolute path to the included file. */
+    std::string IncludedF = File->getName().str();
+
+    if (this->Files.find(IncludedF) == this->Files.end())
+    {
+        this->Files.emplace(IncludedF, std::vector<MyIncludeDirective>());
+    }
+    if (this->Files.find(DirectiveStr) == this->Files.end())
+    {
+        this->Files.emplace(DirectiveStr, std::vector<MyIncludeDirective>());
+    }
+
+    const auto& Entry = this->Files.find(DirectiveStr);
+    dcp_check( Entry != this->Files.end() )
+    MyIncludeDirective Directive;
+    Directive.Identifier = std::move(IncludedF);
+    Directive.Source = std::move(DirectiveStr);
+    Directive.Line = static_cast<int>(Sm.getSpellingLineNumber(HashLoc));
+    Directive.Native = FileName.str();
+
+    Entry->second.emplace_back(std::move(Directive));
+
     return;
 }
 
@@ -62,10 +102,7 @@ void MyMacroCollector::EndOfMainFile()
 {
     PPCallbacks::EndOfMainFile();
 
-    const SourceManager& Sm = this->Pp->getSourceManager();
-
-    // Get all typedefs
-
+    PutToIntermediate(this->Files);
 
     return;
 }
