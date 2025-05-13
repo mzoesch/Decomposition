@@ -33,7 +33,8 @@ struct MyRecord : public MySymbol
     std::string Type;
     std::vector<MyRecordRef> Records;
 
-    inline bool AddRecord(const MyRecordRef& InRecord);
+    inline bool AddRecordRef(const MyRecordRef& InRecord);
+    inline bool AddRecordRef(MyRecordRef&& InRecord);
 };
 
 struct MyEnumRecord final : public MyRecord
@@ -80,11 +81,22 @@ struct MyRecordRef final : public MySymbolRef
 {
 };
 
-inline bool MyRecord::AddRecord(const MyRecordRef& InRecord)
+inline bool MyRecord::AddRecordRef(const MyRecordRef& InRecord)
 {
     if (std::find(Records.begin(), Records.end(), InRecord) == Records.end())
     {
         Records.emplace_back(InRecord);
+        return true;
+    }
+
+    return false;
+}
+
+inline bool MyRecord::AddRecordRef(MyRecordRef&& InRecord)
+{
+    if (std::find(Records.begin(), Records.end(), InRecord) == Records.end())
+    {
+        Records.emplace_back(std::move(InRecord));
         return true;
     }
 

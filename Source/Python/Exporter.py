@@ -9,15 +9,15 @@ class SymbolReference:
 
     def __init__(self, identifier: str):
         self.identifier = identifier
-        assert(self.identifier is not None and self.identifier != '')
+        assert( self.identifier is not None and self.identifier != '' )
         return
 
     def __eq__(self, other):
         if isinstance(other, str):
-            assert(other is not None and other != '')
+            assert (other is not None and other != '' )
             return self.identifier == other
         elif isinstance(other, SymbolReference):
-            assert(other.identifier is not None and other.identifier != '')
+            assert( other.identifier is not None and other.identifier != '' )
             return self.identifier == other.identifier
         return False
 
@@ -38,7 +38,15 @@ class Symbol:
     Represents a symbol to inside a file.
     """
 
-    def __init__(self, symbol_type: ESymbolType, identifier: str, content: str, source: SourceCodeLocation, references: list[SymbolReference] = None, native: dict | None = None):
+    def __init__(
+        self,
+        symbol_type: ESymbolType,
+        identifier: str,
+        content: str,
+        source: SourceCodeLocation,
+        references: list[SymbolReference] = None,
+        native: dict | None = None
+        ):
         self.symbol_type = symbol_type
         self.identifier = identifier
         self.content = content
@@ -188,18 +196,25 @@ class Exporter:
                 f.content = f'{ref_f.get_extern_spec()}\n{f.content}'
                 continue
 
+            includes: set[str] = set()
             for c_file in ir['Files']:
                 if c_file['Identifier'] != f.symbol.source.file:
                     continue
                 if c_file.get('Includes') is None:
-                    continue
+                    break
                 for include in c_file['Includes']:
                     if include['Line'] > f.symbol.source.line:
                         break
-                    if include['ModuleHeader'] is False:
-                        f.content = f'#include "{include['Native']}"\n{f.content}'
+                    if include['ModuleHeader']:
+                        self._get_transitive_includes_non_module(includes, include['Native'], ir)
+                    else:
+                        if (include['Native'] in includes) is False:
+                            includes.add(include['Native'])
                     continue
                 break
+            for i in includes:
+                f.content = f'#include "{i}"\n{f.content}'
+
             continue
 
         out = self.get_out_dir()
@@ -223,6 +238,23 @@ class Exporter:
 
         print(f'Updated {files_updated} files with a total of [{len(ir["Records"])}] records, '
               f'[{len(ir["Typedefs"])}] typedefs and [{len(ir["Functions"])}] functions.')
+        return None
+
+    def _get_transitive_includes_non_module(self, export_set: set[str], start, ir) -> None:
+        for c_file in ir['Files']:
+            if c_file['Identifier'].endswith(start) is False:
+                continue
+            if c_file.get('Includes') is None:
+                return None
+
+            for inc in c_file['Includes']:
+                if inc['ModuleHeader']:
+                    self._get_transitive_includes_non_module(export_set, inc['Native'], ir)
+                    continue
+                if (inc['Native'] in export_set) is False:
+                    export_set.add(inc['Native'])
+                continue
+            break
         return None
 
     @staticmethod

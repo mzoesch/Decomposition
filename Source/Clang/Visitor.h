@@ -18,6 +18,8 @@ public:
     DCP_API bool VisitFunctionDecl(clang::FunctionDecl* Fd);
     DCP_API bool VisitCallExpr(const clang::CallExpr* Ce);
 
+    DCP_API void GetAllRefs(std::vector<MyRecordRef>* Refs, clang::QualType&& InQt);
+
 private:
 
     auto GetTypeDef(const clang::TypedefDecl* Td) -> std::optional<MyTypeDef>;

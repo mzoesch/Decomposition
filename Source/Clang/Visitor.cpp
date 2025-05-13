@@ -3,6 +3,7 @@
 #include "Collector.h"
 #include <clang/AST/ParentMapContext.h>
 #include <clang/Basic/SourceManager.h>
+#include <oneapi/tbb/detail/_exception.h>
 
 using namespace clang;
 
@@ -107,6 +108,44 @@ bool Dcp::MyAstVisitor::VisitCallExpr(const CallExpr* Ce)
     }
 
     return true;
+}
+
+void Dcp::MyAstVisitor::GetAllRefs(std::vector<MyRecordRef>* Refs, QualType&& InQt)
+{
+    dcp_check( Refs )
+
+    QualType Qt = ::GetBasicName(std::move(InQt));
+
+    if (Qt->hasUnnamedOrLocalType() == false)
+    {
+        MyRecordRef Ref;
+        Ref.Ref = Qt.getAsString();
+        if (std::find(Refs->begin(), Refs->end(), Ref) == Refs->end())
+        {
+            Refs->emplace_back(std::move(Ref));
+        }
+        else
+        {
+            return;
+        }
+    }
+
+    const Type* T = Qt.getTypePtrOrNull();
+    if (T == nullptr)
+    {
+        return;
+    }
+
+    if (const RecordType* Rt = Qt->getAs<RecordType>())
+    {
+        const RecordDecl* Rd = Rt->getDecl();
+        for (const FieldDecl* Fd : Rd->fields())
+        {
+            this->GetAllRefs(Refs, Fd->getType());
+        }
+    }
+
+    return;
 }
 
 std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* Td)
@@ -232,20 +271,7 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd)
 
     for (const FieldDecl* Field: Rd->fields())
     {
-        Make this scan recursivly through all fields: @see yaml_event_s.h
-        QualType Qt = Field->getType();
-        Qt = ::GetBasicName(std::move(Qt));
-
-        if (Qt->hasUnnamedOrLocalType())
-        {
-            continue;
-        }
-
-        MyRecordRef Ref;
-        Ref.Ref = Qt.getAsString();
-        Record.AddRecord(std::move(Ref));
-
-        continue;
+        this->GetAllRefs(&Record.Records, Field->getType());
     }
 
     return Record;
@@ -309,7 +335,7 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
         {
             MyRecordRef Ref;
             Ref.Ref = Qt.getAsString();
-            Record.AddRecord(std::move(Ref));
+            Record.AddRecordRef(std::move(Ref));
         }
     }
 
@@ -407,7 +433,7 @@ std::optional<Dcp::MyFunctionRef> Dcp::MyAstVisitor::GetFunctionRef(const CallEx
     const SourceManager& Sm = this->Context.getSourceManager();
 
     const FunctionDecl* Callee = Ce->getDirectCallee();
-    if (Callee == nullptr || Callee->hasBody() || Sm.isInSystemHeader(Callee->getLocation()))
+    if (Callee == nullptr || Sm.isInSystemHeader(Callee->getLocation()))
     {
         return { };
     }
