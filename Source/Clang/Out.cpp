@@ -244,6 +244,45 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyIncludeDir
     return;
 }
 
+void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>>& Files)
+{
+    IrOut Out;
+    auto& J = Out.GetHandle();
+
+    for (const auto& [File, Macros] : Files)
+    {
+        json& FileHandle = GetOrMakeObjectHandle(&J["Files"], "Identifier", File);
+
+        for (const MyMacroInfo& Macro : Macros)
+        {
+            dcp_check( File == Macro.Source )
+            if (ArrayContainsObject(FileHandle["Macros"], "Identifier", Macro.Identifier))
+            {
+                continue;
+            }
+
+            json MacroEntry = json::object();
+            MacroEntry["Identifier"] = Macro.Identifier;
+            MacroEntry["Line"] = Macro.Line;
+            MacroEntry["Column"] = Macro.Column;
+            MacroEntry["bFunctionLike"] = Macro.bFunctionLike;
+            MacroEntry["Params"] = json::array();
+            for (const auto& Param : Macro.Params)
+            {
+                MacroEntry["Params"].emplace_back(Param);
+            }
+            MacroEntry["Definition"] = Macro.Definition;
+            FileHandle["Macros"].emplace_back(std::move(MacroEntry));
+
+            continue;
+        }
+
+        continue;
+    }
+
+    return;
+}
+
 void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
 {
     IrOut Out;

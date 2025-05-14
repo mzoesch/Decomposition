@@ -18,10 +18,13 @@ def compile_impl(args) -> None:
 
 
 def compile_file(verbose, path_f, path_o, file) -> None:
-    print(f'Compiling [{file}] ...')
-    for out in _run_yielded_cmd([
-        'clang', '-c', path_f, '-o', path_o,
-    ]):
+    print(f'Compiling [{file}] ...', end=' ')
+    cmd = ['clang', '-c', path_f, '-o', path_o,]
+    if verbose:
+        print(' '.join(cmd))
+    else:
+        print('')
+    for out in _run_yielded_cmd(cmd):
         if out:
             print(out, end='')
         continue

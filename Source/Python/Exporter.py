@@ -86,6 +86,16 @@ class Symbol:
             raise ValueError(f'No forward for symbol type [{self.symbol_type}] on symbol [{self.identifier}].')
 
 
+class Macro:
+    """
+    Represents an exported macro.
+    """
+
+    def __init__(self, identifier: str, definition: str):
+        self.identifier = identifier
+        self.definition = definition
+
+
 class Exporter:
     """
     Wrapper around the file exporting process.
@@ -107,11 +117,13 @@ class Exporter:
             else:
                 raise ValueError(f'Unknown symbol type [{self.symbol.symbol_type}] for symbol [{self.symbol.identifier}].')
 
-            if self.path.endswith('.c'):
-                self.content = ''
-            else:
-                self.content = '#pragma once\n\n'
+            self.fwd_path = f'{self.path[:self.path.rfind('.')]}.fwd'
+
+            self.content = ''
+            self.content += f'#include "{self.fwd_path}"\n\n'
             self.content += symbol.content
+
+            self.fwd_content = ''
 
             return
 
@@ -134,6 +146,22 @@ class Exporter:
                 return self.symbol.get_fwd()
             else:
                 return f'#include "{self.path}"'
+
+        def prepend_content(self, in_content: str) -> None:
+            self.content = f'{in_content}\n{self.content}'
+            return None
+
+        def append_content(self, in_content: str) -> None:
+            self.content = f'{self.content}\n{in_content}'
+            return None
+
+        def prepend_fwd_content(self, in_content: str) -> None:
+            self.fwd_content = f'{in_content}\n{self.fwd_content}'
+            return None
+
+        def append_fwd_content(self, in_content: str) -> None:
+            self.fwd_content = f'{self.fwd_content}\n{in_content}'
+            return None
 
     def _add_file(self, file: File) -> None:
         if file in self.files:
@@ -193,10 +221,10 @@ class Exporter:
                 ref_f: Exporter.File | None = self.find_file_by_reference(r.identifier)
                 if ref_f is None:
                     continue
-                f.content = f'{ref_f.get_extern_spec()}\n{f.content}'
+                f.prepend_content(f'{ref_f.get_extern_spec()}')
                 continue
 
-            includes: set[str] = set()
+            includes: list[str] = []
             for c_file in ir['Files']:
                 if c_file['Identifier'] != f.symbol.source.file:
                     continue
@@ -209,11 +237,31 @@ class Exporter:
                         self._get_transitive_includes_non_module(includes, include['Native'], ir)
                     else:
                         if (include['Native'] in includes) is False:
-                            includes.add(include['Native'])
+                            includes.append(include['Native'])
                     continue
                 break
             for i in includes:
-                f.content = f'#include "{i}"\n{f.content}'
+                f.prepend_fwd_content(f'#include "{i}"')
+
+            macros: list[Macro] = []
+            for c_file in ir['Files']:
+                if c_file['Identifier'] != f.symbol.source.file:
+                    continue
+                if c_file.get('Includes') is not None:
+                    for include in c_file['Includes']:
+                        if include['Line'] > f.symbol.source.line:
+                            break
+                        if include['ModuleHeader']:
+                            self._get_transitive_macros_non_module(macros, include['Native'], ir)
+                        continue
+                if c_file.get('Macros') is not None:
+                    for macro in c_file['Macros']:
+                        if (macro['Identifier'] in macros) is False:
+                            macros.append(Macro(macro['Identifier'], self._create_macro_definition(macro)))
+                        continue
+                break
+            for m in macros:
+                f.append_fwd_content(m.definition)
 
             continue
 
@@ -221,6 +269,9 @@ class Exporter:
         files_updated = 0
 
         for f in self.files:
+            if f.path.endswith('.c') is False:
+                f.prepend_content('#pragma once\n')
+
             file_path: str = f'{out}/{f.path}'
             if os.path.exists(file_path):
                 if not self.args.OkIfExists:
@@ -236,11 +287,30 @@ class Exporter:
                 print(f'Written [{file_path}].')
             continue
 
+        for f in self.files:
+            f.prepend_fwd_content('#pragma once\n')
+            f.append_fwd_content('')
+
+            fwd_file_path: str = f'{out}/{f.fwd_path}'
+            if os.path.exists(fwd_file_path):
+                if not self.args.OkIfExists:
+                    raise ValueError(f'File [{fwd_file_path}] already exists.')
+                with open(fwd_file_path, 'r') as file:
+                    fwd_content = file.read()
+                    if fwd_content == f.fwd_content:
+                        continue
+
+            with open(fwd_file_path, 'w') as file:
+                file.write(f.fwd_content)
+                files_updated += 1
+                print(f'Written [{fwd_file_path}].')
+            continue
+
         print(f'Updated {files_updated} files with a total of [{len(ir["Records"])}] records, '
               f'[{len(ir["Typedefs"])}] typedefs and [{len(ir["Functions"])}] functions.')
         return None
 
-    def _get_transitive_includes_non_module(self, export_set: set[str], start, ir) -> None:
+    def _get_transitive_includes_non_module(self, export_set: list[str], start, ir) -> None:
         for c_file in ir['Files']:
             if c_file['Identifier'].endswith(start) is False:
                 continue
@@ -252,10 +322,40 @@ class Exporter:
                     self._get_transitive_includes_non_module(export_set, inc['Native'], ir)
                     continue
                 if (inc['Native'] in export_set) is False:
-                    export_set.add(inc['Native'])
+                    export_set.append(inc['Native'])
                 continue
             break
         return None
+
+    def _get_transitive_macros_non_module(self, export_set: list[Macro], start, ir) -> None:
+        for c_file in ir['Files']:
+            if c_file['Identifier'].endswith(start) is False:
+                continue
+            if c_file.get('Macros') is None:
+                return None
+
+            if c_file.get('Includes'):
+                for inc in c_file['Includes']:
+                    if inc['ModuleHeader']:
+                        self._get_transitive_macros_non_module(export_set, inc['Native'], ir)
+                    continue
+
+            for macro in c_file['Macros']:
+                if (macro['Identifier'] in export_set) is False:
+                    export_set.append(Macro(macro['Identifier'], self._create_macro_definition(macro)))
+                continue
+            break
+        return None
+
+    def _create_macro_definition(self, macro_ir) -> str:
+        out: str = f'#define {macro_ir['Identifier']}'
+        if macro_ir['bFunctionLike']:
+            out += '('
+            out += ','.join(macro_ir['Params'])
+            out += ')'
+        out += f' {macro_ir['Definition']}'
+
+        return out
 
     @staticmethod
     def get_out_dir_s(args) -> str:

@@ -48,7 +48,7 @@ public:
 
     DCP_API std::string GetMacroDefinition(const clang::MacroInfo* Mi) const;
 
-    auto GetFileIncludeDirectiveInformation()  const -> const std::map<std::string, std::vector<MyIncludeDirective>>& { return this->Files; }
+    auto GetFileIncludeDirectiveInformation()  const -> const std::map<std::string, std::vector<MyIncludeDirective>>& { return this->Files_Incs; }
 
 private:
 
@@ -57,8 +57,8 @@ private:
 
     std::vector<MyMacroInfo> ActiveMacros;
 
-    std::map<std::string, std::vector<MyIncludeDirective>> Files;
-    std::map<std::string, std::vector<MyMacroInfo>> HeaderMacros;
+    std::map<std::string, std::vector<MyIncludeDirective>> Files_Incs;
+    std::map<std::string, std::vector<MyMacroInfo>> Files_Macros;
 };
 
 class DCP_API MyAstConsumer final : public clang::ASTConsumer

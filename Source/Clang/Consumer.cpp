@@ -25,6 +25,58 @@ bool MyIncludeDirective::operator==(const MyIncludeDirective& InOther) const
 void MyMacroCollector::MacroDefined(const Token& MToken, const MacroDirective* Md)
 {
     PPCallbacks::MacroDefined(MToken, Md);
+    dcp_check( Md )
+
+    const SourceManager& Sm = this->Pp->getSourceManager();
+
+    const IdentifierInfo* Ii = MToken.getIdentifierInfo();
+    dcp_check( Ii )
+
+    const StringRef MacroName = Ii->getName();
+    const SourceLocation Loc = MToken.getLocation();
+    const FileEntry* DefiningFile = Sm.getFileEntryForID(Sm.getFileID(Loc));
+
+    if (DefiningFile == nullptr) /* <builtin>; we do not care. */
+    {
+        return;
+    }
+
+    const std::string DefiningF = DefiningFile->tryGetRealPathName().str();
+    if (IsModuleHeader(DefiningF) == false) /* extern; we do not care. */
+    {
+        return;
+    }
+
+    const MacroInfo* Mi = this->Pp->getMacroInfo(Ii);
+    dcp_check( Mi )
+
+    MyMacroInfo Info;
+    Info.Identifier = MacroName.str();
+    Info.Definition = this->GetMacroDefinition(Mi);
+    Info.Source = DefiningF;
+    Info.Line = Sm.getSpellingLineNumber(Loc);
+
+    if (Mi->isFunctionLike())
+    {
+        Info.bFunctionLike = true;
+        for (const IdentifierInfo* Param : Mi->params())
+        {
+            dcp_check( Param )
+            Info.Params.emplace_back(Param->getName());
+            continue;
+        }
+    }
+
+    if (this->Files_Macros.find(DefiningF) == this->Files_Macros.end())
+    {
+        this->Files_Macros.emplace(DefiningF, std::vector<MyMacroInfo>());
+    }
+
+    const auto& Entry = this->Files_Macros.find(DefiningF);
+    dcp_check( Entry != this->Files_Macros.end() )
+    Entry->second.emplace_back(std::move(Info));
+
+    return;
 }
 
 void MyMacroCollector::InclusionDirective(
@@ -76,17 +128,17 @@ void MyMacroCollector::InclusionDirective(
     /* The actual absolute path to the included file. */
     std::string IncludedF = File->getName().str();
 
-    if (this->Files.find(IncludedF) == this->Files.end())
+    if (this->Files_Incs.find(IncludedF) == this->Files_Incs.end())
     {
-        this->Files.emplace(IncludedF, std::vector<MyIncludeDirective>());
+        this->Files_Incs.emplace(IncludedF, std::vector<MyIncludeDirective>());
     }
-    if (this->Files.find(DirectiveStr) == this->Files.end())
+    if (this->Files_Incs.find(DirectiveStr) == this->Files_Incs.end())
     {
-        this->Files.emplace(DirectiveStr, std::vector<MyIncludeDirective>());
+        this->Files_Incs.emplace(DirectiveStr, std::vector<MyIncludeDirective>());
     }
 
-    const auto& Entry = this->Files.find(DirectiveStr);
-    dcp_check( Entry != this->Files.end() )
+    const auto& Entry = this->Files_Incs.find(DirectiveStr);
+    dcp_check( Entry != this->Files_Incs.end() )
     MyIncludeDirective Directive;
     Directive.Identifier = std::move(IncludedF);
     Directive.Source = std::move(DirectiveStr);
@@ -102,7 +154,8 @@ void MyMacroCollector::EndOfMainFile()
 {
     PPCallbacks::EndOfMainFile();
 
-    PutToIntermediate(this->Files);
+    PutToIntermediate(this->Files_Incs);
+    PutToIntermediate(this->Files_Macros);
 
     return;
 }
