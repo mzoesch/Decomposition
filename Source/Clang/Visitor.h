@@ -23,7 +23,7 @@ public:
 private:
 
     auto GetTypeDef(const clang::TypedefDecl* Td) -> std::optional<MyTypeDef>;
-    auto GetRecord(const clang::RecordDecl* Rd) -> std::optional<MyRecord>;
+    auto GetRecord(const clang::RecordDecl* Rd, const bool bAllowAnonymous = false) -> std::optional<MyRecord>;
     auto GetEnum(const clang::EnumDecl* Ed) -> std::optional<MyEnumRecord>;
     auto GetFunctionForward(const clang::FunctionDecl* Fd) -> std::optional<MyFunctionForward>;
     auto GetFunction(clang::FunctionDecl* Fd) -> std::optional<MyFunction>;

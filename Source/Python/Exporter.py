@@ -70,6 +70,7 @@ class Symbol:
             'int', 'unsigned', 'unsigned int', 'signed', 'signed int',
             'long', 'unsigned long', 'signed long',
             'float', 'double',
+            'struct', 'enum'
         ]:
             return None
 
@@ -98,7 +99,7 @@ class Macro:
 
 class Exporter:
     """
-    Wrapper around the file exporting process.
+    Wrapper around the file-exporting process.
     """
 
     class File:
@@ -118,12 +119,14 @@ class Exporter:
                 raise ValueError(f'Unknown symbol type [{self.symbol.symbol_type}] for symbol [{self.symbol.identifier}].')
 
             self.fwd_path = f'{self.path[:self.path.rfind('.')]}.fwd'
+            self.inc_path = f'{self.path[:self.path.rfind('.')]}.inc'
 
             self.content = ''
-            self.content += f'#include "{self.fwd_path}"\n\n'
+            self.content += f'#include "{self.inc_path}"\n\n'
             self.content += symbol.content
 
             self.fwd_content = ''
+            self.inc_content = ''
 
             return
 
@@ -161,6 +164,14 @@ class Exporter:
 
         def append_fwd_content(self, in_content: str) -> None:
             self.fwd_content = f'{self.fwd_content}\n{in_content}'
+            return None
+
+        def prepend_inc_content(self, in_content: str) -> None:
+            self.inc_content = f'{in_content}\n{self.inc_content}'
+            return None
+
+        def append_inc_content(self, in_content: str) -> None:
+            self.inc_content = f'{self.inc_content}\n{in_content}'
             return None
 
     def _add_file(self, file: File) -> None:
@@ -217,6 +228,9 @@ class Exporter:
 
         for f in self.files:
             f.content = f'\n{f.content}\n'
+            if (f.symbol.native is not None) and (f.symbol.native.get('VarRefs') is not None):
+                for r in f.symbol.native['VarRefs']:
+                    f.prepend_content(f'extern {r['Type']} {r['Identifier']};')
             for r in f.symbol.references:
                 ref_f: Exporter.File | None = self.find_file_by_reference(r.identifier)
                 if ref_f is None:
@@ -261,7 +275,7 @@ class Exporter:
                         continue
                 break
             for m in macros:
-                f.append_fwd_content(m.definition)
+                f.append_inc_content(m.definition)
 
             continue
 
@@ -269,6 +283,7 @@ class Exporter:
         files_updated = 0
 
         for f in self.files:
+            f.prepend_content(f'#include "{f.fwd_path}"\n')
             if f.path.endswith('.c') is False:
                 f.prepend_content('#pragma once\n')
 
@@ -304,6 +319,25 @@ class Exporter:
                 file.write(f.fwd_content)
                 files_updated += 1
                 print(f'Written [{fwd_file_path}].')
+            continue
+
+        for f in self.files:
+            f.prepend_inc_content('#pragma once')
+            f.append_inc_content('')
+
+            inc_file_path: str = f'{out}/{f.inc_path}'
+            if os.path.exists(inc_file_path):
+                if not self.args.OkIfExists:
+                    raise ValueError(f'File [{inc_file_path}] already exists.')
+                with open(inc_file_path, 'r') as file:
+                    inc_content = file.read()
+                    if inc_content == f.inc_content:
+                        continue
+
+            with open(inc_file_path, 'w') as file:
+                file.write(f.inc_content)
+                files_updated += 1
+                print(f'Written [{inc_file_path}].')
             continue
 
         print(f'Updated {files_updated} files with a total of [{len(ir["Records"])}] records, '

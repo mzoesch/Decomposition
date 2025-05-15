@@ -2,6 +2,7 @@
 
 #include "Fwd.h"
 #include <clang/AST/RecursiveASTVisitor.h>
+#include <set>
 
 namespace Dcp
 {
@@ -20,6 +21,32 @@ private:
     bool AddQualifiedType(clang::QualType&& Qt);
 
     std::vector<clang::QualType> Collectables;
+};
+
+class MyVarRefCollector : public clang::RecursiveASTVisitor<MyVarRefCollector>
+{
+public:
+
+    MyVarRefCollector(clang::FunctionDecl* FD, clang::ASTContext& Context)
+        : Fd(FD), Context(Context) {}
+
+    inline void TraverseFunction()
+    {
+        TraverseStmt(Fd->getBody());
+    }
+
+    DCP_API bool VisitDeclRefExpr(const clang::DeclRefExpr* Dre);
+
+    const std::set<const clang::VarDecl*>& GetExternalReferences() const
+    {
+        return this->Refs;
+    }
+
+private:
+
+    clang::FunctionDecl* Fd;
+    clang::ASTContext& Context;
+    std::set<const clang::VarDecl*> Refs;
 };
 
 } /* ~Namespace Dcp */

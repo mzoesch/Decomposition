@@ -15,26 +15,31 @@ struct MySymbol
 
     std::string Identifier;
     std::string Source;
-    int64_t Line = INDEX_NONE;
-    int64_t Column = INDEX_NONE;
+    int64_t Line { INDEX_NONE };
+    int64_t Column { INDEX_NONE };
 
     DCP_API virtual bool IsValid() const;
     DCP_API virtual bool operator==(const MySymbol& InOther) const;
-};
-
-struct MyTypeDef final : public MySymbol
-{
-    std::string What;
-    std::string Type;
 };
 
 struct MyRecord : public MySymbol
 {
     std::string Type;
     std::vector<MyRecordRef> Records;
+    bool bAnonymous { false };
 
     inline bool AddRecordRef(const MyRecordRef& InRecord);
     inline bool AddRecordRef(MyRecordRef&& InRecord);
+};
+
+    struct MyTypeDef final : public MySymbol
+{
+    std::string What;
+    std::string Type;
+    bool bComplex { false };
+    int64_t ComplexBeginLine { INDEX_NONE };
+    int64_t ComplexBeginColumn { INDEX_NONE };
+    std::optional<MyRecord> ComplexTypeRef;
 };
 
 struct MyEnumRecord final : public MyRecord
@@ -54,13 +59,15 @@ struct MyFunction final : public MyFunctionForward
         std::string Type;
     };
 
-    bool bStatic = false;
+    bool bStatic { false };
     std::string Ret;
     std::vector<Param> Params;
 
     std::vector<MyRecordRef> Records;
+    std::vector<MyVarRef> Vars;
 
-    inline bool AddRecord(const MyRecordRef& InRecord);
+    inline bool AddRecordRef(MyRecordRef&& InRecord);
+    inline bool AddVarRef(MyVarRef&& InVarRef);
 };
 
 struct MySymbolRef
@@ -81,11 +88,16 @@ struct MyRecordRef final : public MySymbolRef
 {
 };
 
+struct MyVarRef final : public MySymbolRef
+{
+    std::string Type;
+};
+
 inline bool MyRecord::AddRecordRef(const MyRecordRef& InRecord)
 {
-    if (std::find(Records.begin(), Records.end(), InRecord) == Records.end())
+    if (std::find(this->Records.begin(), this->Records.end(), InRecord) == this->Records.end())
     {
-        Records.emplace_back(InRecord);
+        this->Records.emplace_back(InRecord);
         return true;
     }
 
@@ -94,20 +106,31 @@ inline bool MyRecord::AddRecordRef(const MyRecordRef& InRecord)
 
 inline bool MyRecord::AddRecordRef(MyRecordRef&& InRecord)
 {
-    if (std::find(Records.begin(), Records.end(), InRecord) == Records.end())
+    if (std::find(this->Records.begin(), this->Records.end(), InRecord) == this->Records.end())
     {
-        Records.emplace_back(std::move(InRecord));
+        this->Records.emplace_back(std::move(InRecord));
         return true;
     }
 
     return false;
 }
 
-inline bool MyFunction::AddRecord(const MyRecordRef& InRecord)
+inline bool MyFunction::AddRecordRef(MyRecordRef&& InRecord)
 {
-    if (std::find(Records.begin(), Records.end(), InRecord) == Records.end())
+    if (std::find(this->Records.begin(), this->Records.end(), InRecord) == this->Records.end())
     {
-        Records.emplace_back(InRecord);
+        this->Records.emplace_back(std::move(InRecord));
+        return true;
+    }
+
+    return false;
+}
+
+inline bool MyFunction::AddVarRef(MyVarRef&& InVarRef)
+{
+    if (std::find(this->Vars.begin(), this->Vars.end(), InVarRef) == this->Vars.end())
+    {
+        this->Vars.emplace_back(std::move(InVarRef));
         return true;
     }
 

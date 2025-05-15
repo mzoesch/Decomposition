@@ -162,7 +162,7 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
         return { };
     }
 
-    const QualType Ut = Td->getUnderlyingType();
+    const QualType Qt = Td->getUnderlyingType();
 
     PrintingPolicy Policy(Td->getASTContext().getLangOpts());
     Policy.SuppressTagKeyword = false;
@@ -175,51 +175,63 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
     Def.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Def.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
 
-    if (const RecordType* Rt = Ut->getAs<RecordType>(); Rt)
+    if (const RecordType* Rt = Qt->getAs<RecordType>(); Rt)
     {
         const RecordDecl* Rd = Rt->getDecl();
         dcp_check( Rd )
         if (Rd->getName().empty())
         {
-            Def.What = '?';
+            Def.bComplex = true;
+            Def.Type = "struct";
+            SourceLocation BeginSl = Rd->getBeginLoc();
+            Def.ComplexBeginLine = Sm.getSpellingLineNumber(BeginSl);
+            Def.ComplexBeginColumn = Sm.getSpellingColumnNumber(BeginSl);
+
+            std::optional<MyRecord> Record = this->GetRecord(Rd, true);
+            dcp_check( Record.has_value() )
+            Def.ComplexTypeRef = *Record;
         }
         else
         {
             Def.Type = Rd->getName();
         }
     }
-    else if (const EnumType* Et = Ut->getAs<EnumType>(); Et)
+    else if (const EnumType* Et = Qt->getAs<EnumType>(); Et)
     {
         const EnumDecl* Ed = Et->getDecl();
         dcp_check( Ed )
         if (Ed->getName().empty())
         {
-            Def.What = '?';
+            Def.bComplex = true;
+            Def.Type = "enum";
+            SourceLocation BeginSl = Ed->getBeginLoc();
+            Def.ComplexBeginLine = Sm.getSpellingLineNumber(BeginSl);
+            Def.ComplexBeginColumn = Sm.getSpellingColumnNumber(BeginSl);
         }
         else
         {
             Def.Type = Ed->getName();
         }
     }
-    if (Def.What.empty())
+
+    if (Def.bComplex == false)
     {
         std::string Buf;
         llvm::raw_string_ostream OStream(Buf);
-        Ut.print(OStream, Policy, Td->getName());
+        Qt.print(OStream, Policy, Td->getName());
         OStream.flush();
         Def.What = std::move(Buf);
+        dcp_check( Def.What.empty() == false )
     }
-
-    dcp_check( Def.What.empty() == false )
 
     return Def;
 }
 
-std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd)
+std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd, const bool bAllowAnonymous /* = false */)
 {
     if (
            Rd->isThisDeclarationADefinition() == false
-        || Rd->isAnonymousStructOrUnion()
+        // || Rd->isAnonymousStructOrUnion()
         || ::IsDeclInTranslationUnit(Rd) == false
         || Rd->getQualifiedNameAsString().find("::") != std::string::npos
         )
@@ -241,16 +253,26 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd)
         return { };
     }
 
-    if (AbsF.empty() || Rd->getIdentifier() == nullptr)
+    MyRecord Record;
+
+    if (AbsF.empty())
     {
         return { };
     }
 
-    MyRecord Record;
-    Record.Identifier = Rd->getIdentifier()->getName().str();
+    if (const IdentifierInfo* Ii = Rd->getIdentifier(); Ii)
+    {
+        Record.Identifier = Ii->getName().str();
+    }
+    if (bAllowAnonymous == false && Record.Identifier.empty())
+    {
+        return { };
+    }
+
     Record.Source = std::move(AbsF);
     Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+    Record.bAnonymous = Rd->isAnonymousStructOrUnion();
 
     if (Rd->isStruct())
     {
@@ -410,19 +432,39 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 
         MyRecordRef Ref;
         Ref.Ref = Qt.getAsString();
-        Func.AddRecord(std::move(Ref));
+        Func.AddRecordRef(std::move(Ref));
 
         continue;
     }
 
-    MyTypeCollector Collector;
-    Collector.TraverseDecl(Fd);
-    for (const auto& Type: Collector.GetCollectables())
+    MyTypeCollector TypeCollector;
+    TypeCollector.TraverseDecl(Fd);
+    for (const QualType& Type: TypeCollector.GetCollectables())
     {
         MyRecordRef Ref;
         Ref.Ref = Type.getAsString();
-        Func.AddRecord(std::move(Ref));
+        Func.AddRecordRef(std::move(Ref));
         continue;
+    }
+
+    MyVarRefCollector RefCollector {Fd, this->Context};
+    RefCollector.TraverseFunction();
+    for (const VarDecl* Vd: RefCollector.GetExternalReferences())
+    {
+        MyVarRef Ref;
+        Ref.Ref = Vd->getQualifiedNameAsString();
+        QualType VdQt = Vd->getType();
+
+        if (VdQt->hasUnnamedOrLocalType())
+        {
+            Ref.Type = '?';
+        }
+        else
+        {
+            Ref.Type = VdQt.getAsString();
+        }
+
+        Func.AddVarRef(std::move(Ref));
     }
 
     return Func;

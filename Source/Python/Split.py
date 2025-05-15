@@ -1,6 +1,6 @@
 import os
 import json
-from Source.Python.Exporter import Exporter, Symbol, SourceCodeLocation
+from Source.Python.Exporter import Exporter, Symbol, SymbolReference, SourceCodeLocation
 from Source.Python.Types import ESymbolType
 
 
@@ -24,42 +24,198 @@ def split_impl(args) -> None:
 
 
 class Cursor:
-    def __init__(self, content: str, line: int, column: int):
+    """
+    An iterator over the C source code that respects C syntax.
+    """
+
+    def __init__(self, content: str, line: int, column: int, end_line: int | None = None, end_column: int | None = None):
         self.lines = content.splitlines()
         self.line = line
         self.column = column
 
-    def __iter__(self):
+        self.end_line = end_line
+        self.end_column = end_column
+
+        self._in_define: bool = False
+        self._in_char: bool = False
+        self._in_string: bool = False
+        self._in_comment: bool = False
+        self._in_multiline_comment: bool = False
+
+        self._last_char: str = ''
+        self._last_last_char: str = ''
+
+        return
+
+    def __iter__(self) -> (str, bool):
+
         line, col = self.line, self.column
+
         while line < len(self.lines):
+            if self.end_line is not None and self.end_line == line and self.end_column is None:
+                return
+
             while col <= len(self.lines[line-1]):
-                yield self.lines[line-1][col-1]
+                if self.end_line is not None and self.end_line == line and self.end_column is not None and self.end_column == col:
+                    return
+
+                c = self.lines[line-1][col-1]
+
+                if self._in_define:
+                    yield c, False
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if self._in_comment:
+                    yield c, False
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if self._in_multiline_comment:
+                    yield c, False
+                    if c == '/' and self._last_char == '*':
+                        self._in_multiline_comment = False
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if c == '\'' and self._last_char != '\\':
+                    yield c, True
+                    if self._in_char:
+                        self._in_char = False
+                        self._last_last_char = self._last_char
+                        self._last_char = c
+                        col += 1
+                        continue
+                    self._in_char = True
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if self._in_char:
+                    yield c, False
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if c == '"' and self._last_char != '\\':
+                    if self._in_string:
+                        yield c, True
+                        self._in_string = False
+                        self._last_last_char = self._last_char
+                        self._last_char = c
+                        col += 1
+                        continue
+                    yield c, True
+                    self._in_string = True
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if self._in_string:
+                    yield c, False
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if c == '#':
+                    yield c, False
+                    if self.lines[line-1][col:] == '#define':
+                        self._in_define = True
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if c == '/' and self._last_char == '/':
+                    yield c, False
+                    self._in_comment = True
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                if c == '*' and self._last_char == '/':
+                    yield c, False
+                    self._in_multiline_comment = True
+                    self._last_last_char = self._last_char
+                    self._last_char = c
+                    col += 1
+                    continue
+
+                yield c, True
+                self._last_last_char = self._last_char
+                self._last_char = c
                 col += 1
+                continue
 
-            if col == len(self.lines[line-1]) + 1:
-                yield '\n'
+            if self._in_define:
+                if self._last_char == '\\' or (self._last_char == '\r' and self._last_last_char == '\\'):
+                    yield '\n', False
+                    self._last_last_char = self._last_char
+                    self._last_char = '\n'
+                    line += 1
+                    col = 1
+                    continue
+                self._in_define = False
+                yield '\n', False
+                self._last_last_char = self._last_char
+                self._last_char = '\n'
+                line += 1
+                col = 1
+                continue
 
+            if self._in_comment:
+                yield '\n', False
+                self._in_comment = False
+                self._last_last_char = self._last_char
+                self._last_char = '\n'
+                line += 1
+                col = 1
+                continue
+
+            yield '\n', True
+            self._last_last_char = self._last_char
+            self._last_char = '\n'
             line += 1
             col = 1
+            continue
+
+        return
 
     def iter(self):
         return self.__iter__()
 
-    def reversed(self):
+    def iter_not_syntax(self) -> str:
         line, col = self.line, self.column
-        col -= 1
-        while line > 0:
-            while col > 0:
-                yield self.lines[line-1][col-1]
-                col -= 1
+        while line < len(self.lines):
+            if self.end_line is not None and self.end_line == line and self.end_column is None:
+                return
 
-            if col == 0:
-                yield '\n'
+            while col <= len(self.lines[line-1]):
+                if self.end_line is not None and self.end_line == line and self.end_column is not None and self.end_column == col:
+                    return
 
-            line -= 1
-            if line > 0:
-                col = len(self.lines[line-1])
+                c = self.lines[line-1][col-1]
+                yield c
+                col += 1
+                continue
 
+            yield '\n'
+            line += 1
+            col = 1
+            continue
+
+        return
 
 def _get_file_content(file_path) -> str:
     with open(file_path, 'r') as c_file:
@@ -75,14 +231,17 @@ def _export_records(args, ir) -> None:
         content += f'{r['Type']} '
 
         curly_open: int = 0
-        # TODO: Make this more safe to respect the syntax of the language (e.g. comments, strings, etc.).
-        for c in cursor.iter():
+        for c, valid in cursor.iter():
+            if valid is False:
+                content += c
+                continue
             curly_open += 1 if c == '{' else 0
             curly_open -= 1 if c == '}' else 0
             content += c
             if curly_open == 0 and c == '}':
                 content += ';'
                 break
+            continue
 
         symbol: Symbol = Symbol(
             ESymbolType.RECORD,
@@ -103,12 +262,38 @@ def _export_records(args, ir) -> None:
 
 def _export_typedefs(args, ir) -> None:
     for td in ir['Typedefs']:
-        symbol: Symbol = Symbol(
-            ESymbolType.RECORD,
-            td['Identifier'],
-            f'typedef {td['What']};',
-            SourceCodeLocation(td['Source'], td['Line'], td['Column']),
-            )
+        if td['Complex']:
+            content = 'typedef '
+            cursor = Cursor(
+                _get_file_content(td['Source']),
+                td['ComplexBeginLine'], td['ComplexBeginColumn'],
+                td['Line'], td['Column'],
+                )
+            for c in cursor.iter_not_syntax():
+                content += c
+
+            content += f'{td['Identifier']};'
+
+            refs: list[SymbolReference] = []
+            if td.get('ComplexTypeDecl') is not None:
+                for ref in td['ComplexTypeDecl']['Records']:
+                    refs.append(SymbolReference(ref['Identifier']))
+
+            symbol: Symbol = Symbol(
+                ESymbolType.RECORD,
+                td['Identifier'],
+                content,
+                SourceCodeLocation(td['Source'], td['Line'], td['Column']),
+                refs,
+                )
+        else:
+            symbol: Symbol = Symbol(
+                ESymbolType.RECORD,
+                td['Identifier'],
+                f'typedef {td['What']};',
+                SourceCodeLocation(td['Source'], td['Line'], td['Column']),
+                )
+
         if not td['Type'] is None:
             symbol.add_reference(td['Type'])
 
@@ -129,13 +314,17 @@ def _export_functions(args, it) -> None:
         content += f'{f['Ret']} '
 
         curly_open: int = 0
-        for c in cursor.iter():
+        for c, valid in cursor.iter():
+            if valid is False:
+                content += c
+                continue
             curly_open += 1 if c == '{' else 0
             curly_open -= 1 if c == '}' else 0
             content += c
             if curly_open == 0 and c == '}':
                 content += ';'
                 break
+            continue
 
         symbol: Symbol = Symbol(
             ESymbolType.FUNCTION,

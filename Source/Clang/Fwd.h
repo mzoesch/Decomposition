@@ -29,5 +29,6 @@ struct MySymbol;
 struct MySymbolRef;
     struct MyFunctionRef;
     struct MyRecordRef;
+    struct MyVarRef;
 
 } /* ~Namespace Dcp */

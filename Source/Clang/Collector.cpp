@@ -27,11 +27,30 @@ bool Dcp::MyTypeCollector::AddQualifiedType(QualType&& Qt)
 
     Qt = Qt.getUnqualifiedType();
 
-    if (std::find(Collectables.begin(), Collectables.end(), Qt) == Collectables.end())
+    if (std::find(this->Collectables.begin(), this->Collectables.end(), Qt) == this->Collectables.end())
     {
-        Collectables.emplace_back(std::move(Qt));
+        this->Collectables.emplace_back(std::move(Qt));
         return true;
     }
 
     return false;
+}
+
+bool Dcp::MyVarRefCollector::VisitDeclRefExpr(const DeclRefExpr* Dre)
+{
+    if (isa<clang::VarDecl>(Dre->getDecl()) == false)
+    {
+        return true;
+    }
+
+    const VarDecl* Vd = dyn_cast<VarDecl>(Dre->getDecl());
+    const DeclContext* Fc = dyn_cast<DeclContext>(Fd);
+    const DeclContext* Vc = Vd->getDeclContext();
+
+    if ((Vc == Fc) == false)
+    {
+        this->Refs.insert(Vd);
+    }
+
+    return true;
 }
