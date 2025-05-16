@@ -103,17 +103,46 @@ struct IrOut
 {
     IrOut()
     {
+        bIsLock = true;
         LocalCacheInstance.Mutex.lock();
     };
     ~IrOut()
     {
-        LocalCacheInstance.Mutex.unlock();
+        if (bIsLock)
+        {
+            LocalCacheInstance.Mutex.unlock();
+        }
+    }
+
+    void Lock()
+    {
+        if (this->bIsLock == false)
+        {
+            LocalCacheInstance.Mutex.lock();
+            this->bIsLock = true;
+        }
+
+        return;
+    }
+
+    void Unlock()
+    {
+        if (this->bIsLock)
+        {
+            LocalCacheInstance.Mutex.unlock();
+        }
+
+        return;
     }
 
     json& GetHandle()
     {
         return *LocalCacheInstance.Handle;
     }
+
+private:
+
+    bool bIsLock { false };
 };
 
 json& GetOrMakeObjectHandle(json* J, const std::string_view& Key, const std::string_view& Value)
@@ -634,6 +663,7 @@ void Dcp::PutToIntermediate(const MyFunctionRef& InFunctionRef)
     }
     else
     {
+        Out.Unlock();
         PutToIntermediate(InFunctionRef.Caller);
         PutToIntermediate(InFunctionRef);
         return;

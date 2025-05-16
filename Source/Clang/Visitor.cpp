@@ -1,6 +1,6 @@
 #include "Visitor.h"
 #include "Out.h"
-#include "Collector.h"
+#include "Collectors.h"
 #include <clang/AST/ParentMapContext.h>
 #include <clang/Basic/SourceManager.h>
 #include <oneapi/tbb/detail/_exception.h>
@@ -444,6 +444,7 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
         MyRecordRef Ref;
         Ref.Ref = Type.getAsString();
         Func.AddRecordRef(std::move(Ref));
+
         continue;
     }
 
@@ -451,6 +452,8 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
     RefCollector.TraverseFunction();
     for (const VarDecl* Vd: RefCollector.GetExternalReferences())
     {
+        dcp_check( Vd )
+
         MyVarRef Ref;
         Ref.Ref = Vd->getQualifiedNameAsString();
         QualType VdQt = Vd->getType();
@@ -465,6 +468,29 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
         }
 
         Func.AddVarRef(std::move(Ref));
+
+        continue;
+    }
+
+    MyFuncPointerCollector FCollector {Fd, this->Context};
+    FCollector.TraverseFunction();
+    for (const FunctionDecl* _Fd : FCollector.GetFds())
+    {
+        dcp_check( _Fd )
+
+        MyFunctionForward Fwd;
+        Fwd.Identifier = Func.Identifier;
+        Fwd.Line = Func.Line;
+        Fwd.Column = Func.Column;
+        Fwd.Source = Func.Source;
+
+        MyFunctionRef Ref;
+        Ref.Caller = Fwd;
+        Ref.Ref = _Fd->getQualifiedNameAsString();
+
+        PutToIntermediate(Ref);
+
+        continue;
     }
 
     return Func;
@@ -486,9 +512,9 @@ std::optional<Dcp::MyFunctionRef> Dcp::MyAstVisitor::GetFunctionRef(const CallEx
     {
         for (const DynTypedNode& parent: parents)
         {
-            if (const FunctionDecl *FD = parent.get<FunctionDecl>())
+            if (const FunctionDecl* Fd = parent.get<FunctionDecl>())
             {
-                Caller = FD;
+                Caller = Fd;
                 break;
             }
         }

@@ -49,4 +49,31 @@ private:
     std::set<const clang::VarDecl*> Refs;
 };
 
+class MyFuncPointerCollector : public clang::RecursiveASTVisitor<MyFuncPointerCollector>
+{
+public:
+
+    MyFuncPointerCollector(clang::FunctionDecl* FD, clang::ASTContext& Context)
+        : Fd(FD), Context(Context) {}
+
+    inline void TraverseFunction()
+    {
+        TraverseStmt(Fd->getBody());
+    }
+
+    DCP_API bool VisitVarDecl(const clang::VarDecl* Vd);
+    DCP_API bool VisitBinaryOperator(const clang::BinaryOperator* Bo);
+
+    const std::set<const clang::FunctionDecl*>& GetFds() const
+    {
+        return this->Fds;
+    }
+
+private:
+
+    clang::FunctionDecl* Fd;
+    clang::ASTContext& Context;
+    std::set<const clang::FunctionDecl*> Fds;
+};
+
 } /* ~Namespace Dcp */
