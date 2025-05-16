@@ -387,7 +387,7 @@ class Exporter:
             out += '('
             out += ','.join(macro_ir['Params'])
             out += ')'
-        out += f' {macro_ir['Definition']}'
+        out += f'{macro_ir['Definition']}'
 
         return out
 

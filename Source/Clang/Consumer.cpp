@@ -165,6 +165,7 @@ std::string MyMacroCollector::GetMacroDefinition(const MacroInfo* Mi) const
     std::string Definition;
     for (const Token& Tok : Mi->tokens())
     {
+        Definition += ' ';
         Definition += this->Pp->getSpelling(Tok);
     }
 
