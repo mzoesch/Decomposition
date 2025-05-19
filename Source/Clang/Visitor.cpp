@@ -3,7 +3,6 @@
 #include "Collectors.h"
 #include <clang/AST/ParentMapContext.h>
 #include <clang/Basic/SourceManager.h>
-#include <oneapi/tbb/detail/_exception.h>
 
 using namespace clang;
 
