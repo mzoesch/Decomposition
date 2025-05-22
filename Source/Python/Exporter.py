@@ -62,7 +62,16 @@ class Symbol:
         if reference in self.references:
             return None
 
-        if reference in [
+        stripped: str = reference.strip()
+        stripped = stripped.replace('const ', '')
+        stripped = stripped.replace('volatile ', '')
+        stripped = stripped.replace('* ', '')
+        stripped: str = stripped.strip()
+
+        if stripped.__contains__('[') and stripped[-1] == ']':
+            stripped = stripped[:stripped.index('[')]
+
+        if stripped in [
             'void',
             'bool',
             'char', 'unsigned char', 'signed char',
@@ -74,7 +83,7 @@ class Symbol:
         ]:
             return None
 
-        self.references.append(SymbolReference(reference))
+        self.references.append(SymbolReference(stripped))
 
         return None
 
@@ -118,6 +127,9 @@ class Exporter:
             else:
                 raise ValueError(f'Unknown symbol type [{self.symbol.symbol_type}] for symbol [{self.symbol.identifier}].')
 
+            self.original_path = self.path
+            self._counter = 0
+
             self.fwd_path = f'{self.path[:self.path.rfind('.')]}.fwd'
             self.inc_path = f'{self.path[:self.path.rfind('.')]}.inc'
 
@@ -129,6 +141,25 @@ class Exporter:
             self.inc_content = ''
 
             return
+
+        def increment_path(self) -> None:
+            old_path = self.path
+
+            if self.symbol.symbol_type == ESymbolType.RECORD:
+                self.path = f'{self.symbol.identifier}{self._counter}.h'
+            elif self.symbol.symbol_type == ESymbolType.FUNCTION:
+                self.path = f'{self.symbol.identifier}{self._counter}.c'
+            else:
+                raise ValueError(f'Unknown symbol type [{self.symbol.symbol_type}] for symbol [{self.symbol.identifier}].')
+
+            self.fwd_path = f'{self.path[:self.path.rfind('.')]}.fwd'
+            self.inc_path = f'{self.path[:self.path.rfind('.')]}.inc'
+
+            self.content = self.content.replace(f'#include "{old_path}"', f'#include "{self.path}"')
+
+            self._counter += 1
+
+            return None
 
         def __contains__(self, item) -> bool:
             if isinstance(item, str):
@@ -176,14 +207,20 @@ class Exporter:
 
     def _add_file(self, file: File) -> None:
         if file in self.files:
-            raise ValueError(f'File [{file.path}] already exists.')
+            file.increment_path()
+            self._add_file(file)
+            return None
         self.files.append(file)
         return None
 
-    def find_file_by_reference(self, reference: str) -> File | None:
+    def find_file_by_reference(self, calling_f: File, reference: str) -> File | None:
+        fs: list[Exporter.File] = []
+
         for f in self.files:
             if reference == f.symbol.identifier:
-                return f
+                if calling_f is not f:
+                    fs.append(f)
+            continue
 
         if reference.startswith('struct '):
             tail = reference[7:]
@@ -191,11 +228,29 @@ class Exporter:
                 if not f.symbol.symbol_type == ESymbolType.RECORD or f.symbol.native is None:
                     continue
                 if tail == f.symbol.identifier and f.symbol.native['Type'] == 'struct':
-                    return f
-        return None
+                    if calling_f is not f:
+                        fs.append(f)
+                continue
 
-    def find_file_by_reference_checked(self, reference: str) -> File:
-        f = self.find_file_by_reference(reference)
+        if len(fs) <= 0:
+            return None
+        if len(fs) == 1:
+            return fs[0]
+
+        most_outer_f: Exporter.File | None = None
+        for f in fs:
+            for _f in fs:
+                if f == _f:
+                    continue
+                if f.symbol.identifier in _f.symbol.references:
+                    most_outer_f = _f
+                    break
+            continue
+
+        return most_outer_f
+
+    def find_file_by_reference_checked(self, calling_f: File, reference: str) -> File:
+        f = self.find_file_by_reference(calling_f, reference)
         if f is None:
             raise ValueError(f'File with reference [{reference}] not found.')
         return f
@@ -231,9 +286,27 @@ class Exporter:
             if (f.symbol.native is not None) and (f.symbol.native.get('VarRefs') is not None):
                 for r in f.symbol.native['VarRefs']:
                     f.prepend_content(f'extern {r['Type']} {r['Identifier']};')
+                    f.symbol.add_reference(r['Type'])
+
             for r in f.symbol.references:
-                ref_f: Exporter.File | None = self.find_file_by_reference(r.identifier)
+                ref_f: Exporter.File | None = self.find_file_by_reference(f, r.identifier)
                 if ref_f is None:
+                    continue
+                if ref_f is f:
+                    continue
+                if ref_f.symbol.symbol_type != ESymbolType.FUNCTION:
+                    continue
+
+                f.symbol.add_reference(ref_f.symbol.native['Ret'])
+                for p in ref_f.symbol.native['Params']:
+                    f.symbol.add_reference(p['Type'])
+                continue
+
+            for r in f.symbol.references:
+                ref_f: Exporter.File | None = self.find_file_by_reference(f, r.identifier)
+                if ref_f is None:
+                    continue
+                if ref_f is f:
                     continue
                 f.prepend_content(f'{ref_f.get_extern_spec()}')
                 continue

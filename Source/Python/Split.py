@@ -146,6 +146,9 @@ def _export_functions(args, it) -> None:
             symbol.add_reference(callee['Identifier'])
         for record in f['Records']:
             symbol.add_reference(record['Identifier'])
+        symbol.add_reference(f['Ret'])
+        for p in f['Params']:
+            symbol.add_reference(p['Type'])
 
         exporter.add_symbol(symbol)
         continue

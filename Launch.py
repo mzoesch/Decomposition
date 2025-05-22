@@ -34,12 +34,12 @@ def compile_to_ir(args) -> None:
                 raise ValueError(f'No such directory [{args.TargetBuildDir}].')
             run_any_task(
                 'cmake',
-                '-S', args.CMakeLocation,
-                '-B', args.TargetBuildDir,
+                '-S', os.path.abspath(args.CMakeLocation),
+                '-B', os.path.abspath(args.TargetBuildDir),
                 f'-DCMAKE_C_COMPILER={args.ClangCompiler}',
-                f'-DCMAKE_CXX_COMPILER={args.ClangCompilerXX}',
+                # f'-DCMAKE_CXX_COMPILER={args.ClangCompilerXX}',
                 '-DCMAKE_C_COMPILER_WORKS=TRUE',
-                '-DCMAKE_CXX_COMPILER_WORKS=TRUE',
+                # '-DCMAKE_CXX_COMPILER_WORKS=TRUE',
                 '-DCMAKE_C_FLAGS=-Xclang -load -Xclang {} -Xclang -plugin -Xclang {}'.format(args.ClangPlugin, args.ClangPluginName),
                 *args.CMakeArgs
                 )
@@ -221,7 +221,7 @@ def _clear_out_dir(path: str) -> None:
 
     removed: int = 0
     for f in os.listdir(path):
-        if f.endswith('.c') or f.endswith('.h') or f.endswith('.fwd'):
+        if f.endswith('.c') or f.endswith('.h') or f.endswith('.fwd') or f.endswith('.inc'):
             file_path: str = os.path.join(path, f)
             if os.path.isfile(file_path):
                 os.remove(file_path)
