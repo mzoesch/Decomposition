@@ -43,9 +43,9 @@ enum : signed char
     /**
      * Traps gdb.
      */
-    #define DEBUG_TRAB() __asm__("int3");
+    #define DEBUG_TRAP() __asm__("int3");
 #else /* HAL_ALLOWS_WITH_GDB_LINUX */
-    #define DEBUG_TRAB()
+    #define DEBUG_TRAP()
 #endif /* !HAL_ALLOWS_WITH_GDB_LINUX */
 
     #define PRIVATE_DCP_FAIL_BOILERPLATE()                       \
@@ -57,7 +57,7 @@ enum : signed char
             {                                                    \
                 usleep(static_cast<int>(1 * (1e+6)));            \
             }                                                    \
-            DEBUG_TRAB()                                         \
+            DEBUG_TRAP()                                         \
         }
 
     // Not great. But ok for now.

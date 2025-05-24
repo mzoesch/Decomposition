@@ -104,7 +104,7 @@ protected:
         }
         if (bWaitedAtLeastOnce && Dcp::IsGdb())
         {
-            DEBUG_TRAB()
+            DEBUG_TRAP()
         }
 #endif /* WITH_GDB_LINUX */
 
