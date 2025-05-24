@@ -31,6 +31,11 @@ def compile_to_ir(args) -> None:
     Step One.
     """
 
+    def _get_flags(inner_args) -> str:
+        return (f'-Xclang -load -Xclang {inner_args.ClangPlugin} -Xclang -add-plugin -Xclang {inner_args.ClangPluginName} '
+                f'{f'-Xclang -plugin-arg-{inner_args.ClangPluginName} -Xclang -WaitForDebugger' if args.Gdb else ''}'
+                f'{f'-Xclang -plugin-arg-{inner_args.ClangPluginName} -Xclang -WaitForDebuggerOnFail' if args.GdbOnFail else ''}')
+
     if args.UseCMake:
         if not os.path.exists(args.CMakeLocation) or not os.path.isdir(args.CMakeLocation):
             raise ValueError(f'No such directory [{args.CMakeLocation}].')
@@ -50,7 +55,7 @@ def compile_to_ir(args) -> None:
                     f'-DCMAKE_C_COMPILER={args.ClangCompiler}',
                     '-DCMAKE_C_COMPILER_WORKS=TRUE',
                     '-DCMAKE_CXX_COMPILER_WORKS=TRUE',
-                    '-DCMAKE_C_FLAGS=-Xclang -load -Xclang {} -Xclang -add-plugin -Xclang {}'.format(args.ClangPlugin, args.ClangPluginName),
+                    f'-DCMAKE_C_FLAGS={_get_flags(args)}',
                     *args.CMakeArgs
                 )
             else:
@@ -90,24 +95,25 @@ def compile_to_ir(args) -> None:
                     target = match.group(1)
                     targets[target].append(entry)
                 else:
-                    targets["_unknown"].append(entry)
+                    targets['_unknown'].append(entry)
 
             sorted_targets = sorted(targets.items(), key=lambda x: len(x[1]), reverse=True)
 
-            print('Fetched Targets:')
-            for i, (target, entries) in enumerate(sorted_targets):
-                print(f'[{i}] {target} ({len(entries)} files)')
-                for e in entries[:3]:
-                    print(f'        {e['file']}')
-                if len(entries) > 3:
-                    print('        ...')
+            if args.ExtractedIndex is None and args.AllExtractedTargets is None:
+                print('Fetched Targets:')
+                for i, (target, entries) in reversed(list(enumerate(sorted_targets))):
+                    print(f'[{i}] {target} ({len(entries)} files)')
+                    for e in entries[:3]:
+                        print(f'        {e['file']}')
+                    if len(entries) > 3:
+                        print('        ...')
 
             if args.AllExtractedTargets:
                 cwd = os.getcwd()
                 try:
                     for c in cmds:
                         dir: str = c['directory']
-                        command: str = f'{c['command']} -Xclang -load -Xclang {args.ClangPlugin} -Xclang -add-plugin -Xclang {args.ClangPluginName}'
+                        command: str = f'{c['command']} {_get_flags(args)}'
                         os.chdir(dir)
                         run_any_task(command, shell=True)
                 finally:
@@ -127,14 +133,22 @@ def compile_to_ir(args) -> None:
                     exit(1)
 
                 cwd = os.getcwd()
+                last_entry = None
                 try:
                     for entry in selected_entries:
+                        last_entry = entry
+                        if args.VerboseOutput is False:
+                            print(f'Analysing: {entry['file']}')
                         dir: str = entry['directory']
-                        command: str = f'{entry['command']} -Xclang -load -Xclang {args.ClangPlugin} -Xclang -add-plugin -Xclang {args.ClangPluginName}'
+                        command: str = f'{entry['command']} {_get_flags(args)}'
                         os.chdir(dir)
-                        run_any_task(command, shell=True)
+                        run_any_task(command, shell=True, verbose=args.VerboseOutput)
                 finally:
                     os.chdir(cwd)
+                    if last_entry is not None:
+                        print(f'FAIL: {last_entry["file"]}')
+                        print(f'FAIL:     WD: {last_entry["directory"]}')
+                        print(f'FAIL:     {last_entry['command']} {_get_flags(args)}')
 
     else:
         run_any_task(args.BuildCommand, shell=True)
@@ -188,52 +202,55 @@ def compile(args) -> None:
 
 
 def default_parse_args() -> None:
-    """Default entry point with default args detection."""
+    """
+    Default entry point with default args detection.
+    """
 
     import sys
     import argparse
 
-    parser = argparse.ArgumentParser(description="Wrapper around the Clang plugin.")
+    parser = argparse.ArgumentParser(description='Wrapper around the Clang plugin for automation of various tasks.')
 
 
-    # Shared args
-    parser.add_argument('-ClangCompiler',       type=str,                 help='Clang compiler to use. Defaults to [clang].')
-    parser.add_argument('-ClangCompilerXX',     type=str,                 help='Clang++ compiler to use. Defaults to [clang++].')
-    parser.add_argument('-VerboseOutput',       action='store_true',      help='Whether to emit verbose output. Defaults to [False].')
-    parser.add_argument('-TargetBuildDir',      type=str,                 help='The build dir to use. Either relative or absolute path. If used with -UseCMake the path is relative to the dir of the CMakeLists.txt file else relative to the cwd. Defaults to [build].')
+    group = parser.add_argument_group('Shared arguments')
+    group.add_argument('-ClangCompiler',       type=str,                 help='Clang compiler to use. Defaults to [clang].')
+    group.add_argument('-ClangCompilerXX',     type=str,                 help='Clang++ compiler to use. Defaults to [clang++].')
+    group.add_argument('-VerboseOutput',       action='store_true',      help='Whether to emit verbose output. Defaults to [False].')
+    group.add_argument('-TargetBuildDir',      type=str,                 help='The build dir to use. Either relative or absolute path. If used with -UseCMake the path is relative to the dir of the CMakeLists.txt file else relative to the cwd. Defaults to [build].')
+    group.add_argument('-Gdb',                 action='store_true',      help='Whether to wait for gdb to be attached to the clang process. Linux only. Defaults to [False].')
+    group.add_argument('-GdbOnFail',           action='store_true',      help='Whether to wait for gdb to be attached to the clang process when a process fails. Linux only. Defaults to [False].')
+
+    group = parser.add_argument_group('Step Zero: Environment setup')
+    group.add_argument('-Setup',               action='store_true',      help='Setup the environment. Only run once.')
+    group.add_argument('-BuildDir',            type=str,                 help='Build dir of the clang plugin. Defaults to [build].')
 
 
-    # Step Zero (Env setup)
-    parser.add_argument('-Setup',               action='store_true',      help='Setup the environment. Only run once.')
-    parser.add_argument('-BuildDir',            type=str,                 help='Build dir of the clang plugin. Defaults to [build].')
+    group = parser.add_argument_group('Step One: Intermediate representation')
+    group.add_argument('-Analyse',             action='store_true',      help='Whether to run the analysis. (The "step one")')
+    group = parser.add_argument_group('Step One: Intermediate representation (For CMake projects)')
+    group.add_argument('-UseCMake',            action='store_true',      help='Whether the target is a cmake project. Defaults to [True]. Incompatible with -BuildCommand.')
+    group.add_argument('-NoCMakeSetup',        action='store_true',      help='Whether to skip the cmake setup. Defaults to [False].')
+    group.add_argument('-NoExtractCMakeCmds',  action='store_true',      help='Whether to not extract cmake commands and then analyse the codebase with said commands. Defaults to [False].')
+    group.add_argument('-ExtractedIndex',      type=int, default=None,   help='Index of the extracted cmake command to analyse. Defaults to [None].')
+    group.add_argument('-AllExtractedTargets', action='store_true',      help='Whether to analyse all extracted cmake command targets. Defaults to [False].')
+    group.add_argument('-CMakeLocation',       type=str,                 help='CMake location to use. Required if -UseCMake is set.')
+    group.add_argument('-CMakeArgs',           nargs='*', type=str,      help='CMake arguments to pass. Defaults to [[]].')
+    group.add_argument('-ClangPlugin',         type=str,                 help='Clang plugin to run. Defaults to [Binaries/Clang/libDecomposition.so].')
+    group.add_argument('-ClangPluginName',     type=str,                 help='Name of plugin to run. Defaults to [decomposition].')
+    group = parser.add_argument_group('Step One: Intermediate representation (For non CMake projects)')
+    group.add_argument('-BuildCommand',        type=str,                 help='Custom build command to run. Incompatible with -UseCMake.')
 
 
-    # Step One (Get intermediate representation)
-    # No cmake project
-    parser.add_argument('-Analyse',             action='store_true',      help='Whether to run the analysis.')
-    parser.add_argument('-BuildCommand',        type=str,                 help='Custom build command to run. Incompatible with -UseCMake.')
-    # Cmake project
-    parser.add_argument('-UseCMake',            action='store_true',      help='Whether the target is a cmake project. Defaults to [True]. Incompatible with -BuildCommand.')
-    parser.add_argument('-NoExtractCMakeCmds',  action='store_true',      help='Whether to extract cmake commands and then analyse the codebase with said commands. Defaults to [False].')
-    parser.add_argument('-ExtractedIndex',      type=int, default=None,   help='Index of the extracted cmake command to analyse. Defaults to [None].')
-    parser.add_argument('-AllExtractedTargets', action='store_true',      help='Whether to analyse all extracted cmake command targets. Defaults to [False].')
-    parser.add_argument('-NoCMakeSetup',        action='store_true',      help='Whether to skip the cmake setup. Defaults to [False].')
-    parser.add_argument('-CMakeLocation',       type=str,                 help='CMake location to use. Required if -UseCMake is set.')
-    parser.add_argument('-CMakeArgs',           nargs='*', type=str,      help='CMake arguments to pass. Defaults to [[]].')
-    parser.add_argument('-ClangPlugin',         type=str,                 help='Clang plugin to run. Defaults to [Binaries/Clang/libDecomposition.so].')
-    parser.add_argument('-ClangPluginName',     type=str,                 help='Name of plugin to run. Defaults to [decomposition-plugin].')
+    group = parser.add_argument_group('Step Two: Split to units')
+    group.add_argument('-Split',               action='store_true',       help='Whether to split to units.')
+    group.add_argument('-ClearOut',            action='store_true',       help='Whether to clear the out dir.')
+    group.add_argument('-OkIfExists',          action='store_true',       help='Whether to ignore if the out files already are existing. Development only.')
 
 
-    # Step Two (Split to units)
-    parser.add_argument('-Split',               action='store_true',       help='Whether to split or just do side tasks.')
-    parser.add_argument('-ClearOut',            action='store_true',       help='Whether to clear the out dir.')
-    parser.add_argument('-OkIfExists',          action='store_true',       help='Whether to ignore if the out files already are existing. Development only.')
-
-
-    # Step Three (Compile units)
-    parser.add_argument('-Compile',             action='store_true',       help='Whether to compile the output files. Defaults to [False].')
-    parser.add_argument('-TargetBuildBinDir',   type=str,                  help='The bin build dir to use. Either relative or absolute path. If relative, it is relative to the TargetBuildDir/Saved. Defaults to [Bin].')
-    parser.add_argument('-ClearBinOut',         action='store_true',       help='Whether to clear the bin out dir. Defaults to [False].')
+    group = parser.add_argument_group('Step Three: Compile units')
+    group.add_argument('-Compile',             action='store_true',       help='Whether to compile the output files. Defaults to [False].')
+    group.add_argument('-TargetBuildBinDir',   type=str,                  help='The bin build dir to use. Either relative or absolute path. If relative, it is relative to the TargetBuildDir/Saved. Defaults to [Bin].')
+    group.add_argument('-ClearBinOut',         action='store_true',       help='Whether to clear the bin out dir. Defaults to [False].')
 
 
     args, unknown = parser.parse_known_args(args=sys.argv[1:])
@@ -269,7 +286,7 @@ def default_parse_args() -> None:
         if args.UseCMake and args.ClangPlugin is None:
             args.ClangPlugin = _get_default_clang_plugin()
         if args.UseCMake and args.ClangPluginName is None:
-            args.ClangPluginName = 'decomposition-plugin'
+            args.ClangPluginName = 'decomposition'
         compile_to_ir(args=args)
 
     if args.Split:

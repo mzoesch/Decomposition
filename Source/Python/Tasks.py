@@ -44,7 +44,7 @@ def _copy_and_print(line, copied_stdout) -> None:
     return None
 
 
-def run_any_task(*args, wd=None, env=None, shell=False) -> None:
+def run_any_task(*args, wd=None, env=None, shell=False, verbose=True) -> None:
     """
     Emits live output of the stdout / stderr.
     """
@@ -53,9 +53,11 @@ def run_any_task(*args, wd=None, env=None, shell=False) -> None:
     if wd is not None:
         cwd = os.getcwd()
         os.chdir(wd)
-        print(f'Changed working directory from [{cwd}] to [{os.getcwd()}] to execute subprocess.')
+        if verbose:
+            print(f'Changed working directory from [{cwd}] to [{os.getcwd()}] to execute subprocess.')
 
-    print(f'Running subprocess with args [{" ".join(args)}].')
+    if verbose:
+        print(f'Running subprocess with args [{" ".join(args)}].')
     try:
         with subprocess.Popen(
                 args,
