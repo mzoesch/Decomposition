@@ -11,7 +11,7 @@
 #endif /* !(_WIN32 || _WIN64) */
 
 #ifndef DCP_API
-    #define DCP_API                 PRIVATE_DCP_IMPORT
+    #define DCP_API                             PRIVATE_DCP_IMPORT
 #endif /* DCP_API */
 
 #ifndef IN_DEBUG
@@ -34,19 +34,19 @@
 
 enum : signed char
 {
-    INDEX_NONE = -1,
+    INDEX_NONE                                  = -1,
 };
 
 #if IN_DEBUG
 
-#if HAL_ALLOWS_WITH_GDB_LINUX
-    /**
-     * Traps gdb.
-     */
-    #define DEBUG_TRAP() __asm__("int3");
-#else /* HAL_ALLOWS_WITH_GDB_LINUX */
-    #define DEBUG_TRAP()
-#endif /* !HAL_ALLOWS_WITH_GDB_LINUX */
+    #if HAL_ALLOWS_WITH_GDB_LINUX
+        /**
+         * Traps gdb.
+         */
+        #define DEBUG_TRAP()                    __asm__("int3");
+    #else /* HAL_ALLOWS_WITH_GDB_LINUX */
+        #define DEBUG_TRAP()
+    #endif /* !HAL_ALLOWS_WITH_GDB_LINUX */
 
     #define PRIVATE_DCP_FAIL_BOILERPLATE()                       \
         if (::Dcp::bWaitForDebuggerOnFail)                       \
@@ -73,24 +73,27 @@ enum : signed char
             PRIVATE_DCP_FAIL_BOILERPLATE()              \
             llvm::report_fatal_error("No entry: " Msg); \
         }
-#define dcp_checkcode(Stmt) \
-    do { Stmt; } while (0);
+
+    #define dcp_checkcode(Stmt) \
+        do { Stmt; } while (0);
 
 #else /* IN_DEBUG */
+
     #define dcp_check(Expr)
     #define dcp_noentry(Msg)
     #define dcp_checkcode(Stmt)
+
 #endif /* !IN_DEBUG */
 
 #if WITH_GDB_LINUX
-/**
- * Linux Hal.
- */
-namespace Dcp
-{
+    /**
+     * Linux Hal.
+     */
+    namespace Dcp
+    {
 
-DCP_API extern bool bWaitForDebuggerOnFail;
-DCP_API bool IsGdb();
+    DCP_API extern bool bWaitForDebuggerOnFail;
+    DCP_API bool IsGdb();
 
-} /* ~Namespace Dcp */
+    } /* ~Namespace Dcp */
 #endif /* WITH_GDB_LINUX */
