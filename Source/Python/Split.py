@@ -15,10 +15,19 @@ def split_impl(args) -> None:
     with open(exporter.get_intermediate_file(), 'r') as f:
         ir = json.load(f)
 
+    print('Collecting records ...', end=' ')
     _export_records(args, ir)
-    _export_typedefs(args, ir)
-    _export_functions(args, ir)
+    print(f'done [{len(exporter.symbols)}]')
 
+    print('Collecting typedefs ...', end=' ')
+    _export_typedefs(args, ir)
+    print(f'done [{len(exporter.symbols)}]')
+
+    print('Collecting functions ...', end=' ')
+    _export_functions(args, ir)
+    print(f'done [{len(exporter.symbols)}]')
+
+    print('Exporting symbols ...')
     exporter.export(ir)
 
     return None

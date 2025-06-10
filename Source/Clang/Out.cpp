@@ -249,6 +249,8 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyIncludeDir
 
         for (const MyIncludeDirective& Directive : Directives)
         {
+            Directive.ExpandAndFollowSourceLocation();
+
             dcp_check( File == Directive.Source )
             if (ArrayContainsObject(FileHandle["Includes"], "Identifier", Directive.Identifier))
             {
@@ -284,6 +286,8 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>
 
         for (const MyMacroInfo& Macro : Macros)
         {
+            Macro.ExpandAndFollowSourceLocation();
+
             dcp_check( File == Macro.Source )
             if (ArrayContainsObject(FileHandle["Macros"], "Identifier", Macro.Identifier))
             {
@@ -314,6 +318,8 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>
 
 void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
 {
+    InTypeDef.ExpandAndFollowSourceLocation();
+
     IrOut Out;
     auto& J = Out.GetHandle();
 
@@ -390,20 +396,30 @@ void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
 
 void Dcp::PutToIntermediate(const MyRecord& InRecord)
 {
-    IrOut Out;
-    auto& J = Out.GetHandle();
+    InRecord.ExpandAndFollowSourceLocation();
 
-    if (const json* Obj = GetArrayObject(J["Records"], "Identifier", InRecord.Identifier); Obj)
+    IrOut Out;
+    auto& J { Out.GetHandle() };
+
+    if (json* Obj { ::GetArrayObject(J["Records"], "Identifier", InRecord.Identifier) }; Obj)
     {
         dcp_check( Obj->operator[]("Source") == InRecord.Source )
-        dcp_check(  Obj->operator[]("Line") == InRecord.Line   )
+        dcp_check( Obj->operator[]("Line")   == InRecord.Line   )
         dcp_check( Obj->operator[]("Column") == InRecord.Column )
-        dcp_check( Obj->operator[]("Type") == InRecord.Type )
+        dcp_check( Obj->operator[]("Type")   == InRecord.Type )
         dcp_check( Obj->operator[]("Records").is_array() )
-        dcp_check( Obj->operator[]("Records").size() == InRecord.Records.size() )
-        for (size_t i = 0; i < InRecord.Records.size(); ++i)
+
+        for (const MyRecordRef& R: InRecord.Records)
         {
-            dcp_check( Obj->operator[]("Records")[i]["Identifier"] == InRecord.Records[i].Ref )
+            if (::ArrayContainsObject(Obj->operator[]("Records"), "Identifier", R.Ref))
+            {
+                continue;
+            }
+
+            json Entry { json::object() };
+            Entry["Identifier"] = R.Ref;
+            Obj->operator[]("Records").emplace_back(std::move(Entry));
+            continue;
         }
 
         return;
@@ -432,6 +448,8 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
 
 void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 {
+    InEnumRecord.ExpandAndFollowSourceLocation();
+
     PutToIntermediate(static_cast<const MyRecord&>(InEnumRecord));
 
     IrOut Out;
@@ -471,6 +489,8 @@ void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 
 void Dcp::PutToIntermediate(const MyFunctionForward& InFunction)
 {
+    InFunction.ExpandAndFollowSourceLocation();
+
     IrOut Out;
     json& J = Out.GetHandle();
 
@@ -496,6 +516,8 @@ void Dcp::PutToIntermediate(const MyFunctionForward& InFunction)
 
 void Dcp::PutToIntermediate(const MyFunction& InFunction)
 {
+    InFunction.ExpandAndFollowSourceLocation();
+
     IrOut Out;
     json& J = Out.GetHandle();
 
@@ -650,6 +672,8 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
 
 void Dcp::PutToIntermediate(const MyFunctionRef& InFunctionRef)
 {
+    InFunctionRef.Caller.ExpandAndFollowSourceLocation();
+
     IrOut Out;
     auto& J = Out.GetHandle();
 

@@ -141,9 +141,6 @@ protected:
     {
         for (const std::string& Arg : args)
         {
-            llvm::outs() << "Arg: " << Arg << "\n";
-            llvm::outs().flush();
-
             if (Arg == "-WaitForDebugger")
             {
                 ::bWaitForDebugger = true;

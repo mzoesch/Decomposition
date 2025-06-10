@@ -1,7 +1,20 @@
 #include "Symbols.h"
+#include <clang/AST/ExprObjC.h>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 namespace Dcp
 {
+
+void MySymbol::ExpandAndFollowSourceLocation() const
+{
+    dcp_check( this->Source.empty() == false )
+
+    const_cast<MySymbol*>(this)->Source = std::filesystem::absolute(std::filesystem::path{this->Source}.lexically_normal());
+
+    return;
+}
 
 bool MySymbol::IsValid() const
 {

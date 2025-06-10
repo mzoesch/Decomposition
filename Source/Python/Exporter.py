@@ -1,4 +1,6 @@
 import os
+import sys
+
 from Source.Python.Types import *
 
 
@@ -255,6 +257,8 @@ class Exporter:
             raise ValueError(f'File with reference [{reference}] not found.')
         return f
 
+    cached_wd_for_ir: str | None = None
+
     def __init__(self, args):
         self.args = args
         self.symbols: list[Symbol] = []
@@ -276,12 +280,19 @@ class Exporter:
         return None
 
     def export(self, ir) -> None:
+        print('Creating maximal set of files ...')
         for s in self.symbols:
             f: Exporter.File = Exporter.File(s)
             self._add_file(f)
             continue
 
+        print(f'Creating content for [{len(self.files)}] files ...')
+        at_file: int = 1
         for f in self.files:
+            print(f'[{at_file}/{len(self.files)}] [{f.path}] ...', end=' ')
+            sys.stdout.flush()
+            at_file += 1
+
             f.content = f'\n{f.content}\n'
             if (f.symbol.native is not None) and (f.symbol.native.get('VarRefs') is not None):
                 for r in f.symbol.native['VarRefs']:
@@ -321,7 +332,8 @@ class Exporter:
                     if include['Line'] > f.symbol.source.line:
                         break
                     if include['ModuleHeader']:
-                        self._get_transitive_includes_non_module(includes, include['Native'], ir)
+                        visited_set: list[str] = []
+                        self._get_transitive_includes_non_module(visited_set, includes, include['Native'], ir)
                     else:
                         if (include['Native'] in includes) is False:
                             includes.append(include['Native'])
@@ -339,7 +351,8 @@ class Exporter:
                         if include['Line'] > f.symbol.source.line:
                             break
                         if include['ModuleHeader']:
-                            self._get_transitive_macros_non_module(macros, include['Native'], ir)
+                            visited_set: list[str] = []
+                            self._get_transitive_macros_non_module(visited_set, macros, include['Native'], ir)
                         continue
                 if c_file.get('Macros') is not None:
                     for macro in c_file['Macros']:
@@ -350,11 +363,13 @@ class Exporter:
             for m in macros:
                 f.append_inc_content(m.definition)
 
+            print('done')
             continue
 
         out = self.get_out_dir()
         files_updated = 0
 
+        print(f'Finishing up main files with a total of [{len(self.files)}] ...')
         for f in self.files:
             f.prepend_content(f'#include "{f.fwd_path}"\n')
             if f.path.endswith('.c') is False:
@@ -375,6 +390,7 @@ class Exporter:
                 print(f'Written [{file_path}].')
             continue
 
+        print(f'Generating forward files for a total of [{len(self.files)}] files ...')
         for f in self.files:
             f.prepend_fwd_content('#pragma once\n')
             f.append_fwd_content('')
@@ -394,6 +410,7 @@ class Exporter:
                 print(f'Written [{fwd_file_path}].')
             continue
 
+        print(f'Generating definition files for a total of [{len(self.files)}] files ...')
         for f in self.files:
             f.prepend_inc_content('#pragma once')
             f.append_inc_content('')
@@ -417,40 +434,50 @@ class Exporter:
               f'[{len(ir["Typedefs"])}] typedefs and [{len(ir["Functions"])}] functions.')
         return None
 
-    def _get_transitive_includes_non_module(self, export_set: list[str], start, ir) -> None:
+    def _get_transitive_includes_non_module(self, visited_set: list[str], export_set: list[str], start, ir) -> None:
         for c_file in ir['Files']:
             if c_file['Identifier'].endswith(start) is False:
                 continue
             if c_file.get('Includes') is None:
                 return None
 
+            if c_file['Identifier'] in visited_set:
+                return None
+            visited_set.append(c_file['Identifier'])
+
             for inc in c_file['Includes']:
                 if inc['ModuleHeader']:
-                    self._get_transitive_includes_non_module(export_set, inc['Native'], ir)
+                    self._get_transitive_includes_non_module(visited_set, export_set, inc['Native'], ir)
                     continue
                 if (inc['Native'] in export_set) is False:
                     export_set.append(inc['Native'])
                 continue
+
             break
         return None
 
-    def _get_transitive_macros_non_module(self, export_set: list[Macro], start, ir) -> None:
+    def _get_transitive_macros_non_module(self, visited_set: list[str], export_set: list[Macro], start, ir) -> None:
         for c_file in ir['Files']:
             if c_file['Identifier'].endswith(start) is False:
                 continue
             if c_file.get('Macros') is None:
                 return None
 
+            if c_file['Identifier'] in visited_set:
+                return None
+            visited_set.append(c_file['Identifier'])
+
             if c_file.get('Includes'):
                 for inc in c_file['Includes']:
                     if inc['ModuleHeader']:
-                        self._get_transitive_macros_non_module(export_set, inc['Native'], ir)
+                        self._get_transitive_macros_non_module(visited_set, export_set, inc['Native'], ir)
                     continue
 
             for macro in c_file['Macros']:
                 if (macro['Identifier'] in export_set) is False:
                     export_set.append(Macro(macro['Identifier'], self._create_macro_definition(macro)))
                 continue
+
             break
         return None
 
@@ -466,10 +493,14 @@ class Exporter:
 
     @staticmethod
     def get_out_dir_s(args) -> str:
+        if Exporter.cached_wd_for_ir is not None:
+            return f'{Exporter.cached_wd_for_ir}/Saved/Out'
         return f'{args.TargetBuildDir}/Saved/Out'
 
     @staticmethod
     def get_intermediate_file_s(args) -> str:
+        if Exporter.cached_wd_for_ir is not None:
+            return f'{Exporter.cached_wd_for_ir}/Saved/IR.json'
         return f'{args.TargetBuildDir}/Saved/IR.json'
 
     def get_out_dir(self) -> str:

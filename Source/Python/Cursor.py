@@ -40,6 +40,7 @@ class Cursor:
         """ Whether we are inside a multiline comment. """
         self._in_multiline_comment: bool = False
 
+        self._is_escaped: bool = False
         self._last_char: str = ''
         self._last_last_char: str = ''
 
@@ -76,11 +77,13 @@ class Cursor:
                 if self._in_pp:
                     yield c, False
                     next_col()
+                    assert( self._is_escaped is False )
                     continue
 
                 if self._in_comment:
                     yield c, False
                     next_col()
+                    assert( self._is_escaped is False )
                     continue
 
                 if self._in_multiline_comment:
@@ -88,6 +91,7 @@ class Cursor:
                     if c == '/' and self._last_char == '*':
                         self._in_multiline_comment = False
                     next_col()
+                    assert( self._is_escaped is False )
                     continue
 
                 if self._in_char:
@@ -107,15 +111,19 @@ class Cursor:
                     continue
 
                 if self._in_string:
+                    if self._is_escaped:
+                        self._is_escaped = False
+                        yield c, False
+                        next_col()
+                        continue
+                    if c == '\\':
+                        self._is_escaped = True
+                        yield c, False
+                        next_col()
+                        continue
                     if c == '"':
-                        if self._last_char == '\\' and self._last_last_char == '\\':
-                            self._in_string = False
-                            yield c, True
-                        elif self._last_char == '\\' and self._last_last_char != '\\':
-                            yield c, False
-                        else:
-                            self._in_string = False
-                            yield c, True
+                        self._in_string = False
+                        yield c, True
                         next_col()
                         continue
                     yield c, False
@@ -158,6 +166,7 @@ class Cursor:
                 next_col()
                 continue
 
+            assert( self._is_escaped is False )
             assert( self._in_char is False )
             assert( self._in_string is False )
 

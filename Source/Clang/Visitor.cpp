@@ -156,7 +156,7 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
     dcp_check( IdF.isValid() )
 
     std::string AbsF = Sm.getFilename(Sl).str();
-    if (Dcp::IsModuleHeader(AbsF) == false)
+    if (AbsF.empty() || Dcp::IsModuleHeader(AbsF) == false)
     {
         return { };
     }

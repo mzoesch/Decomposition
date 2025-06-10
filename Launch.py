@@ -7,6 +7,7 @@ from Source.Python.Split import split_impl
 from Source.Python.Tasks import run_any_task, run_any_task_ok_to_fail
 from Source.Python.Compiler import compile_impl
 
+
 def setup_environment(args) -> None:
     """
     Step Zero.
@@ -99,7 +100,7 @@ def compile_to_ir(args) -> None:
 
             sorted_targets = sorted(targets.items(), key=lambda x: len(x[1]), reverse=True)
 
-            if args.ExtractedIndex is None and args.AllExtractedTargets is None:
+            if args.ExtractedIndex is None and args.AllExtractedTargets is False:
                 print('Fetched Targets:')
                 for i, (target, entries) in reversed(list(enumerate(sorted_targets))):
                     print(f'[{i}] {target} ({len(entries)} files)')
@@ -134,21 +135,28 @@ def compile_to_ir(args) -> None:
 
                 cwd = os.getcwd()
                 last_entry = None
+                reached_last_entry = False
                 try:
                     for entry in selected_entries:
                         last_entry = entry
                         if args.VerboseOutput is False:
                             print(f'Analysing: {entry['file']}')
-                        dir: str = entry['directory']
+                        my_dir: str = entry['directory']
+                        Exporter.cached_wd_for_ir = my_dir
                         command: str = f'{entry['command']} {_get_flags(args)}'
-                        os.chdir(dir)
+                        os.chdir(my_dir)
                         run_any_task(command, shell=True, verbose=args.VerboseOutput)
+                        continue
+
+                    reached_last_entry = True
+
                 finally:
                     os.chdir(cwd)
-                    if last_entry is not None:
-                        print(f'FAIL: {last_entry["file"]}')
-                        print(f'FAIL:     WD: {last_entry["directory"]}')
-                        print(f'FAIL:     {last_entry['command']} {_get_flags(args)}')
+                    if reached_last_entry is False:
+                        if last_entry is not None:
+                            print(f'FAIL: {last_entry["file"]}')
+                            print(f'FAIL:     WD: {last_entry["directory"]}')
+                            print(f'FAIL:     {last_entry['command']} {_get_flags(args)}')
 
     else:
         run_any_task(args.BuildCommand, shell=True)
@@ -218,7 +226,7 @@ def default_parse_args() -> None:
     group.add_argument('-VerboseOutput',       action='store_true',      help='Whether to emit verbose output. Defaults to [False].')
     group.add_argument('-TargetBuildDir',      type=str,                 help='The build dir to use. Either relative or absolute path. If used with -UseCMake the path is relative to the dir of the CMakeLists.txt file else relative to the cwd. Defaults to [build].')
     group.add_argument('-Gdb',                 action='store_true',      help='Whether to wait for gdb to be attached to the clang process. Linux only. Defaults to [False].')
-    group.add_argument('-GdbOnFail',           action='store_true',      help='Whether to wait for gdb to be attached to the clang process when a process fails. Linux only. Defaults to [False].')
+    group.add_argument('-GdbOnFail',           action='store_true',      help='Whether to wait for gdb to be attached to the clang process when a process failure occurs. Linux only. Defaults to [False].')
 
     group = parser.add_argument_group('Step Zero: Environment setup')
     group.add_argument('-Setup',               action='store_true',      help='Setup the environment. Only run once.')
@@ -243,6 +251,7 @@ def default_parse_args() -> None:
 
     group = parser.add_argument_group('Step Two: Split to units')
     group.add_argument('-Split',               action='store_true',       help='Whether to split to units.')
+    group.add_argument('-CachedExporterDir',   type=str, default=None,    help='Cached exporter dir to use. Some CMake projects might use different exporting directories. Defaults to [None].')
     group.add_argument('-ClearOut',            action='store_true',       help='Whether to clear the out dir.')
     group.add_argument('-OkIfExists',          action='store_true',       help='Whether to ignore if the out files already are existing. Development only.')
 
@@ -269,6 +278,8 @@ def default_parse_args() -> None:
         args.BuildDir = 'build'
     if args.TargetBuildBinDir is None:
         args.TargetBuildBinDir = 'Bin'
+    if args.CachedExporterDir is not None:
+        Exporter.cached_wd_for_ir = args.CachedExporterDir
 
     if args.Setup:
         setup_environment(args)

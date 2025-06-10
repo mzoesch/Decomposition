@@ -18,6 +18,8 @@ struct MySymbol
     int64_t Line { INDEX_NONE };
     int64_t Column { INDEX_NONE };
 
+    DCP_API void ExpandAndFollowSourceLocation() const;
+
     DCP_API virtual bool IsValid() const;
     DCP_API virtual bool operator==(const MySymbol& InOther) const;
 };
