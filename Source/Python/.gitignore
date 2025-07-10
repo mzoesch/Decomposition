@@ -1,1 +1,4 @@
-TestCursor.out
+# Python
+/__pycache__/
+
+/TestCursor.out

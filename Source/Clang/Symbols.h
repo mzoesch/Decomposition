@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 #include <algorithm>
+#include <set>
 
 namespace Dcp
 {
@@ -27,7 +28,7 @@ struct MySymbol
 struct MyRecord : public MySymbol
 {
     std::string Type;
-    std::vector<MyRecordRef> Records;
+    std::set<MyRecordRef> Records;
     bool bAnonymous { false };
 
     inline bool AddRecordRef(const MyRecordRef& InRecord);
@@ -38,6 +39,7 @@ struct MyRecord : public MySymbol
 {
     std::string What;
     std::string Type;
+    std::set<MyRecordRef> Records;
     bool bComplex { false };
     int64_t ComplexBeginLine { INDEX_NONE };
     int64_t ComplexBeginColumn { INDEX_NONE };
@@ -53,6 +55,10 @@ struct MyFunctionForward : public MySymbol
 {
 };
 
+struct MyFunctionDecl : public MySymbol
+{
+};
+
 struct MyFunction final : public MyFunctionForward
 {
     struct Param
@@ -65,8 +71,8 @@ struct MyFunction final : public MyFunctionForward
     std::string Ret;
     std::vector<Param> Params;
 
-    std::vector<MyRecordRef> Records;
-    std::vector<MyVarRef> Vars;
+    std::set<MyRecordRef> Records;
+    std::set<MyVarRef> Vars;
 
     inline bool AddRecordRef(MyRecordRef&& InRecord);
     inline bool AddVarRef(MyVarRef&& InVarRef);
@@ -74,11 +80,16 @@ struct MyFunction final : public MyFunctionForward
 
 struct MySymbolRef
 {
-    // Make this more safe by combining the declaration of the #Ref with a deferred definition??
+    // Make this safer by combining the declaration of the #Ref with a deferred definition??
     std::string Ref;
 
     DCP_API bool IsValid() const;
     DCP_API bool operator==(const MySymbolRef& InOther) const;
+
+    bool operator<(const MySymbolRef& InOther) const
+    {
+        return this->Ref < InOther.Ref;
+    }
 };
 
 struct MyFunctionRef final : public MySymbolRef
@@ -97,46 +108,26 @@ struct MyVarRef final : public MySymbolRef
 
 inline bool MyRecord::AddRecordRef(const MyRecordRef& InRecord)
 {
-    if (std::find(this->Records.begin(), this->Records.end(), InRecord) == this->Records.end())
-    {
-        this->Records.emplace_back(InRecord);
-        return true;
-    }
-
-    return false;
+    this->Records.emplace(InRecord);
+    return true;
 }
 
 inline bool MyRecord::AddRecordRef(MyRecordRef&& InRecord)
 {
-    if (std::find(this->Records.begin(), this->Records.end(), InRecord) == this->Records.end())
-    {
-        this->Records.emplace_back(std::move(InRecord));
-        return true;
-    }
-
-    return false;
+    this->Records.emplace(std::move(InRecord));
+    return true;
 }
 
 inline bool MyFunction::AddRecordRef(MyRecordRef&& InRecord)
 {
-    if (std::find(this->Records.begin(), this->Records.end(), InRecord) == this->Records.end())
-    {
-        this->Records.emplace_back(std::move(InRecord));
-        return true;
-    }
-
-    return false;
+    this->Records.emplace(std::move(InRecord));
+    return true;
 }
 
 inline bool MyFunction::AddVarRef(MyVarRef&& InVarRef)
 {
-    if (std::find(this->Vars.begin(), this->Vars.end(), InVarRef) == this->Vars.end())
-    {
-        this->Vars.emplace_back(std::move(InVarRef));
-        return true;
-    }
-
-    return false;
+    this->Vars.emplace(std::move(InVarRef));
+    return true;
 }
 
 } /* ~Namespace Dcp */

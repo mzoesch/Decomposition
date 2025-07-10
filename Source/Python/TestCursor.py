@@ -9,6 +9,10 @@ def main_test(*args, **kwargs) -> None:
 
     curly_open: int = 0
     for c, valid in cursor.iter():
+        if c is None:
+            content = content[:-1]
+            continue
+
         if valid is False:
             content += c
             continue

@@ -18,7 +18,7 @@ public:
     DCP_API bool VisitFunctionDecl(clang::FunctionDecl* Fd);
     DCP_API bool VisitCallExpr(const clang::CallExpr* Ce);
 
-    DCP_API void GetAllRefs(std::vector<MyRecordRef>* Refs, clang::QualType&& InQt);
+    DCP_API void GetAllRefs(std::set<MyRecordRef>* Refs, clang::QualType&& InQt);
 
 private:
 
@@ -27,6 +27,7 @@ private:
     auto GetEnum(const clang::EnumDecl* Ed) -> std::optional<MyEnumRecord>;
     auto GetFunctionForward(const clang::FunctionDecl* Fd) -> std::optional<MyFunctionForward>;
     auto GetFunction(clang::FunctionDecl* Fd) -> std::optional<MyFunction>;
+    auto GetFunctionDecl(clang::FunctionDecl* Fd) -> std::optional<MyFunctionDecl>;
     auto GetFunctionRef(const clang::CallExpr* Ce) -> std::optional<MyFunctionRef>;
 
     clang::ASTContext& Context;

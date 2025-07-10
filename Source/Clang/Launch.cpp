@@ -11,17 +11,17 @@
 #include <llvm/ADT/StringRef.h>
 #include <filesystem>
 
-#if WITH_GDB_LINUX
+#if DCP_WITH_GDB_LINUX
     #include <sys/stat.h>
     #include <fcntl.h>
     #include <ctype.h>
-#endif /* WITH_GDB_LINUX */
+#endif /* DCP_WITH_GDB_LINUX */
 
 using namespace clang;
 using namespace ast_matchers;
 namespace fs = std::filesystem;
 
-#if WITH_GDB_LINUX
+#if DCP_WITH_GDB_LINUX
 namespace Dcp
 {
 
@@ -69,14 +69,26 @@ bool IsGdb()
 } /* ~Namespace Dcp */
 #endif /* WITH_GDB_LINUX */
 
+namespace Dcp
+{
+
+std::string IrPath;
+
+} /* ~Namespace Dcp */
+
 namespace
 {
 
-#if WITH_GDB_LINUX
+#if DCP_WITH_GDB_LINUX
 
 bool bWaitForDebugger { false };
 
-#endif /* WITH_GDB_LINUX */
+#endif /* DCP_WITH_GDB_LINUX */
+
+bool StrStartsWith(const std::string& Str, const std::string& Prefix)
+{
+    return Str.size() >= Prefix.size() && Str.compare(0, Prefix.size(), Prefix) == 0;
+}
 
 class MyFrontendAction final : public PluginASTAction
 {
@@ -84,7 +96,7 @@ protected:
 
     std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance& Ci, StringRef) override
     {
-#if WITH_GDB_LINUX
+#if DCP_WITH_GDB_LINUX
         if (bWaitForDebugger)
         {
             llvm::outs() << "Waiting for gdb...\n";
@@ -141,18 +153,35 @@ protected:
     {
         for (const std::string& Arg : args)
         {
-            if (Arg == "-WaitForDebugger")
+            if (::StrStartsWith(Arg, "-IrPath="))
+            {
+                Dcp::IrPath = Arg.substr(Arg.find('=') + 1);
+                dcp_check( Dcp::IrPath.empty() == false )
+
+                if (fs::exists(Dcp::IrPath) == false)
+                {
+                    fs::create_directories(Dcp::IrPath);
+                }
+            }
+
+#if DCP_WITH_GDB_LINUX
+            else if (Arg == "-WaitForDebugger")
             {
                 ::bWaitForDebugger = true;
             }
 
-            if (Arg == "-WaitForDebuggerOnFail")
+            else if (Arg == "-WaitForDebuggerOnFail")
             {
                 Dcp::bWaitForDebuggerOnFail = true;
             }
+#endif /* DCP_WITH_GDB_LINUX */
 
             continue;
         }
+
+        dcp_check( Dcp::IrPath.empty() == false )
+
+        Dcp::InitializeOutStream();
 
         return true;
     }

@@ -47,12 +47,33 @@ bool IsDeclInTranslationUnit(const Decl* D)
 
 QualType GetBasicName(QualType&& Qt)
 {
+    if (Qt->isFunctionPointerType())
+    {
+        if (Qt->isTypedefNameType() == false)
+        {
+            Qt = Qt->getPointeeType();
+        }
+
+        return Qt;
+    }
+
     while (Qt->isPointerType() || Qt->isReferenceType())
     {
         Qt = Qt->getPointeeType();
     }
 
     Qt = Qt.getUnqualifiedType();
+
+    return Qt;
+}
+
+QualType SafeRemovePointerType(QualType&& Qt)
+{
+    while (Qt->isPointerType() && (Qt->isFunctionPointerType() == false) && (Qt->isTypedefNameType() == false))
+    {
+        Qt = Qt->getPointeeType();
+        continue;
+    }
 
     return Qt;
 }
@@ -91,10 +112,21 @@ bool Dcp::MyAstVisitor::VisitEnumDecl(const EnumDecl* Ed)
 
 bool Dcp::MyAstVisitor::VisitFunctionDecl(FunctionDecl* Fd)
 {
-    if (const std::optional<MyFunction> Func = this->GetFunction(Fd); Func)
+    if (Fd->isThisDeclarationADefinition())
     {
-        PutToIntermediate(*Func);
+        if (const std::optional<MyFunction> Func = this->GetFunction(Fd); Func)
+        {
+            PutToIntermediate(*Func);
+        }
     }
+    else
+    {
+        if (const std::optional<MyFunctionDecl> Func = this->GetFunctionDecl(Fd); Func)
+        {
+            PutToIntermediate(*Func);
+        }
+    }
+
 
     return true;
 }
@@ -109,11 +141,45 @@ bool Dcp::MyAstVisitor::VisitCallExpr(const CallExpr* Ce)
     return true;
 }
 
-void Dcp::MyAstVisitor::GetAllRefs(std::vector<MyRecordRef>* Refs, QualType&& InQt)
+void Dcp::MyAstVisitor::GetAllRefs(std::set<MyRecordRef>* Refs, QualType&& InQt)
 {
     dcp_check( Refs )
 
-    QualType Qt = ::GetBasicName(std::move(InQt));
+    if (InQt->isFunctionPointerType())
+    {
+        if (const PointerType* PtrType = InQt->getAs<PointerType>())
+        {
+            if (const FunctionProtoType* Proto = PtrType->getPointeeType()->getAs<FunctionProtoType>(); Proto)
+            {
+                QualType RetQt = Proto->getReturnType();
+                RetQt = ::SafeRemovePointerType(std::move(RetQt));
+
+                MyRecordRef RetRef;
+                RetRef.Ref = RetQt.getAsString();
+                Refs->emplace(std::move(RetRef));
+
+                for (QualType QtParam : Proto->getParamTypes())
+                {
+                    QtParam = ::SafeRemovePointerType(std::move(QtParam));
+
+                    MyRecordRef MyRecordRef;
+                    MyRecordRef.Ref = QtParam.getAsString();
+                    Refs->emplace(std::move(MyRecordRef));
+
+                    continue;
+                }
+            }
+
+            if (const FunctionNoProtoType* NoProto = PtrType->getPointeeType()->getAs<FunctionNoProtoType>(); NoProto)
+            {
+                MyRecordRef Ref;
+                Ref.Ref = NoProto->getReturnType().getAsString();
+                Refs->emplace(std::move(Ref));
+            }
+        }
+    }
+
+    const QualType Qt = ::GetBasicName(std::move(InQt));
 
     if (Qt->hasUnnamedOrLocalType() == false)
     {
@@ -121,7 +187,7 @@ void Dcp::MyAstVisitor::GetAllRefs(std::vector<MyRecordRef>* Refs, QualType&& In
         Ref.Ref = Qt.getAsString();
         if (std::find(Refs->begin(), Refs->end(), Ref) == Refs->end())
         {
-            Refs->emplace_back(std::move(Ref));
+            Refs->emplace(std::move(Ref));
         }
         else
         {
@@ -135,7 +201,7 @@ void Dcp::MyAstVisitor::GetAllRefs(std::vector<MyRecordRef>* Refs, QualType&& In
         return;
     }
 
-    if (const RecordType* Rt = Qt->getAs<RecordType>())
+    if (const RecordType* Rt = Qt->getAs<RecordType>(); Rt)
     {
         const RecordDecl* Rd = Rt->getDecl();
         for (const FieldDecl* Fd : Rd->fields())
@@ -181,7 +247,24 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
         if (Rd->getName().empty())
         {
             Def.bComplex = true;
-            Def.Type = "struct";
+
+            if (Rd->isStruct())
+            {
+                Def.Type = "struct";
+            }
+            else if (Rd->isUnion())
+            {
+                Def.Type = "union";
+            }
+            else if (Rd->isEnum())
+            {
+                Def.Type = "enum";
+            }
+            else
+            {
+                dcp_check( false )
+            }
+
             SourceLocation BeginSl = Rd->getBeginLoc();
             Def.ComplexBeginLine = Sm.getSpellingLineNumber(BeginSl);
             Def.ComplexBeginColumn = Sm.getSpellingColumnNumber(BeginSl);
@@ -192,7 +275,22 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
         }
         else
         {
-            Def.Type = Rd->getName();
+            if (Rd->isStruct())
+            {
+                Def.Type = "struct " + Rd->getName().str();
+            }
+            else if (Rd->isUnion())
+            {
+                Def.Type = "union " + Rd->getName().str();
+            }
+            else if (Rd->isEnum())
+            {
+                Def.Type = "enum " + Rd->getName().str();
+            }
+            else
+            {
+                dcp_check( false )
+            }
         }
     }
     else if (const EnumType* Et = Qt->getAs<EnumType>(); Et)
@@ -209,7 +307,67 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
         }
         else
         {
-            Def.Type = Ed->getName();
+            Def.Type = "enum " + Ed->getName().str();
+        }
+    }
+    else if (Qt->isFunctionPointerType())
+    {
+        const QualType QtNoSugar = Qt.getDesugaredType(Td->getASTContext());
+        if (const PointerType* PtrType = dyn_cast<PointerType>(QtNoSugar))
+        {
+            const Type* Pointee = PtrType->getPointeeType().getTypePtr();
+
+            if (const FunctionProtoType* Proto = dyn_cast<FunctionProtoType>(Pointee))
+            {
+                const QualType RetQt = Proto->getReturnType();
+                MyRecordRef Ref;
+                Ref.Ref = RetQt.getAsString();
+                Def.Records.emplace(std::move(Ref));
+
+                for (QualType paramType : Proto->param_types())
+                {
+                    MyRecordRef MyRecordRef;
+                    MyRecordRef.Ref = paramType.getAsString();
+                    Def.Records.emplace(std::move(MyRecordRef));
+
+                    continue;
+                }
+            }
+
+            /* Kernighan and Ritchie C only. Usually not used in Ansi C except some weird repos I am testing... */
+            if (const FunctionNoProtoType* NoProto = dyn_cast<FunctionNoProtoType>(Pointee))
+            {
+                MyRecordRef Ref;
+                Ref.Ref = NoProto->getReturnType().getAsString();
+                Def.Records.emplace(std::move(Ref));
+            }
+        }
+
+        if (const PointerType* PtrType = Qt->getAs<PointerType>())
+        {
+            if (const FunctionProtoType* Proto = PtrType->getPointeeType()->getAs<FunctionProtoType>(); Proto)
+            {
+                const QualType RetQt = Proto->getReturnType();
+                MyRecordRef Ref;
+                Ref.Ref = RetQt.getAsString();
+                Def.Records.emplace(std::move(Ref));
+
+                for (const QualType QtParam : Proto->getParamTypes())
+                {
+                    MyRecordRef MyRecordRef;
+                    MyRecordRef.Ref = QtParam.getAsString();
+                    Def.Records.emplace(std::move(MyRecordRef));
+
+                    continue;
+                }
+            }
+
+            if (const FunctionNoProtoType* NoProto = PtrType->getPointeeType()->getAs<FunctionNoProtoType>(); NoProto)
+            {
+                MyRecordRef Ref;
+                Ref.Ref = NoProto->getReturnType().getAsString();
+                Def.Records.emplace(std::move(Ref));
+            }
         }
     }
 
@@ -273,24 +431,30 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd, 
     Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
     Record.bAnonymous = Rd->isAnonymousStructOrUnion();
 
+    std::string Prefix;
     if (Rd->isStruct())
     {
+        Prefix = "struct ";
         Record.Type = "struct";
     }
     else if (Rd->isEnum())
     {
+        Prefix = "enum ";
         Record.Type = "enum";
     }
     else if (Rd->isUnion())
     {
+        Prefix = "union ";
         Record.Type = "union";
     }
     else
     {
         dcp_check( false )
     }
+    Prefix.append(Record.Identifier);
+    Record.Identifier = std::move(Prefix);
 
-    for (const FieldDecl* Field: Rd->fields())
+    for (const FieldDecl* Field : Rd->fields())
     {
         this->GetAllRefs(&Record.Records, Field->getType());
     }
@@ -399,23 +563,45 @@ std::optional<Dcp::MyFunctionForward> Dcp::MyAstVisitor::GetFunctionForward(cons
 
 std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 {
-    std::optional<MyFunctionForward> FwdMaybe = this->GetFunctionForward(Fd);
-    if (!FwdMaybe)
+    dcp_check( Fd->isThisDeclarationADefinition() )
+
+    const SourceLocation Sl = Fd->getLocation();
+    const SourceManager& Sm = this->Context.getSourceManager();
+    const FileID IdF = Sm.getFileID(Sl);
+    dcp_check( IdF.isValid() )
+
+    std::string AbsF = Sm.getFilename(Sl).str();
+    if (Dcp::IsModuleHeader(AbsF) == false)
     {
         return { };
     }
 
-    MyFunctionForward& Fwd = *FwdMaybe;
+    if (AbsF.empty() || Fd->getName() == "") /* <builtin> */
+    {
+        return { };
+    }
+
+    dcp_check( Fd->hasBody() )
+
     MyFunction Func;
-    Func.Identifier = std::move(Fwd.Identifier);
-    Func.Source = std::move(Fwd.Source);
-    Func.Line = Fwd.Line;
-    Func.Column = Fwd.Column;
+    Func.Identifier = Fd->getQualifiedNameAsString();
+    Func.Source = std::move(AbsF);
+    Func.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
+    Func.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
 
     Func.bStatic = Fd->isStatic();
 
-    Func.Ret = Fd->getReturnType().getAsString();
-    for (const ParmVarDecl* Param: Fd->parameters())
+    QualType QtRet = Fd->getReturnType();
+    Func.Ret = QtRet.getAsString();
+    QtRet = ::GetBasicName(std::move(QtRet));
+    if (QtRet->hasUnnamedOrLocalType() == false)
+    {
+        MyRecordRef Ref;
+        Ref.Ref = QtRet.getAsString();
+        Func.AddRecordRef(std::move(Ref));
+    }
+
+    for (const ParmVarDecl* Param : Fd->parameters())
     {
         MyFunction::Param P;
         P.Type = Param->getType().getAsString();
@@ -438,7 +624,7 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 
     MyTypeCollector TypeCollector;
     TypeCollector.TraverseDecl(Fd);
-    for (const QualType& Type: TypeCollector.GetCollectables())
+    for (const QualType& Type : TypeCollector.GetCollectables())
     {
         MyRecordRef Ref;
         Ref.Ref = Type.getAsString();
@@ -449,7 +635,7 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 
     MyVarRefCollector RefCollector {Fd, this->Context};
     RefCollector.TraverseFunction();
-    for (const VarDecl* Vd: RefCollector.GetExternalReferences())
+    for (const VarDecl* Vd : RefCollector.GetExternalReferences())
     {
         dcp_check( Vd )
 
@@ -493,6 +679,35 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
     }
 
     return Func;
+}
+
+std::optional<Dcp::MyFunctionDecl> Dcp::MyAstVisitor::GetFunctionDecl(FunctionDecl* Fd)
+{
+    dcp_check( Fd->isThisDeclarationADefinition() == false )
+
+    const SourceLocation Sl = Fd->getLocation();
+    const SourceManager& Sm = this->Context.getSourceManager();
+    const FileID IdF = Sm.getFileID(Sl);
+    dcp_check( IdF.isValid() )
+
+    std::string AbsF = Sm.getFilename(Sl).str();
+    if (Dcp::IsModuleHeader(AbsF) == false)
+    {
+        return { };
+    }
+
+    if (AbsF.empty() || Fd->getName() == "") /* <builtin> */
+    {
+        return { };
+    }
+
+    MyFunctionDecl Decl;
+    Decl.Identifier = Fd->getQualifiedNameAsString();
+    Decl.Source = std::move(AbsF);
+    Decl.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
+    Decl.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+
+    return Decl;
 }
 
 std::optional<Dcp::MyFunctionRef> Dcp::MyAstVisitor::GetFunctionRef(const CallExpr* Ce)

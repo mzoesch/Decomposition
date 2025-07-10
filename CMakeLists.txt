@@ -50,3 +50,56 @@ target_compile_definitions(Decomposition PRIVATE
 target_include_directories(Decomposition PRIVATE
     Source/Vendor
     )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Adding debug flags for Decomposition plugin.")
+    target_compile_options(Decomposition PRIVATE
+        -g
+        -O0
+        )
+    target_compile_definitions(Decomposition PRIVATE
+        DCP_IN_DEBUG=1
+        )
+else()
+    message(STATUS "Adding release flags for Decomposition plugin.")
+    target_compile_options(Decomposition PRIVATE
+        -O3
+        )
+    target_compile_definitions(Decomposition PRIVATE
+        DCP_IN_DEBUG=0
+        )
+endif()
+
+option(
+    DCP_DO_OUT_CHECKS
+    "Enable output checks in Decomposition plugin."
+    "OFF"
+    )
+option(
+    DCP_WITH_GDB_LINUX
+    "Enable GDB support for Linux in Decomposition plugin."
+    "OFF"
+    )
+
+if(DCP_DO_OUT_CHECKS)
+    message(STATUS "Output checks enabled for Decomposition plugin.")
+    target_compile_definitions(Decomposition PRIVATE
+        DCP_DO_OUT_CHECKS=1
+        )
+else()
+    message(STATUS "Output checks disabled for Decomposition plugin.")
+    target_compile_definitions(Decomposition PRIVATE
+        DCP_DO_OUT_CHECKS=0
+        )
+endif()
+if(DCP_WITH_GDB_LINUX)
+    message(STATUS "GDB support enabled for Linux in Decomposition plugin.")
+    target_compile_definitions(Decomposition PRIVATE
+        DCP_WITH_GDB_LINUX=1
+        )
+else()
+    message(STATUS "GDB support disabled for Linux in Decomposition plugin.")
+    target_compile_definitions(Decomposition PRIVATE
+        DCP_WITH_GDB_LINUX=0
+        )
+endif()

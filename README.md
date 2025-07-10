@@ -23,7 +23,7 @@ python3 ./Launch.py -Setup
 Split a CMake project:
 ```bash
 python3 ./Launch.py \
-  -Analyse -CMakeLocation <path_to_cmake> -CMakeArgs <additional_custom_args> \
+  -Analyse -CMakeLocation <path_to_cmake> \
   -Split
 ```
 

@@ -23,6 +23,7 @@ struct MySymbol;
         struct MyEnumRecord;
     struct MyFunctionForward;
         struct MyFunction;
+    struct MyFunctionDecl;
     struct MyMacroInfo;
     struct MyIncludeDirective;
 

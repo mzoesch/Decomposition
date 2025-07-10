@@ -6,7 +6,14 @@ class Cursor:
     An iterator over the C source code that respects C syntax.
     """
 
-    def __init__(self, content: str, line: int, column: int, end_line: int | None = None, end_column: int | None = None):
+    def __init__(self,
+         args: Any,
+         content: str,
+         line: int = 1,
+         column: int = 1,
+         end_line: int | None = None,
+         end_column: int | None = None
+        ):
         """
         :param content:    The content to sweep over.
         :param line:       The line to start at. (Starts at one.)
@@ -14,6 +21,8 @@ class Cursor:
         :param end_line:   The end line or None to end at the end of the content.
         :param end_column: The end column or None to end at the end of the line (requires that #end_line is not None).
         """
+
+        self.args = args
 
         self.lines = content.splitlines()
         self.line = line
@@ -50,26 +59,43 @@ class Cursor:
         line, col = self.line, self.column
 
         def next_col() -> None:
-            nonlocal line, col
+            nonlocal line
+            nonlocal col
+
             self._last_last_char = self._last_char
             self._last_char = self.lines[line-1][col-1]
+
             col += 1
+
             return None
 
         def next_line() -> None:
-            nonlocal line, col
+            nonlocal line
+            nonlocal col
+
             self._last_last_char = self._last_char
             self._last_char = '\n'
+
             line += 1
             col = 1
+
             return None
 
         while line <= len(self.lines):
-            if self.end_line is not None and self.end_line == line and self.end_column is None:
+            if (
+                    (self.end_line is not None) and
+                    (self.end_line == line) and
+                    (self.end_column is None)
+                ):
                 return
 
             while col <= len(self.lines[line-1]):
-                if self.end_line is not None and self.end_line == line and self.end_column is not None and self.end_column == col:
+                if (
+                        (self.end_line is not None)
+                    and (self.end_line == line)
+                    and (self.end_column is not None)
+                    and (self.end_column == col)
+                    ):
                     return
 
                 c = self.lines[line-1][col-1]
@@ -81,14 +107,18 @@ class Cursor:
                     continue
 
                 if self._in_comment:
-                    yield c, False
+                    if self.args.PurgeInlineDocs is False:
+                        yield c, False
                     next_col()
                     assert( self._is_escaped is False )
                     continue
 
                 if self._in_multiline_comment:
-                    yield c, False
-                    if c == '/' and self._last_char == '*':
+                    if self.args.PurgeInlineDocs is False:
+                        yield c, False
+                    if c == '/' and self._last_char == '*': # Not correct if '*' is escaped. But we would need to
+                                                            # look back to a _last_last_last_char. And really how in
+                                                            # their mind actually escapes comments?
                         self._in_multiline_comment = False
                     next_col()
                     assert( self._is_escaped is False )
@@ -153,12 +183,18 @@ class Cursor:
                 if c == '/' and self._last_char == '/':
                     yield c, True
                     self._in_comment = True
+                    if self.args.PurgeInlineDocs:
+                        yield None, False
+                        yield None, False
                     next_col()
                     continue
 
                 if c == '*' and self._last_char == '/':
                     yield c, True
                     self._in_multiline_comment = True
+                    if self.args.PurgeInlineDocs:
+                        yield None, False
+                        yield None, False
                     next_col()
                     continue
 
@@ -194,20 +230,36 @@ class Cursor:
     def iter(self):
         return self.__iter__()
 
-    def iter_not_syntax(self) -> Generator[str, Any, None]:
+    def iter_no_syntax(self) -> Generator[str, Any, None]:
         line, col = self.line, self.column
         while line < len(self.lines):
-            if self.end_line is not None and self.end_line == line and self.end_column is None:
+            if (
+                    (self.end_line is not None)
+                and (self.end_line == line)
+                and (self.end_column is None)
+                ):
                 return
 
             while col <= len(self.lines[line-1]):
-                if self.end_line is not None and self.end_line == line and self.end_column is not None and self.end_column == col:
+                if (
+                        (self.end_line is not None)
+                    and (self.end_line == line)
+                    and (self.end_column is not None)
+                    and (self.end_column == col)
+                    ):
                     return
 
                 c = self.lines[line-1][col-1]
                 yield c
                 col += 1
                 continue
+
+            if (
+                    (self.end_line is not None)
+                and (self.end_line == line)
+                ):
+                # If the column is out of bounds, we just ignore it.
+                return
 
             yield '\n'
             line += 1

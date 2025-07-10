@@ -1,18 +1,21 @@
 # IDE
-.idea/*
-.vscode/*
-.vs/*
+/.idea/*
+/.vscode/*
+/.vs/*
 
 # Jetbrains IDEA stuff
-cmake-build-*/*
+/cmake-build-*/*
 
 # Intermediate and binary files
-Binaries/*
-Binaries/
-build/*
-build/
-Saved/
-Saved/*
+/Binaries/*
+/Binaries/
+/build/*
+/build/
+/Saved/
+/Saved/*
 
 # Python
-__pycache__/
+/__pycache__/
+
+# Exmaple files
+/Examples/*
