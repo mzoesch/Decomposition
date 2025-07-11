@@ -78,7 +78,19 @@ def _export_records(exporter: Exporter, args, ir) -> None:
                         _column: int,
                         # The number of grace lines we give. Else we give up.
                         grace: int = 0
-                    ) -> tuple[int, int, int, int] | None:
+                    ) -> (
+                        tuple[ # Returns a tuple if a decl doc is found.
+                            int, # One-based start line
+                            int, # One-based start column
+                            int, # One-based end line
+                            int  # One-based end column
+                        ]
+                        | None # Returns None if no decl doc is found.
+                    ):
+
+                    _in_line: int = _line
+                    _in_column: int = _column
+                    _in_grace: int = grace
 
                     # Whether we are ok.
                     _ok: bool = False
@@ -88,6 +100,7 @@ def _export_records(exporter: Exporter, args, ir) -> None:
                     # One-based line and column.
                     _end_multiline_comment_line: int | None = None
                     _end_multiline_comment_column: int | None = None
+                    _end_comment_line: int | None = None
 
                     # One-based line and column.
                     _start_line: int | None = None
@@ -124,6 +137,9 @@ def _export_records(exporter: Exporter, args, ir) -> None:
                                 _start_line = _line + 1
                                 _start_column = _column + 1
                                 break
+                            else:
+                                prev_column()
+                                continue
 
                         if _c == '*' and last_char == '/':
                             _in_multiline_comment = True
@@ -140,26 +156,69 @@ def _export_records(exporter: Exporter, args, ir) -> None:
                             prev_column()
                             continue
 
-                        # TODO: Normal comments...
-
                         prev_column()
                         continue
 
                     if not _ok:
+                        assert ((_start_line is None) and (_start_column is None))
+
+                        # Search for non multiline comments.
+                        _line = _in_line + 1
+                        _column = _in_column
+                        grace = _in_grace
+
+                        while grace >= 0:
+                            _line -= 1
+
+                            if _line < 0:
+                                if _end_comment_line is not None:
+                                    _ok = True
+                                    _start_line = 1
+                                    _start_column = 1
+                                break
+
+                            current_line_str = f_lines[_line]
+                            current_line_str = current_line_str.lstrip()
+
+                            if current_line_str.startswith('//'):
+                                if _end_comment_line is None:
+                                    _end_comment_line = _line + 1
+                                continue
+
+                            if _end_comment_line is None:
+                                grace -= 1
+                                continue
+
+                            # We have reached the end of the single line comment over multiple lines.
+                            _ok = True
+                            _start_line = (_line
+                                + 1 # One-based line
+                                + 1 # Because we searched one above the line we are on
+                                )
+                            _start_column = 1
+                            break
+
+                    if _ok:
+                        assert ((_start_line is not None) and (_start_column is not None))
+
+                        if _is_multiline_comment:
+                            assert (
+                                    (_end_multiline_comment_line is not None)
+                                and (_end_multiline_comment_column is not None)
+                                )
+                            return (
+                                _start_line, _start_column,
+                                _end_multiline_comment_line, _end_multiline_comment_column
+                                )
+                        else:
+                            assert (_end_comment_line is not None)
+                            return (
+                                _start_line, _start_column,
+                                _end_comment_line, len(f_lines[_end_comment_line - 1])
+                                    + 1 # One-based column
+                                )
+                    else:
                         return None
-                    assert ((_start_line is not None) and (_start_column is not None))
-
-                    if _is_multiline_comment:
-                        assert (
-                                (_end_multiline_comment_line is not None)
-                            and (_end_multiline_comment_column is not None)
-                            )
-                        return (
-                            _start_line, _start_column,
-                            _end_multiline_comment_line, _end_multiline_comment_column
-                            )
-
-                    return None
 
                 f_content: str = _get_file_content(r['Source'])
                 f_lines: list[str] = f_content.splitlines()
@@ -183,11 +242,27 @@ def _export_records(exporter: Exporter, args, ir) -> None:
 
                 doc: tuple[int, int, int, int] | None = None
                 if len(column) > 0:
-                    doc = _extract_decl_doc_impl(line_cursor, len(column) - 1, 1)
+                    doc: (
+                        tuple[ # Returns a tuple if a decl doc is found.
+                            int, # One-based start line
+                            int, # One-based start column
+                            int, # One-based end line
+                            int  # One-based end column
+                        ]
+                        | None # Returns None if no decl doc is found.
+                    ) = _extract_decl_doc_impl(line_cursor, len(column) - 1, 1)
                 else:
                     line_cursor = line_cursor - 1
                     if line_cursor >= 0:
-                        doc = _extract_decl_doc_impl(line_cursor, len(f_lines[line_cursor]) - 1)
+                        doc: (
+                            tuple[ # Returns a tuple if a decl doc is found.
+                                int, # One-based start line
+                                int, # One-based start column
+                                int, # One-based end line
+                                int  # One-based end column
+                            ]
+                            | None # Returns None if no decl doc is found.
+                        ) = _extract_decl_doc_impl(line_cursor, len(f_lines[line_cursor]) - 1)
 
                 if doc is not None:
                     _cursor: Cursor = Cursor(
@@ -234,11 +309,204 @@ def _export_typedefs(exporter: Exporter, args, ir) -> None:
             refs.append(SymbolReference(record['Identifier'], 'record'))
             continue
 
+        decldoc_content: str | None = None
+        if args.PurgeDeclDocs is False:
+            def _extract_decl_doc() -> None:
+                nonlocal decldoc_content
+
+                def __extract_decl_doc_impl(
+                    # The line. Zero-based.
+                    _line: int,
+                    # The column. Zero-based.
+                    _column: int,
+                    # The number of grace lines we give. Else we give up.
+                    grace: int = 0
+                ) -> (
+                    tuple[ # Returns a tuple if a decl doc is found.
+                        int, # One-based start line
+                        int, # One-based start column
+                        int, # One-based end line
+                        int  # One-based end column
+                    ]
+                    | None # Returns None if no decl doc is found.
+                    ):
+
+                    _in_line: int = _line
+                    _in_column: int = _column
+                    _in_grace: int = grace
+
+                    # Whether we are ok.
+                    _ok: bool = False
+
+                    # Whether we are inside a multiline comment that behaves like a decl doc.
+                    _is_multiline_comment: bool = False
+                    # One-based line and column.
+                    _end_multiline_comment_line: int | None = None
+                    _end_multiline_comment_column: int | None = None
+                    _end_comment_line: int | None = None
+
+                    # One-based line and column.
+                    _start_line: int | None = None
+                    _start_column: int | None = None
+
+                    _in_multiline_comment: bool = False
+
+                    last_char: str = ''
+                    while grace >= 0 or _in_multiline_comment:
+                        def prev_column() -> None:
+                            nonlocal _column
+                            nonlocal last_char
+                            last_char = _c
+                            _column -= 1
+                            return None
+
+                        if _column < 0:
+                            _line -= 1
+                            if _line < 0:
+                                return None
+                            _column = len(_f_lines[_line]) - 1
+                            grace -= 1
+                            continue
+                        if _line < 0:
+                            return None
+
+                        _c: str = _f_lines[_line][_column]
+
+                        if _in_multiline_comment:
+                            if _c == '/' and last_char == '*':
+                                _is_multiline_comment = True
+                                _ok = True
+                                _start_line = _line + 1
+                                _start_column = _column + 1
+                                break
+                            else:
+                                prev_column()
+                                continue
+
+                        if _c == '*' and last_char == '/':
+                            _in_multiline_comment = True
+                            _end_multiline_comment_line = (
+                                    _line
+                                    + 1 # One-based line
+                            )
+                            _end_multiline_comment_column = (
+                                    _column
+                                    + 1 # One-based column
+                                    + 2 # For the '*/'
+                            )
+                            grace = 0
+                            prev_column()
+                            continue
+
+                        prev_column()
+                        continue
+
+                    if not _ok:
+                        assert ((_start_line is None) and (_start_column is None))
+
+                        # Search for non multiline comments.
+                        _line = _in_line + 1
+                        _column = _in_column
+                        grace = _in_grace
+
+                        while grace >= 0:
+                            _line -= 1
+
+                            if _line < 0:
+                                if _end_comment_line is not None:
+                                    _ok = True
+                                    _start_line = 1
+                                    _start_column = 1
+                                break
+
+                            current_line_str = _f_lines[_line]
+                            current_line_str = current_line_str.lstrip()
+
+                            if current_line_str.startswith('//'):
+                                if _end_comment_line is None:
+                                    _end_comment_line = _line + 1
+                                continue
+
+                            if _end_comment_line is None:
+                                grace -= 1
+                                continue
+
+                            # We have reached the end of the single line comment over multiple lines.
+                            _ok = True
+                            _start_line = (_line
+                                + 1 # One-based line
+                                + 1 # Because we searched one above the line we are on
+                                )
+                            _start_column = 1
+                            break
+
+                    if _ok:
+                        assert ((_start_line is not None) and (_start_column is not None))
+
+                        if _is_multiline_comment:
+                            assert (
+                                    (_end_multiline_comment_line is not None)
+                                    and (_end_multiline_comment_column is not None)
+                            )
+                            return (
+                                _start_line, _start_column,
+                                _end_multiline_comment_line, _end_multiline_comment_column
+                            )
+                        else:
+                            assert (_end_comment_line is not None)
+                            return (
+                                _start_line, _start_column,
+                                _end_comment_line, len(_f_lines[_end_comment_line - 1])
+                                    + 1 # One-based column
+                            )
+                    else:
+                        return None
+
+                _f_content: str = _get_file_content(td['Source'])
+                _f_lines: list[str] = _f_content.splitlines()
+
+                _doc: (
+                    tuple[ # Returns a tuple if a decl doc is found.
+                        int, # One-based start line
+                        int, # One-based start column
+                        int, # One-based end line
+                        int  # One-based end column
+                    ]
+                    | None # Returns None if no decl doc is found.
+                ) = __extract_decl_doc_impl(
+                    td['Line'] - 1, # Convert to zero-based.
+                    td['Column'] - 1, # Convert to zero-based.
+                    1 # Give one grace line.
+                    )
+
+                if _doc is not None:
+                    _cursor: Cursor = Cursor(
+                        args,
+                        _f_content,
+                        _doc[0], _doc[1],
+                        _doc[2], _doc[3]
+                        )
+
+                    assert (decldoc_content is None)
+                    decldoc_content = ''
+                    for _decldoc_c in _cursor.iter_no_syntax():
+                        if _decldoc_c is None:
+                            decldoc_content = decldoc_content[:-1]
+                            continue
+                        decldoc_content += _decldoc_c
+                        continue
+
+                return None
+
+            _extract_decl_doc()
+
         if td['Complex']:
+            f_content = _get_file_content(td['Source'])
+
             content = 'typedef '
             cursor = Cursor(
                 args,
-                _get_file_content(td['Source']),
+                f_content,
                 td['ComplexBeginLine'], td['ComplexBeginColumn'],
                 td['Line'], td['Column'],
                 )
@@ -254,11 +522,193 @@ def _export_typedefs(exporter: Exporter, args, ir) -> None:
                 for ref in td['ComplexTypeDecl']['Records']:
                     refs.append(SymbolReference(ref['Identifier']))
 
+            if args.PurgeDeclDocs is False:
+                if decldoc_content is None:
+                    def _extract_decl_doc_impl(
+                        # The line. Zero-based.
+                        _line: int,
+                        # The column. Zero-based.
+                        _column: int,
+                        # The number of grace lines we give. Else we give up.
+                        grace: int = 0
+                    ) -> (
+                        tuple[ # Returns a tuple if a decl doc is found.
+                            int, # One-based start line
+                            int, # One-based start column
+                            int, # One-based end line
+                            int  # One-based end column
+                        ]
+                        | None # Returns None if no decl doc is found.
+                        ):
+
+                        _in_line: int = _line
+                        _in_column: int = _column
+                        _in_grace: int = grace
+
+                        # Whether we are ok.
+                        _ok: bool = False
+
+                        # Whether we are inside a multiline comment that behaves like a decl doc.
+                        _is_multiline_comment: bool = False
+                        # One-based line and column.
+                        _end_multiline_comment_line: int | None = None
+                        _end_multiline_comment_column: int | None = None
+                        _end_comment_line: int | None = None
+
+                        # One-based line and column.
+                        _start_line: int | None = None
+                        _start_column: int | None = None
+
+                        _in_multiline_comment: bool = False
+
+                        last_char: str = ''
+                        while grace >= 0 or _in_multiline_comment:
+                            def prev_column() -> None:
+                                nonlocal _column
+                                nonlocal last_char
+                                last_char = _c
+                                _column -= 1
+                                return None
+
+                            if _column < 0:
+                                _line -= 1
+                                if _line < 0:
+                                    return None
+                                _column = len(f_lines[_line]) - 1
+                                grace -= 1
+                                continue
+                            if _line < 0:
+                                return None
+
+                            _c: str = f_lines[_line][_column]
+
+                            if _in_multiline_comment:
+                                if _c == '/' and last_char == '*':
+                                    _is_multiline_comment = True
+                                    _ok = True
+                                    _start_line = _line + 1
+                                    _start_column = _column + 1
+                                    break
+                                else:
+                                    prev_column()
+                                    continue
+
+                            if _c == '*' and last_char == '/':
+                                _in_multiline_comment = True
+                                _end_multiline_comment_line = (
+                                        _line
+                                        + 1 # One-based line
+                                )
+                                _end_multiline_comment_column = (
+                                        _column
+                                        + 1 # One-based column
+                                        + 2 # For the '*/'
+                                )
+                                grace = 0
+                                prev_column()
+                                continue
+
+                            prev_column()
+                            continue
+
+                        if not _ok:
+                            assert ((_start_line is None) and (_start_column is None))
+
+                            # Search for non multiline comments.
+                            _line = _in_line + 1
+                            _column = _in_column
+                            grace = _in_grace
+
+                            while grace >= 0:
+                                _line -= 1
+
+                                if _line < 0:
+                                    if _end_comment_line is not None:
+                                        _ok = True
+                                        _start_line = 1
+                                        _start_column = 1
+                                    break
+
+                                current_line_str = f_lines[_line]
+                                current_line_str = current_line_str.lstrip()
+
+                                if current_line_str.startswith('//'):
+                                    if _end_comment_line is None:
+                                        _end_comment_line = _line + 1
+                                    continue
+
+                                if _end_comment_line is None:
+                                    grace -= 1
+                                    continue
+
+                                # We have reached the end of the single line comment over multiple lines.
+                                _ok = True
+                                _start_line = (_line
+                                    + 1 # One-based line
+                                    + 1 # Because we searched one above the line we are on
+                                    )
+                                _start_column = 1
+                                break
+
+                        if _ok:
+                            assert ((_start_line is not None) and (_start_column is not None))
+
+                            if _is_multiline_comment:
+                                assert (
+                                        (_end_multiline_comment_line is not None)
+                                        and (_end_multiline_comment_column is not None)
+                                )
+                                return (
+                                    _start_line, _start_column,
+                                    _end_multiline_comment_line, _end_multiline_comment_column
+                                )
+                            else:
+                                assert (_end_comment_line is not None)
+                                return (
+                                    _start_line, _start_column,
+                                    _end_comment_line, len(f_lines[_end_comment_line - 1])
+                                        + 1 # One-based column
+                                )
+                        else:
+                            return None
+
+                    f_lines: list[str] = f_content.splitlines()
+                    doc: (
+                        tuple[ # Returns a tuple if a decl doc is found.
+                            int, # One-based start line
+                            int, # One-based start column
+                            int, # One-based end line
+                            int  # One-based end column
+                        ]
+                        | None # Returns None if no decl doc is found.
+                        ) = _extract_decl_doc_impl(
+                            td['ComplexBeginLine'] - 1, # Convert to zero-based.
+                            td['ComplexBeginColumn'] - 1, # Convert to zero-based.
+                            1 # Give one grace line.
+                        )
+
+                    if doc is not None:
+                        cursor: Cursor = Cursor(
+                            args,
+                            f_content,
+                            doc[0], doc[1],
+                            doc[2], doc[3]
+                        )
+
+                        assert (decldoc_content is None)
+                        decldoc_content = ''
+                        for decldoc_c in cursor.iter_no_syntax():
+                            if decldoc_c is None:
+                                decldoc_content = decldoc_content[:-1]
+                                continue
+                            decldoc_content += decldoc_c
+                            continue
+
             symbol: Symbol = Symbol(
                 ESymbolType.RECORD,
                 td['Identifier'],
                 content,
-                None,
+                decldoc_content,
                 SourceCodeLocation(td['Source'], td['Line'], td['Column']),
                 refs,
                 )
@@ -267,7 +717,7 @@ def _export_typedefs(exporter: Exporter, args, ir) -> None:
                 ESymbolType.RECORD,
                 td['Identifier'],
                 f'typedef {td['What']};',
-                None,
+                decldoc_content,
                 SourceCodeLocation(td['Source'], td['Line'], td['Column']),
                 refs
                 )
@@ -334,7 +784,19 @@ def _export_functions(exporter: Exporter, args, it) -> None:
                     _column: int,
                     # The number of grace lines we give. Else we give up.
                     grace: int = 0
-                ) -> tuple[int, int, int, int] | None:
+                ) -> (
+                    tuple[ # Returns a tuple if a decl doc is found.
+                        int, # One-based start line
+                        int, # One-based start column
+                        int, # One-based end line
+                        int  # One-based end column
+                    ]
+                    | None # Returns None if no decl doc is found.
+                ):
+
+                    _in_line: int = _line
+                    _in_column: int = _column
+                    _in_grace: int = grace
 
                     _f_lines: list[str] = _f_content.splitlines()
 
@@ -346,6 +808,7 @@ def _export_functions(exporter: Exporter, args, it) -> None:
                     # One-based line and column.
                     _end_multiline_comment_line: int | None = None
                     _end_multiline_comment_column: int | None = None
+                    _end_comment_line: int | None = None
 
                     # One-based line and column.
                     _start_line: int | None = None
@@ -381,6 +844,9 @@ def _export_functions(exporter: Exporter, args, it) -> None:
                                 _start_line = _line + 1
                                 _start_column = _column + 1
                                 break
+                            else:
+                                prev_column()
+                                continue
 
                         if _c == '*' and last_char == '/':
                             _in_multiline_comment = True
@@ -401,27 +867,80 @@ def _export_functions(exporter: Exporter, args, it) -> None:
                         continue
 
                     if not _ok:
+                        assert ((_start_line is None) and (_start_column is None))
+
+                        # Search for non multiline comments.
+                        _line = _in_line + 1
+                        _column = _in_column
+                        grace = _in_grace
+
+                        while grace >= 0:
+                            _line -= 1
+
+                            if _line < 0:
+                                if _end_comment_line is not None:
+                                    _ok = True
+                                    _start_line = 1
+                                    _start_column = 1
+                                break
+
+                            current_line_str = _f_lines[_line]
+                            current_line_str = current_line_str.lstrip()
+
+                            if current_line_str.startswith('//'):
+                                if _end_comment_line is None:
+                                    _end_comment_line = _line + 1
+                                continue
+
+                            if _end_comment_line is None:
+                                grace -= 1
+                                continue
+
+                            # We have reached the end of the single line comment over multiple lines.
+                            _ok = True
+                            _start_line = (_line
+                                + 1 # One-based line
+                                + 1 # Because we searched one above the line we are on
+                                )
+                            _start_column = 1
+                            break
+
+                    if _ok:
+                        assert ((_start_line is not None) and (_start_column is not None))
+
+                        if _is_multiline_comment:
+                            assert (
+                                    (_end_multiline_comment_line is not None)
+                                    and (_end_multiline_comment_column is not None)
+                            )
+                            return (
+                                _start_line, _start_column,
+                                _end_multiline_comment_line, _end_multiline_comment_column
+                            )
+                        else:
+                            assert (_end_comment_line is not None)
+                            return (
+                                _start_line, _start_column,
+                                _end_comment_line, len(_f_lines[_end_comment_line - 1])
+                                    + 1 # One-based column
+                            )
+                    else:
                         return None
-                    assert ((_start_line is not None) and (_start_column is not None))
-
-                    if _is_multiline_comment:
-                        assert (
-                                (_end_multiline_comment_line is not None)
-                                and (_end_multiline_comment_column is not None)
-                        )
-                        return (
-                            _start_line, _start_column,
-                            _end_multiline_comment_line, _end_multiline_comment_column
-                        )
-
-                    return None
 
                 decldoc_content_tuple: tuple[int, int, int, int] | None = None
                 latest_decldoc_source: str | None = None
 
                 # First try the function definition, if there is nothing, then try the
                 # function declaration(s) if available.
-                decldoc_content_tuple = _extract_decl_doc_impl(
+                decldoc_content_tuple: (
+                    tuple[ # Returns a tuple if a decl doc is found.
+                        int, # One-based start line
+                        int, # One-based start column
+                        int, # One-based end line
+                        int  # One-based end column
+                    ]
+                    | None # Returns None if no decl doc is found.
+                ) = _extract_decl_doc_impl(
                     _get_file_content(f['Source']),
                     f['Line'] - 1, # Convert to zero-based.
                     f['Column'] - 1, # Convert to zero-based.
@@ -431,7 +950,15 @@ def _export_functions(exporter: Exporter, args, it) -> None:
 
                 if (decldoc_content_tuple is None) and ('Decls' in f):
                     for decl in f['Decls']:
-                        decldoc_content_tuple = _extract_decl_doc_impl(
+                        decldoc_content_tuple: (
+                            tuple[ # Returns a tuple if a decl doc is found.
+                                int, # One-based start line
+                                int, # One-based start column
+                                int, # One-based end line
+                                int  # One-based end column
+                            ]
+                            | None # Returns None if no decl doc is found.
+                        ) = _extract_decl_doc_impl(
                             _get_file_content(decl['Source']),
                             decl['Line'] - 1, # Convert to zero-based.
                             decl['Column'] - 1, # Convert to zero-based.

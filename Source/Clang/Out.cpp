@@ -238,6 +238,114 @@ json* GetArrayObjectDouble(json& J,
     return nullptr;
 }
 
+const json* GetArrayObjectDouble(const json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const int64_t Bv
+)
+{
+    for (auto& Entry : J)
+    {
+        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        {
+            return &Entry;
+        }
+
+        continue;
+    }
+
+    return nullptr;
+}
+
+json* GetArrayObjectDouble(json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const int64_t Bv
+    )
+{
+    for (auto& Entry : J)
+    {
+        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        {
+            return &Entry;
+        }
+
+        continue;
+    }
+
+    return nullptr;
+}
+
+const json* GetArrayObjectDouble(const json& J,
+    const std::string_view& Ak, const std::string_view& Av,
+    const std::string_view& Bk, const int64_t Bv
+)
+{
+    for (auto& Entry : J)
+    {
+        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        {
+            return &Entry;
+        }
+
+        continue;
+    }
+
+    return nullptr;
+}
+
+json* GetArrayObjectDouble(json& J,
+    const std::string_view& Ak, const std::string_view& Av,
+    const std::string_view& Bk, const int64_t Bv
+    )
+{
+    for (auto& Entry : J)
+    {
+        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        {
+            return &Entry;
+        }
+
+        continue;
+    }
+
+    return nullptr;
+}
+
+const json* GetArrayObjectDouble(const json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const std::string_view& Bv
+)
+{
+    for (auto& Entry : J)
+    {
+        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        {
+            return &Entry;
+        }
+
+        continue;
+    }
+
+    return nullptr;
+}
+
+json* GetArrayObjectDouble(json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const std::string_view& Bv
+    )
+{
+    for (auto& Entry : J)
+    {
+        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        {
+            return &Entry;
+        }
+
+        continue;
+    }
+
+    return nullptr;
+}
+
 const json* GetArrayObjectChecked(const json& J, const std::string_view& Key, const std::string_view& Value)
 {
     const json* Out = GetArrayObject(J, Key, Value);
@@ -272,6 +380,66 @@ json* GetArrayObjectDoubleChecked(json& J,
     return Out;
 }
 
+const json* GetArrayObjectDoubleChecked(const json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const int64_t Bv
+    )
+{
+    const json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
+    dcp_check( Out )
+    return Out;
+}
+
+json* GetArrayObjectDoubleChecked(json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const int64_t Bv
+    )
+{
+    json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
+    dcp_check( Out )
+    return Out;
+}
+
+const json* GetArrayObjectDoubleChecked(const json& J,
+    const std::string_view& Ak, const std::string_view& Av,
+    const std::string_view& Bk, const int64_t Bv
+    )
+{
+    const json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
+    dcp_check( Out )
+    return Out;
+}
+
+json* GetArrayObjectDoubleChecked(json& J,
+    const std::string_view& Ak, const std::string_view& Av,
+    const std::string_view& Bk, const int64_t Bv
+    )
+{
+    json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
+    dcp_check( Out )
+    return Out;
+}
+
+const json* GetArrayObjectDoubleChecked(const json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const std::string_view& Bv
+    )
+{
+    const json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
+    dcp_check( Out )
+    return Out;
+}
+
+json* GetArrayObjectDoubleChecked(json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const std::string_view& Bv
+    )
+{
+    json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
+    dcp_check( Out )
+    return Out;
+}
+
 bool ArrayContainsObject(const json& J, const std::string_view& Key, const std::string_view& Value)
 {
     return GetArrayObject(J, Key, Value) != nullptr;
@@ -279,6 +447,30 @@ bool ArrayContainsObject(const json& J, const std::string_view& Key, const std::
 
 bool ArrayContainsObjectDouble(const json& J,
     const std::string_view& Ak, const std::string_view& Av,
+    const std::string_view& Bk, const std::string_view& Bv
+    )
+{
+    return GetArrayObjectDouble(J, Ak, Av, Bk, Bv) != nullptr;
+}
+
+bool ArrayContainsObjectDouble(const json& J,
+    const std::string_view& Ak, const int64_t Av,
+    const std::string_view& Bk, const int64_t Bv
+    )
+{
+    return GetArrayObjectDouble(J, Ak, Av, Bk, Bv) != nullptr;
+}
+
+bool ArrayContainsObjectDouble(const json& J,
+    const std::string_view& Ak, const std::string_view& Av,
+    const std::string_view& Bk, const int64_t Bv
+    )
+{
+    return GetArrayObjectDouble(J, Ak, Av, Bk, Bv) != nullptr;
+}
+
+bool ArrayContainsObjectDouble(const json& J,
+    const std::string_view& Ak, const int64_t Av,
     const std::string_view& Bk, const std::string_view& Bv
     )
 {
@@ -972,7 +1164,7 @@ void Dcp::PutToIntermediate(const MyFunctionDecl& InFunction)
             ArrayContainsObjectDouble
             (
                 Obj->operator[]("Decls"),
-                "Line", std::to_string(InFunction.Line),
+                "Line", InFunction.Line,
                 "Source", InFunction.Source
             ) == false
         )
