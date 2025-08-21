@@ -43,7 +43,6 @@ struct MyRecord : public MySymbol
     bool bComplex { false };
     int64_t ComplexBeginLine { INDEX_NONE };
     int64_t ComplexBeginColumn { INDEX_NONE };
-    std::optional<MyRecord> ComplexTypeRef;
 };
 
 struct MyEnumRecord final : public MyRecord
@@ -51,15 +50,11 @@ struct MyEnumRecord final : public MyRecord
     std::optional<std::string> Enum;
 };
 
-struct MyFunctionForward : public MySymbol
-{
-};
-
 struct MyFunctionDecl : public MySymbol
 {
 };
 
-struct MyFunction final : public MyFunctionForward
+struct MyFunction final : public MyFunctionDecl
 {
     struct Param
     {
@@ -78,6 +73,17 @@ struct MyFunction final : public MyFunctionForward
     inline bool AddVarRef(MyVarRef&& InVarRef);
 };
 
+struct MyVariableDecl : public MySymbol
+{
+    std::string Type;
+    bool bStatic { false };
+    bool bExtern { false };
+};
+
+struct MyVariable final : public MyVariableDecl
+{
+};
+
 struct MySymbolRef
 {
     // Make this safer by combining the declaration of the #Ref with a deferred definition??
@@ -86,7 +92,7 @@ struct MySymbolRef
     DCP_API bool IsValid() const;
     DCP_API bool operator==(const MySymbolRef& InOther) const;
 
-    bool operator<(const MySymbolRef& InOther) const
+    bool operator<(const MySymbolRef& InOther) const // Hash
     {
         return this->Ref < InOther.Ref;
     }
@@ -94,7 +100,7 @@ struct MySymbolRef
 
 struct MyFunctionRef final : public MySymbolRef
 {
-    MyFunctionForward Caller;
+    MyFunctionDecl Caller;
 };
 
 struct MyRecordRef final : public MySymbolRef

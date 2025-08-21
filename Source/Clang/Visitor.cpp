@@ -141,6 +141,73 @@ bool Dcp::MyAstVisitor::VisitCallExpr(const CallExpr* Ce)
     return true;
 }
 
+bool Dcp::MyAstVisitor::VisitVarDecl(const VarDecl* Vd)
+{
+    if (Vd->isLocalVarDeclOrParm() || isa<ParmVarDecl>(Vd))
+    {
+        return true;
+    }
+
+    const SourceLocation Sl = Vd->getLocation();
+
+    const SourceManager& Sm = Context.getSourceManager();
+    const FileID IdF = Sm.getFileID(Sl);
+    dcp_check( IdF.isValid() )
+
+    std::string AbsF = Sm.getFilename(Sl).str();
+    if (AbsF.empty() || Dcp::IsModuleHeader(AbsF) == false)
+    {
+        return true;
+    }
+
+    MyVariableDecl V;
+    V.Identifier = Vd->getName().str();
+    V.Source = Context.getSourceManager().getFilename(Vd->getLocation()).str();
+    V.Line = Context.getSourceManager().getSpellingLineNumber(Vd->getLocation());
+    V.Column = Context.getSourceManager().getSpellingColumnNumber(Vd->getLocation());
+    V.Type = Vd->getType().getAsString();
+    V.bStatic = Vd->isStaticLocal() || Vd->getStorageClass() == SC_Static;
+    V.bExtern = Vd->getStorageClass() == SC_Extern;
+
+    return true;
+}
+
+bool Dcp::MyAstVisitor::VisitDeclRefExpr(const DeclRefExpr* Dre)
+{
+    if (auto* Vd = dyn_cast<VarDecl>(Dre->getDecl()))
+    {
+        if (auto* Dc = Vd->getDeclContext(); Dc->isTranslationUnit())
+        {
+            const SourceLocation Sl = Dre->getLocation();
+
+            const SourceManager& Sm = Context.getSourceManager();
+            const FileID IdF = Sm.getFileID(Sl);
+            dcp_check( IdF.isValid() )
+
+            std::string AbsF = Sm.getFilename(Sl).str();
+            if (AbsF.empty() || Dcp::IsModuleHeader(AbsF) == false)
+            {
+                return true;
+            }
+
+            QualType Qt = Vd->getType();
+            Qt = ::GetBasicName(std::move(Qt));
+
+            MyVariable V;
+            V.Identifier = Vd->getName().str();
+            V.Source = Context.getSourceManager().getFilename(Vd->getLocation()).str();
+            V.Line = Context.getSourceManager().getSpellingLineNumber(Vd->getLocation());
+            V.Column = Context.getSourceManager().getSpellingColumnNumber(Vd->getLocation());
+            V.Type = Qt.getAsString();
+            V.bStatic = Vd->isStaticLocal() || Vd->getStorageClass() == SC_Static;
+
+            PutToIntermediate(V);
+        }
+    }
+
+    return true;
+}
+
 void Dcp::MyAstVisitor::GetAllRefs(std::set<MyRecordRef>* Refs, QualType&& InQt)
 {
     dcp_check( Refs )
@@ -269,9 +336,13 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
             Def.ComplexBeginLine = Sm.getSpellingLineNumber(BeginSl);
             Def.ComplexBeginColumn = Sm.getSpellingColumnNumber(BeginSl);
 
-            std::optional<MyRecord> Record = this->GetRecord(Rd, true);
-            dcp_check( Record.has_value() )
-            Def.ComplexTypeRef = *Record;
+            if (std::optional<MyRecord> Record = this->GetRecord(Rd, true); Record.has_value())
+            {
+                for (const MyRecordRef& R : Record->Records)
+                {
+                    Def.Records.emplace(R);
+                }
+            }
         }
         else
         {
@@ -489,7 +560,8 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
     }
 
     MyEnumRecord Record;
-    Record.Identifier = Ed->getIdentifier()->getName().str();
+    Record.Identifier += "enum ";
+    Record.Identifier += Ed->getIdentifier()->getName().str();
     Record.Source = std::move(AbsF);
     Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
@@ -527,7 +599,7 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
     return Record;
 }
 
-std::optional<Dcp::MyFunctionForward> Dcp::MyAstVisitor::GetFunctionForward(const FunctionDecl* Fd)
+std::optional<Dcp::MyFunctionDecl> Dcp::MyAstVisitor::GetFunctionForward(const FunctionDecl* Fd)
 {
     if (Fd->isThisDeclarationADefinition() == false)
     {
@@ -552,7 +624,7 @@ std::optional<Dcp::MyFunctionForward> Dcp::MyAstVisitor::GetFunctionForward(cons
 
     dcp_check( Fd->hasBody() )
 
-    MyFunctionForward Func;
+    MyFunctionDecl Func;
     Func.Identifier = Fd->getQualifiedNameAsString();
     Func.Source = std::move(AbsF);
     Func.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
@@ -663,7 +735,7 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
     {
         dcp_check( _Fd )
 
-        MyFunctionForward Fwd;
+        MyFunctionDecl Fwd;
         Fwd.Identifier = Func.Identifier;
         Fwd.Line = Func.Line;
         Fwd.Column = Func.Column;

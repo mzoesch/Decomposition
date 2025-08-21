@@ -110,6 +110,9 @@ enum : signed char
 namespace Dcp
 {
 
+/**
+ * Path to the IR file.
+ */
 DCP_API extern std::string IrPath;
 
 } /* ~Namespace Dcp */

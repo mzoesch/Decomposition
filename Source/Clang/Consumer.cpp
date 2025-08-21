@@ -1,5 +1,4 @@
 #include "Consumer.h"
-
 #include "Out.h"
 #include "Visitor.h"
 

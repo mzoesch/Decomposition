@@ -15,17 +15,18 @@ class MyAstConsumer;
 class MyAstVisitor;
 class MyTypeCollector;
 
-struct MyXCompilerInclude;
+struct CompilerIncludePath;
 
 struct MySymbol;
     struct MyTypeDef;
     struct MyRecord;
         struct MyEnumRecord;
-    struct MyFunctionForward;
-        struct MyFunction;
     struct MyFunctionDecl;
+        struct MyFunction;
     struct MyMacroInfo;
     struct MyIncludeDirective;
+    struct MyVariableDecl;
+        struct MyVariable;
 
 struct MySymbolRef;
     struct MyFunctionRef;

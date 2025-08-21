@@ -21,7 +21,7 @@ RUN if [ "$USE_LOCAL_FILES" = "true" ]; then \
 WORKDIR $DCP_GIT_DIR
 
 ARG DCP_BUILD_DIR=$DCP_GIT_DIR/build
-RUN python3 ./Launch.py -Setup -BuildDir $DCP_BUILD_DIR
+RUN python3 ./Launch.py -DoSetup -EnvBuildDir $DCP_BUILD_DIR
 
 RUN echo "alias ll='ls -las'" >> ~/.bashrc
 

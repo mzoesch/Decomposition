@@ -65,7 +65,10 @@ class DCP_API MyAstConsumer final : public clang::ASTConsumer
 {
 public:
 
-    explicit MyAstConsumer(const clang::CompilerInstance& Instance) : Instance(&Instance) { }
+    explicit MyAstConsumer(const clang::CompilerInstance& Instance)
+        : Instance(&Instance)
+    {
+    }
 
     void Initialize(clang::ASTContext& Context) override;
     void HandleTranslationUnit(clang::ASTContext& C) override;

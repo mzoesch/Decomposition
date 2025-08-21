@@ -1,7 +1,7 @@
 #include "Build.h"
 #include "Out.h"
 #include "Symbols.h"
-#include "MyXCompiler.h"
+#include "CompilerIncludePath.h"
 #include "Consumer.h"
 #include <clang/AST/ASTConsumer.h>
 #include <clang/Frontend/FrontendPluginRegistry.h>
@@ -127,11 +127,11 @@ protected:
             return nullptr;
         }
 
-        std::vector<Dcp::MyXCompilerInclude> XIncludes;
+        std::vector<Dcp::CompilerIncludePath> XIncludes;
         const HeaderSearchOptions& HeaderOpts = Ci.getHeaderSearchOpts();
         for (const HeaderSearchOptions::Entry& Paths: HeaderOpts.UserEntries)
         {
-            if (Paths.Group == 1)
+            if (Paths.Group == 0 || Paths.Group == 1)
             {
                 Dcp::ModuleHeaderPaths.emplace_back(Paths.Path);
             }
@@ -181,7 +181,13 @@ protected:
 
         dcp_check( Dcp::IrPath.empty() == false )
 
-        Dcp::InitializeOutStream();
+        if (!Dcp::InitializeOutStream())
+        {
+            PRIVATE_DCP_FAIL_BOILERPLATE()
+            llvm::report_fatal_error("Failed to initialize output stream.");
+
+            return false;
+        }
 
         return true;
     }

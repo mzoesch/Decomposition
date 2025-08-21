@@ -267,3 +267,4 @@ class Cursor:
             continue
 
         return
+

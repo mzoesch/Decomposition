@@ -1,510 +1,364 @@
 #include "Out.h"
-#include "MyXCompiler.h"
-#include "Symbols.h"
+#include "CompilerIncludePath.h"
 #include "Consumer.h"
-#include "json_nlohmann.h"
+#include <sqlite3.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Error.h>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <clang/AST/ExprObjC.h>
-
-namespace fs = std::filesystem;
-using json = nlohmann::json;
+#include <thread>
 
 namespace
 {
 
-std::string GetIRFilePath()
+sqlite3* Db { nullptr };
+
+struct LastResort
 {
-    dcp_check( Dcp::IrPath.empty() == false )
-    return Dcp::IrPath + "/IR.json";
-}
-
-void CreateRecursiveParentDirectories(const std::string& FileName)
-{
-    const fs::path Path = fs::absolute(FileName);
-
-    if (const fs::path ParentPath = Path.parent_path(); fs::exists(ParentPath) == false)
+    ~LastResort()
     {
-        fs::create_directories(ParentPath);
+        Dcp::CloseOutStream();
     }
-
-    return;
-}
-
-void EnsureIRFile()
-{
-    const std::string IRFile = GetIRFilePath();
-    ::CreateRecursiveParentDirectories(IRFile);
-
-    if (fs::exists(IRFile) == false)
-    {
-#if DCP_IN_DEBUG
-        llvm::outs() << "Creating file: " << IRFile << "\n";
-#endif /* DCP_IN_DEBUG */
-
-        std::ofstream Out(IRFile, std::ios::out | std::ios::trunc);
-        dcp_check( !!Out )
-
-        Out << std::setw(4) << json::object() << std::endl;
-
-        Out.close();
-    }
-
-    return;
-}
-
-struct LocalCache
-{
-    LocalCache()
-    {
-    }
-
-    ~LocalCache()
-    {
-        dcp_check( this->Mutex.try_lock() )
-
-        std::ofstream Out(GetIRFilePath());
-        dcp_check( !!Out )
-
-        Out << std::setw(4) << *this->Handle << std::endl;
-        Out.close();
-
-        return;
-    }
-
-    void Initialize()
-    {
-        dcp_check( this->Handle == nullptr )
-
-        EnsureIRFile();
-
-        std::ifstream In(GetIRFilePath());
-        dcp_check( !!In )
-
-        std::unique_ptr<json> IR(new json());
-        In >> *IR;
-        In.close();
-
-        auto& J = *IR;
-
-        if (J.contains("Files"))
-        {
-            dcp_check( J["Files"].is_array() )
-        }
-        else
-        {
-            J["Files"] = json::array();
-        }
-
-        this->Handle = std::move(IR);
-
-        return;
-    }
-
-    std::mutex Mutex;
-    std::unique_ptr<json> Handle;
-};
-LocalCache LocalCacheInstance;
-
-struct IrOut
-{
-    IrOut()
-    {
-        bIsLock = true;
-        LocalCacheInstance.Mutex.lock();
-    };
-    ~IrOut()
-    {
-        if (bIsLock)
-        {
-            LocalCacheInstance.Mutex.unlock();
-        }
-    }
-
-    void Lock()
-    {
-        if (this->bIsLock == false)
-        {
-            LocalCacheInstance.Mutex.lock();
-            this->bIsLock = true;
-        }
-
-        return;
-    }
-
-    void Unlock()
-    {
-        if (this->bIsLock)
-        {
-            LocalCacheInstance.Mutex.unlock();
-        }
-
-        return;
-    }
-
-    json& GetHandle()
-    {
-        return *LocalCacheInstance.Handle;
-    }
-
-private:
-
-    bool bIsLock { false };
 };
 
-json& GetOrMakeObjectHandle(json* J, const std::string_view& Key, const std::string_view& Value)
+LastResort x;
+
+int ExecTrivial(const char* Sql)
 {
-    for (auto& Entry : (*J))
+    char* Err = nullptr;
+
+    constexpr int MaxRetries = 200;
+    constexpr int WaitMs = 1;
+
+    int Attempts = 0;
+
+    int Rc = SQLITE_OK;
+    while (Attempts < MaxRetries)
     {
-        if (Entry[Key] == Value)
+         Rc = sqlite3_exec(Db, Sql, nullptr, nullptr, &Err);
+
+        if (Rc == SQLITE_OK)
         {
-            return Entry;
+            return Rc;
         }
 
-        continue;
-    }
-
-    auto& Entry = J->emplace_back(json::object());
-    Entry[Key] = Value;
-    return Entry;
-}
-
-const json* GetArrayObject(const json& J, const std::string_view& Key, const std::string_view& Value)
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Key] == Value)
+        if (Rc == SQLITE_BUSY || Rc == SQLITE_LOCKED)
         {
-            return &Entry;
+            std::this_thread::sleep_for(std::chrono::milliseconds(WaitMs));
+            ++Attempts;
+            continue;
         }
 
-        continue;
+        llvm::errs() << "SQL error: " << Err << "\n";
+        llvm::errs().flush();
+        PRIVATE_DCP_FAIL_BOILERPLATE()
+        sqlite3_free(Err);
+
+        return Rc;
     }
 
-    return nullptr;
+    llvm::errs() << "SQL error on: " << Sql << " with code " << Rc << ".\n";
+    llvm::errs().flush();
+    PRIVATE_DCP_FAIL_BOILERPLATE()
+
+    return Rc;
 }
 
-json* GetArrayObject(json& J, const std::string_view& Key, const std::string_view& Value)
+int ExecStmt(sqlite3_stmt* Stmt)
 {
-    for (auto& Entry : J)
+    constexpr int MaxRetries = 200;
+    constexpr int WaitMs = 1;
+
+    int Attempts = 0;
+
+    int Rc = SQLITE_OK;
+    while (Attempts < MaxRetries)
     {
-        if (Entry[Key] == Value)
+        Rc = sqlite3_step(Stmt);
+
+        if (Rc == SQLITE_DONE)
         {
-            return &Entry;
+            return SQLITE_OK;
         }
 
-        continue;
-    }
-
-    return nullptr;
-}
-
-const json* GetArrayObjectDouble(const json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        if (Rc == SQLITE_ROW)
         {
-            return &Entry;
+            return SQLITE_ROW;
         }
 
-        continue;
-    }
-
-    return nullptr;
-}
-
-json* GetArrayObjectDouble(json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        if (Rc == SQLITE_BUSY || Rc == SQLITE_LOCKED)
         {
-            return &Entry;
+            std::this_thread::sleep_for(std::chrono::milliseconds(WaitMs));
+            ++Attempts;
+            continue;
         }
 
-        continue;
-    }
-
-    return nullptr;
-}
-
-const json* GetArrayObjectDouble(const json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const int64_t Bv
-)
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Ak] == Av && Entry[Bk] == Bv)
+        if (Rc == SQLITE_MISUSE)
         {
-            return &Entry;
+            llvm::errs() << "SQL misuse error: " << sqlite3_errmsg(Db) << "\n";
+            llvm::errs().flush();
+            PRIVATE_DCP_FAIL_BOILERPLATE()
+            return Rc;
         }
 
-        continue;
+        llvm::errs() << "SQL error on stmt with code " << Rc << ".\n";
+        llvm::errs().flush();
+        PRIVATE_DCP_FAIL_BOILERPLATE()
+
+        return Rc;
     }
 
-    return nullptr;
-}
+    llvm::errs() << "SQL error on stmt with code " << Rc << ".\n";
+    llvm::errs().flush();
+    PRIVATE_DCP_FAIL_BOILERPLATE()
 
-json* GetArrayObjectDouble(json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const int64_t Bv
-    )
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Ak] == Av && Entry[Bk] == Bv)
-        {
-            return &Entry;
-        }
-
-        continue;
-    }
-
-    return nullptr;
-}
-
-const json* GetArrayObjectDouble(const json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const int64_t Bv
-)
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Ak] == Av && Entry[Bk] == Bv)
-        {
-            return &Entry;
-        }
-
-        continue;
-    }
-
-    return nullptr;
-}
-
-json* GetArrayObjectDouble(json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const int64_t Bv
-    )
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Ak] == Av && Entry[Bk] == Bv)
-        {
-            return &Entry;
-        }
-
-        continue;
-    }
-
-    return nullptr;
-}
-
-const json* GetArrayObjectDouble(const json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const std::string_view& Bv
-)
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Ak] == Av && Entry[Bk] == Bv)
-        {
-            return &Entry;
-        }
-
-        continue;
-    }
-
-    return nullptr;
-}
-
-json* GetArrayObjectDouble(json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    for (auto& Entry : J)
-    {
-        if (Entry[Ak] == Av && Entry[Bk] == Bv)
-        {
-            return &Entry;
-        }
-
-        continue;
-    }
-
-    return nullptr;
-}
-
-const json* GetArrayObjectChecked(const json& J, const std::string_view& Key, const std::string_view& Value)
-{
-    const json* Out = GetArrayObject(J, Key, Value);
-    dcp_check( Out )
-    return Out;
-}
-
-json* GetArrayObjectChecked(json& J, const std::string_view& Key, const std::string_view& Value)
-{
-    json* Out = GetArrayObject(J, Key, Value);
-    dcp_check( Out )
-    return Out;
-}
-
-const json* GetArrayObjectDoubleChecked(const json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    const json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
-    dcp_check( Out )
-    return Out;
-}
-
-json* GetArrayObjectDoubleChecked(json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
-    dcp_check( Out )
-    return Out;
-}
-
-const json* GetArrayObjectDoubleChecked(const json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const int64_t Bv
-    )
-{
-    const json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
-    dcp_check( Out )
-    return Out;
-}
-
-json* GetArrayObjectDoubleChecked(json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const int64_t Bv
-    )
-{
-    json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
-    dcp_check( Out )
-    return Out;
-}
-
-const json* GetArrayObjectDoubleChecked(const json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const int64_t Bv
-    )
-{
-    const json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
-    dcp_check( Out )
-    return Out;
-}
-
-json* GetArrayObjectDoubleChecked(json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const int64_t Bv
-    )
-{
-    json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
-    dcp_check( Out )
-    return Out;
-}
-
-const json* GetArrayObjectDoubleChecked(const json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    const json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
-    dcp_check( Out )
-    return Out;
-}
-
-json* GetArrayObjectDoubleChecked(json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    json* Out = GetArrayObjectDouble(J, Ak, Av, Bk, Bv);
-    dcp_check( Out )
-    return Out;
-}
-
-bool ArrayContainsObject(const json& J, const std::string_view& Key, const std::string_view& Value)
-{
-    return GetArrayObject(J, Key, Value) != nullptr;
-}
-
-bool ArrayContainsObjectDouble(const json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    return GetArrayObjectDouble(J, Ak, Av, Bk, Bv) != nullptr;
-}
-
-bool ArrayContainsObjectDouble(const json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const int64_t Bv
-    )
-{
-    return GetArrayObjectDouble(J, Ak, Av, Bk, Bv) != nullptr;
-}
-
-bool ArrayContainsObjectDouble(const json& J,
-    const std::string_view& Ak, const std::string_view& Av,
-    const std::string_view& Bk, const int64_t Bv
-    )
-{
-    return GetArrayObjectDouble(J, Ak, Av, Bk, Bv) != nullptr;
-}
-
-bool ArrayContainsObjectDouble(const json& J,
-    const std::string_view& Ak, const int64_t Av,
-    const std::string_view& Bk, const std::string_view& Bv
-    )
-{
-    return GetArrayObjectDouble(J, Ak, Av, Bk, Bv) != nullptr;
+    return Rc;
 }
 
 } /* ~Namespace <Anonymous> */
 
-void Dcp::InitializeOutStream()
+bool Dcp::InitializeOutStream()
 {
-    ::LocalCacheInstance.Initialize();
+    if (!std::filesystem::exists(IrPath))
+    {
+        if (!std::filesystem::create_directories(std::filesystem::path(IrPath).parent_path()))
+        {
+            llvm::errs() << "Failed to create directory [" << IrPath << "].\n";
+            return false;
+        }
+    }
+
+    if (!std::filesystem::is_directory(IrPath))
+    {
+        llvm::errs() << "Path [" << IrPath << "] is not a directory.\n";
+        return false;
+    }
+
+    const std::filesystem::path DbPath = std::filesystem::path(IrPath) / "ir.db";
+    if (!std::filesystem::exists(DbPath))
+    {
+        std::ofstream outFile(DbPath);
+        if (!outFile)
+        {
+            llvm::errs() << "Failed to create file [" << DbPath << "].\n";
+            return false;
+        }
+        outFile.close();
+    }
+
+    if (const int Rc = sqlite3_open(DbPath.c_str(), &Db); Rc != SQLITE_OK)
+    {
+        llvm::errs() << "Can't open database [" << DbPath << "].\n";
+        llvm::errs() << "Can't open database [" << sqlite3_errmsg(Db) << "].\n";
+        sqlite3_close(Db);
+
+        return false;
+    }
+
+    ExecTrivial("PRAGMA journal_mode=WAL;");
+    sqlite3_busy_timeout(Db, 50);
+
+#define PRIVATE_DCP_REPORT_SQL_ERROR()                         \
+    if (const int rc = ExecTrivial(Sql); rc != SQLITE_OK)      \
+    {                                                          \
+        llvm::errs() << "Unresolved SQL error encountered.\n"; \
+                                                               \
+        return false;                                          \
+    }
+
+    // Translations
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS Translations ("
+                          "Identifier TEXT NOT NULL UNIQUE PRIMARY KEY"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Compiler-Include paths
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS CompilerIncludePaths ("
+                          "Identifier TEXT NOT NULL,"
+                          "Path TEXT NOT NULL,"
+                          "\"Group\" INTEGER NOT NULL,"
+                          "PRIMARY KEY (Identifier, Path),"
+                          "FOREIGN KEY (Identifier) REFERENCES Translations(Identifier) ON DELETE CASCADE"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Include directive
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS IncludeDirectives ("
+                          "What TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "Line INTEGER NOT NULL,"
+                          "Native TEXT NOT NULL,"
+                          "bForeign INTEGER NOT NULL DEFAULT 0,"
+                          "PRIMARY KEY (Source, Line)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Macro definitions
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS Macros ("
+                          "Identifier TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "Line INTEGER NOT NULL,"
+                          "Column INTEGER NOT NULL,"
+                          "bFunctionLike INTEGER NOT NULL,"
+                          "Definition TEXT,"
+                          "Params TEXT,"
+                          "PRIMARY KEY (Source, Line)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Typedefs
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS Typedefs ("
+                          "Identifier TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "Line INTEGER NOT NULL ,"
+                          "Column INTEGER NOT NULL,"
+                          "What TEXT,"
+                          "Type TEXT,"
+                          "bAnonymous INTEGER NOT NULL DEFAULT 0,"
+                          "AnonymousBeginLine INTEGER,"
+                          "AnonymousBeginColumn INTEGER,"
+                          "PRIMARY KEY (Identifier, Source)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Records
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS Records ("
+                          "Identifier TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "Line INTEGER NOT NULL,"
+                          "Column INTEGER NOT NULL,"
+                          "Type TEXT NOT NULL,"
+                          "Enum TEXT,"
+                          "PRIMARY KEY (Identifier, Source)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Function Decls
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS FunctionDecls ("
+                          "Identifier TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "Line INTEGER NOT NULL,"
+                          "Column INTEGER NOT NULL,"
+                          "PRIMARY KEY (Identifier, Source, Line)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Functions
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS Functions ("
+                          "Identifier TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "Line INTEGER NOT NULL,"
+                          "Column INTEGER NOT NULL,"
+                          "bStatic INTEGER NOT NULL DEFAULT 0,"
+                          "Params TEXT,"
+                          "Ret TEXT NOT NULL,"
+                          "PRIMARY KEY (Identifier, Source, Line)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Refs
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS Refs ("
+                          "Identifier TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "Line INTEGER NOT NULL,"
+                          "Column INTEGER NOT NULL,"
+                          "Type TEXT NOT NULL DEFAULT 'record',"
+                          "Ref TEXT NOT NULL,"
+                          "PRIMARY KEY (Identifier, Source, Line, Column, Ref)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+    // Variables
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS Variables ("
+                          "Identifier TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "Line INTEGER NOT NULL,"
+                          "Column INTEGER NOT NULL,"
+                          "Type TEXT NOT NULL,"
+                          "bStatic INTEGER NOT NULL DEFAULT 0,"
+                          "bExtern INTEGER NOT NULL DEFAULT 0,"
+                          "PRIMARY KEY (Identifier, Source, Line, Column)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
+#undef PRIVATE_DCP_REPORT_SQL_ERROR
+
+    return true;
+}
+
+void Dcp::CloseOutStream()
+{
+    if (Db)
+    {
+        sqlite3_close(Db);
+        Db = nullptr;
+    }
 
     return;
 }
 
-void Dcp::PutToIntermediate(const llvm::StringRef& File, const std::vector<MyXCompilerInclude>& Include)
+#define PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()                         \
+    if (const int rc = ExecTrivial(Sql.c_str()); rc != SQLITE_OK) \
+    {                                                             \
+        llvm::errs() << "Unresolved SQL error encountered.\n";    \
+                                                                  \
+        return;                                                   \
+    }
+
+#define PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE() \
+    if (const int rc = ExecTrivial(Sql.c_str()); rc != SQLITE_OK) \
+    {                                                             \
+        llvm::errs() << "Unresolved SQL error encountered.\n";    \
+                                                                  \
+        continue;                                                 \
+    }
+
+void Dcp::PutToIntermediate(const llvm::StringRef& File, const std::vector<CompilerIncludePath>& Include)
 {
-    IrOut Out;
-    auto& J = Out.GetHandle();
-    json& FileHandle = GetOrMakeObjectHandle(&J["Files"], "Identifier", File);
-
-    for (auto& IncludeEntry : Include)
     {
-        if (ArrayContainsObject(FileHandle["XIncludes"], "Path", IncludeEntry.Path))
-        {
-            continue;
-        }
+        const std::string Sql = "INSERT OR IGNORE INTO Translations (Identifier) VALUES ('" + File.str() + "');";
 
-        json IncludeEntryJson = json::object();
-        IncludeEntryJson["Path"] = IncludeEntry.Path;
-        IncludeEntryJson["Group"] = IncludeEntry.Group;
-        FileHandle["XIncludes"].emplace_back(std::move(IncludeEntryJson));
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
+    }
 
-        continue;
+    for (auto& I : Include)
+    {
+        const std::string Sql = "INSERT OR IGNORE INTO CompilerIncludePaths (Identifier, Path, \"Group\") VALUES ('" +
+                                 File.str() + "', '" + I.Path + "'," + std::to_string(I.Group) + ");";
+
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
     }
 
     return;
@@ -512,30 +366,17 @@ void Dcp::PutToIntermediate(const llvm::StringRef& File, const std::vector<MyXCo
 
 void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyIncludeDirective>>& Files)
 {
-    IrOut Out;
-    auto& J = Out.GetHandle();
-
-    for (const auto& [File, Directives] : Files)
+    for (auto& [Id, Ds] : Files)
     {
-        json& FileHandle = GetOrMakeObjectHandle(&J["Files"], "Identifier", File);
-
-        for (const MyIncludeDirective& Directive : Directives)
+        for (const auto& D : Ds)
         {
-            Directive.ExpandAndFollowSourceLocation();
+            dcp_check( Id == D.Source )
 
-            dcp_check( File == Directive.Source )
-            if (ArrayContainsObject(FileHandle["Includes"], "Identifier", Directive.Identifier))
-            {
-                continue;
-            }
+            const std::string Sql = "INSERT OR IGNORE INTO IncludeDirectives (What, Source, Line, Native, bForeign) VALUES ('" +
+                                    D.Identifier + "', '" + D.Source + "', " + std::to_string(D.Line) + ", '" +
+                                    D.Native + "', " + (IsModuleHeader(D.Identifier) ? "0" : "1") + ");";
 
-            json IncludeEntry = json::object();
-            IncludeEntry["Identifier"] = Directive.Identifier;
-            IncludeEntry["ModuleHeader"] = IsModuleHeader(Directive.Identifier);
-            IncludeEntry["Line"] = Directive.Line;
-            IncludeEntry["Column"] = Directive.Column;
-            IncludeEntry["Native"] = Directive.Native;
-            FileHandle["Includes"].emplace_back(std::move(IncludeEntry));
+            PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
 
             continue;
         }
@@ -548,134 +389,77 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyIncludeDir
 
 void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>>& Files)
 {
-    IrOut Out;
-    auto& J = Out.GetHandle();
-
-    for (const auto& [File, Macros] : Files)
+    for (const auto& [Id, Ms] : Files)
     {
-        json& FileHandle = GetOrMakeObjectHandle(&J["Files"], "Identifier", File);
-
-        for (const MyMacroInfo& Macro : Macros)
+        for (const auto& M : Ms)
         {
-            Macro.ExpandAndFollowSourceLocation();
+            dcp_check( Id == M.Source )
 
-            dcp_check( File == Macro.Source )
-            if (ArrayContainsObject(FileHandle["Macros"], "Identifier", Macro.Identifier))
+            if (M.bFunctionLike)
             {
-                continue;
-            }
-
-            json MacroEntry = json::object();
-            MacroEntry["Identifier"] = Macro.Identifier;
-            MacroEntry["Line"] = Macro.Line;
-            MacroEntry["Column"] = Macro.Column;
-            MacroEntry["bFunctionLike"] = Macro.bFunctionLike;
-            MacroEntry["Params"] = json::array();
-            for (const auto& Param : Macro.Params)
-            {
-                MacroEntry["Params"].emplace_back(Param);
-            }
-            MacroEntry["Definition"] = Macro.Definition;
-            FileHandle["Macros"].emplace_back(std::move(MacroEntry));
-
-            continue;
-        }
-
-        continue;
-    }
-
-    for (const auto& [File, Macros] : Files)
-    {
-        json& FileHandle = GetOrMakeObjectHandle(&J["Files"], "Identifier", File);
-
-        for (const MyMacroInfo& Macro : Macros)
-        {
-            Macro.ExpandAndFollowSourceLocation();
-
-            dcp_check( File == Macro.Source )
-            if (ArrayContainsObject(FileHandle["SeenMacros"], "Identifier", Macro.Identifier))
-            {
-                continue;
-            }
-
-            json MacroEntry = json::object();
-            MacroEntry["Identifier"] = Macro.Identifier;
-            MacroEntry["Line"] = Macro.Line;
-            MacroEntry["Column"] = Macro.Column;
-            MacroEntry["bFunctionLike"] = Macro.bFunctionLike;
-            MacroEntry["Params"] = json::array();
-            for (const auto& Param : Macro.Params)
-            {
-                MacroEntry["Params"].emplace_back(Param);
-            }
-            MacroEntry["Definition"] = Macro.Definition;
-            FileHandle["SeenMacros"].emplace_back(std::move(MacroEntry));
-
-            continue;
-        }
-
-        continue;
-    }
-
-    std::vector<MyMacroInfo> SeenMacros;
-    for (const auto& [_, Macros] : Files)
-    {
-        for (const MyMacroInfo& Macro : Macros)
-        {
-            bool bFound = false;
-
-            for (const MyMacroInfo& SeenMacro : SeenMacros)
-            {
-                if (SeenMacro.Identifier == Macro.Identifier)
+                std::string ParamsStr;
+                for (const auto& Param : M.Params)
                 {
-#if DCP_IN_DEBUG
-                    if (SeenMacro.Definition != Macro.Definition)
+                    if (!ParamsStr.empty())
                     {
-                        llvm::outs() << "WARNING: Macro Missmatch of [" << SeenMacro.Definition << "].\n";
+                        ParamsStr += ", ";
                     }
-#endif /* !DCP_IN_DEBUG */
-                    bFound = true;
-                    break;
+
+                    ParamsStr += Param;
+
+                    continue;
                 }
 
-                continue;
-            }
+                const char* Sql =
+                    "INSERT OR IGNORE INTO Macros "
+                    "(Identifier, Source, Line, Column, bFunctionLike, Definition, Params) "
+                    "VALUES (?, ?, ?, ?, 1, ?, ?);";
 
-            if (bFound == false)
+                sqlite3_stmt* Stmt = nullptr;
+                if (sqlite3_prepare_v2(Db, Sql, -1, &Stmt, nullptr) != SQLITE_OK)
+                {
+                    llvm::errs() << "Failed to prepare statement: " << sqlite3_errmsg(Db) << "\n";
+                    return;
+                }
+
+                sqlite3_bind_text(Stmt, 1, M.Identifier.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt, 2, M.Source.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int(Stmt,  3, M.Line);
+                sqlite3_bind_int(Stmt,  4, M.Column);
+                sqlite3_bind_text(Stmt, 5, M.Definition.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt, 6, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
+
+                ExecStmt(Stmt);
+                sqlite3_finalize(Stmt);
+            }
+            else
             {
-                SeenMacros.emplace_back(Macro);
+                dcp_check( M.Params.empty() )
+
+                const std::string Sql = "INSERT OR IGNORE INTO Macros ("
+                                        "Identifier, Source, Line, Column, bFunctionLike, Definition"
+                                        ") VALUES (?, ?, ?, ?, 0, ?);";
+
+                sqlite3_stmt* Stmt = nullptr;
+                if (sqlite3_prepare_v2(Db, Sql.c_str(), -1, &Stmt, nullptr) != SQLITE_OK)
+                {
+                    llvm::errs() << "Failed to prepare statement: " << sqlite3_errmsg(Db) << "\n";
+                    llvm::errs().flush();
+                    PRIVATE_DCP_FAIL_BOILERPLATE()
+                    return;
+                }
+
+                sqlite3_bind_text(Stmt, 1, M.Identifier.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt, 2, M.Source.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int(Stmt,  3, M.Line);
+                sqlite3_bind_int(Stmt,  4, M.Column);
+                sqlite3_bind_text(Stmt, 5, M.Definition.c_str(), -1, SQLITE_TRANSIENT);
+
+                ExecStmt(Stmt);
+                sqlite3_finalize(Stmt);
             }
 
             continue;
-        }
-
-        continue;
-    }
-
-    for (const auto& [File, _] : Files)
-    {
-        json& FileHandle = GetOrMakeObjectHandle(&J["Files"], "Identifier", File);
-
-        for (const MyMacroInfo& Macro : SeenMacros)
-        {
-            if (ArrayContainsObject(FileHandle["SeenMacros"], "Identifier", Macro.Identifier))
-            {
-                continue;
-            }
-
-            json MacroEntry = json::object();
-            MacroEntry["Identifier"] = Macro.Identifier;
-            MacroEntry["Line"] = -1; /* It's a foreign macro, so keeping the line makes no sense. */
-            MacroEntry["Column"] = -1;
-            MacroEntry["bFunctionLike"] = Macro.bFunctionLike;
-            MacroEntry["Params"] = json::array();
-            for (const auto& Param : Macro.Params)
-            {
-                MacroEntry["Params"].emplace_back(Param);
-            }
-            MacroEntry["Definition"] = Macro.Definition;
-
-            FileHandle["SeenMacros"].emplace_back(std::move(MacroEntry));
         }
 
         continue;
@@ -686,537 +470,226 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>
 
 void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
 {
-    InTypeDef.ExpandAndFollowSourceLocation();
-
-    IrOut Out;
-    auto& J = Out.GetHandle();
-
-    if (const json* Obj = GetArrayObject(J["Typedefs"], "Identifier", InTypeDef.Identifier); Obj)
+    if (InTypeDef.bComplex)
     {
-#if DCP_DO_OUT_CHECKS
-        dcp_check( Obj->operator[]("Source")  == InTypeDef.Source   )
-        dcp_check( Obj->operator[]("Line")    == InTypeDef.Line     )
-        dcp_check( Obj->operator[]("Column")  == InTypeDef.Column   )
-        dcp_check( Obj->operator[]("What")    == InTypeDef.What     )
+        dcp_check( InTypeDef.What.empty() )
 
-        if (InTypeDef.bComplex)
-        {
-            dcp_check( Obj->operator[]("Complex")            == InTypeDef.bComplex           )
-            dcp_check( Obj->operator[]("ComplexBeginLine")   == InTypeDef.ComplexBeginLine   )
-            dcp_check( Obj->operator[]("ComplexBeginColumn") == InTypeDef.ComplexBeginColumn )
-        }
+        const std::string Sql = "INSERT OR IGNORE INTO Typedefs ("
+                                "Identifier, Source, Line, Column, Type, bAnonymous, AnonymousBeginLine, AnonymousBeginColumn"
+                                ") VALUES ('" + InTypeDef.Identifier + "', '" + InTypeDef.Source + "', " +
+                                std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '"
+                                + InTypeDef.Type + "', 1, "
+                                + std::to_string(InTypeDef.ComplexBeginLine) +
+                                ", " + std::to_string(InTypeDef.ComplexBeginColumn) + ");";
 
-        if (InTypeDef.Type.empty())
-        {
-            dcp_check( Obj->operator[]("Type")== nullptr )
-        }
-        else
-        {
-            dcp_check( Obj->operator[]("Type") == InTypeDef.Type )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        return;
-    }
-
-    json TypeDefEntry = json::object();
-    TypeDefEntry["Identifier"] = InTypeDef.Identifier;
-    TypeDefEntry["Source"] = InTypeDef.Source;
-    TypeDefEntry["Line"] = InTypeDef.Line;
-    TypeDefEntry["Column"] = InTypeDef.Column;
-    TypeDefEntry["What"] = InTypeDef.What;
-    if (InTypeDef.Type.empty())
-    {
-        TypeDefEntry["Type"] = nullptr;
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
     }
     else
     {
-        TypeDefEntry["Type"] = InTypeDef.Type;
-    }
-    TypeDefEntry["Records"] = json::array();
-    for (const auto& Record : InTypeDef.Records)
-    {
-        json RecordEntry = json::object();
-        RecordEntry["Identifier"] = Record.Ref;
-        TypeDefEntry["Records"].emplace_back(std::move(RecordEntry));
-        continue;
-    }
-    TypeDefEntry["Complex"] = InTypeDef.bComplex;
-    if (InTypeDef.bComplex)
-    {
-        TypeDefEntry["ComplexBeginLine"]   = InTypeDef.ComplexBeginLine;
-        TypeDefEntry["ComplexBeginColumn"] = InTypeDef.ComplexBeginColumn;
-        if (InTypeDef.ComplexTypeRef.has_value())
         {
-            TypeDefEntry["ComplexTypeDecl"] = json::object();
-            json& Ctd = TypeDefEntry["ComplexTypeDecl"];
-            const MyRecord& Value = InTypeDef.ComplexTypeRef.value();
-            Ctd["Identifier"] = Value.Identifier;
-            Ctd["Source"] = Value.Source;
-            Ctd["Line"] = Value.Line;
-            Ctd["Column"] = Value.Column;
-            Ctd["Type"] = Value.Type;
-            Ctd["Records"] = json::array();
-            Ctd["Enum"] = nullptr;
-            for (const auto& Record : Value.Records)
-            {
-                json RecordEntry = json::object();
-                RecordEntry["Identifier"] = Record.Ref;
-                Ctd["Records"].emplace_back(std::move(RecordEntry));
-                continue;
-            }
+            const std::string Sql = "INSERT OR IGNORE INTO Typedefs ("
+                                    "Identifier, Source, Line, Column, What, bAnonymous"
+                                    ") VALUES ('" + InTypeDef.Identifier + "', '" + InTypeDef.Source + "', " +
+                                    std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '" +
+                                    InTypeDef.What + "', 0);";
+
+            PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
+        }
+
+        if (!InTypeDef.Type.empty()) /* Non Trivial */
+        {
+            const std::string Sql = "INSERT OR IGNORE INTO Refs ("
+                                    "Identifier, Source, Line, Column, Ref"
+                                    ") VALUES ('" + InTypeDef.Identifier + "', '" + InTypeDef.Source + "', " +
+                                    std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '" +
+                                    InTypeDef.Type + "');";
+
+            PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
         }
     }
-    J["Typedefs"].emplace_back(std::move(TypeDefEntry));
+
+    for (const auto& R : InTypeDef.Records)
+    {
+        const std::string Sql = "INSERT OR IGNORE INTO Refs ("
+                                "Identifier, Source, Line, Column, Ref"
+                                ") VALUES ('" + InTypeDef.Identifier + "', '" + InTypeDef.Source + "', " +
+                                std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '" +
+                                R.Ref + "');";
+
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
+    }
 
     return;
 }
 
+
 void Dcp::PutToIntermediate(const MyRecord& InRecord)
 {
-    InRecord.ExpandAndFollowSourceLocation();
-
-    IrOut Out;
-    auto& J { Out.GetHandle() };
-
-    if (json* Obj { ::GetArrayObject(J["Records"], "Identifier", InRecord.Identifier) }; Obj)
     {
-#if DCP_DO_OUT_CHECKS
-        dcp_check( Obj->operator[]("Source") == InRecord.Source )
-        dcp_check( Obj->operator[]("Line")   == InRecord.Line   )
-        dcp_check( Obj->operator[]("Column") == InRecord.Column )
-        dcp_check( Obj->operator[]("Type")   == InRecord.Type )
-        dcp_check( Obj->operator[]("Records").is_array() )
-#endif /* DCP_DO_OUT_CHECKS */
+        const std::string Sql = "INSERT OR IGNORE INTO Records ("
+                                "Identifier, Source, Line, Column, Type"
+                                ") VALUES ('" + InRecord.Identifier + "', '" + InRecord.Source + "', " +
+                                std::to_string(InRecord.Line) + ", " + std::to_string(InRecord.Column) + ", '" +
+                                InRecord.Type + "');";
 
-        for (const MyRecordRef& R : InRecord.Records)
-        {
-            if (::ArrayContainsObject(Obj->operator[]("Records"), "Identifier", R.Ref))
-            {
-                continue;
-            }
-
-            json Entry = json::object();
-            Entry["Identifier"] = R.Ref;
-            Obj->operator[]("Records").emplace_back(std::move(Entry));
-            continue;
-        }
-
-        return;
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
     }
 
-    json Entry = json::object();
-    Entry["Identifier"] = InRecord.Identifier;
-    Entry["Source"] = InRecord.Source;
-    Entry["Line"] = InRecord.Line;
-    Entry["Column"] = InRecord.Column;
-    Entry["Type"] = InRecord.Type;
-    Entry["Records"] = json::array();
-    Entry["Enum"] = nullptr;
-    for (const auto& Record : InRecord.Records)
+    for (const auto& R : InRecord.Records)
     {
-        json RecordEntry = json::object();
-        RecordEntry["Identifier"] = Record.Ref;
-        Entry["Records"].emplace_back(std::move(RecordEntry));
-        continue;
-    }
+        const std::string Sql = "INSERT OR IGNORE INTO Refs ("
+                                "Identifier, Source, Line, Column, Ref"
+                                ") VALUES ('" + InRecord.Identifier + "', '" + InRecord.Source + "', " +
+                                std::to_string(InRecord.Line) + ", " + std::to_string(InRecord.Column) + ", '" +
+                                R.Ref + "');";
 
-    J["Records"].emplace_back(std::move(Entry));
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
+    }
 
     return;
 }
 
 void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 {
-    InEnumRecord.ExpandAndFollowSourceLocation();
+    dcp_check( InEnumRecord.Enum.has_value() )
 
-    PutToIntermediate(static_cast<const MyRecord&>(InEnumRecord));
-
-    IrOut Out;
-    auto& J = Out.GetHandle();
-    json* Obj = GetArrayObjectChecked(J["Records"], "Identifier", InEnumRecord.Identifier);
-
-    if (InEnumRecord.Enum.has_value())
     {
-        if (Obj->contains("Enum") == false)
-        {
-            Obj->operator[]("Enum") = InEnumRecord.Enum.value();
-        }
-        else if (Obj->operator[]("Enum").is_null())
-        {
-            Obj->operator[]("Enum") = InEnumRecord.Enum.value();
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Enum").is_string() )
-            dcp_check( Obj->operator[]("Enum") == InEnumRecord.Enum.value() )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-    }
-    else
-    {
-        if (Obj->contains("Enum") == false)
-        {
-            Obj->operator[]("Enum") = nullptr;
-        }
-#if DCP_DO_OUT_CHECKS
-        else if (Obj->operator[]("Enum").is_null() == false)
-        {
-            dcp_check( Obj->operator[]("Enum").is_null() )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
+        const std::string Sql = "INSERT OR IGNORE INTO Records ("
+                                "Identifier, Source, Line, Column, Type, Enum"
+                                ") VALUES ('" + InEnumRecord.Identifier + "', '" + InEnumRecord.Source + "', " +
+                                std::to_string(InEnumRecord.Line) + ", " + std::to_string(InEnumRecord.Column) + ", '" +
+                                InEnumRecord.Type + "', '" + InEnumRecord.Enum.value() + "');";
+
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
     }
 
-    return;
-}
-
-void Dcp::PutToIntermediate(const MyFunctionForward& InFunction)
-{
-    InFunction.ExpandAndFollowSourceLocation();
-
-    IrOut Out;
-    json& J = Out.GetHandle();
-
-    if (const json* Obj = GetArrayObject(J["Functions"], "Identifier", InFunction.Identifier); Obj)
+    for (const auto& R : InEnumRecord.Records)
     {
-#if DCP_DO_OUT_CHECKS
-        dcp_check( Obj->operator[]("Source") == InFunction.Source )
-        dcp_check( Obj->operator[]("Line")   == InFunction.Line   )
-        dcp_check( Obj->operator[]("Column") == InFunction.Column )
-#endif /* DCP_DO_OUT_CHECKS */
+        const std::string Sql = "INSERT OR IGNORE INTO Refs ("
+                                "Identifier, Source, Line, Column, Ref"
+                                ") VALUES ('" + InEnumRecord.Identifier + "', '" + InEnumRecord.Source + "', " +
+                                std::to_string(InEnumRecord.Line) + ", " + std::to_string(InEnumRecord.Column) + ", '" +
+                                R.Ref + "');";
 
-        return;
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
     }
-
-    json Entry = json::object();
-    Entry["Identifier"] = InFunction.Identifier;
-    Entry["Source"] = InFunction.Source;
-    Entry["Line"] = InFunction.Line;
-    Entry["Column"] = InFunction.Column;
-
-    J["Functions"].emplace_back(std::move(Entry));
-
-    return;
-}
-
-void Dcp::PutToIntermediate(const MyFunction& InFunction)
-{
-    InFunction.ExpandAndFollowSourceLocation();
-
-    IrOut Out;
-    json& J = Out.GetHandle();
-
-    if (json* Obj = GetArrayObject(J["Functions"], "Identifier", InFunction.Identifier); Obj)
-    {
-        if (Obj->contains("Source") == false)
-        {
-            Obj->operator[]("Source") = InFunction.Source;
-        }
-        else if (Obj->operator[]("Source").is_null())
-        {
-            Obj->operator[]("Source") = InFunction.Source;
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Source").is_string() )
-            dcp_check( Obj->operator[]("Source") == InFunction.Source )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("Line") == false)
-        {
-            Obj->operator[]("Line") = InFunction.Line;
-        }
-        else if (Obj->operator[]("Line").is_null())
-        {
-            Obj->operator[]("Line") = InFunction.Line;
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Line").is_number_integer() )
-            dcp_check( Obj->operator[]("Line") == InFunction.Line )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("Column") == false)
-        {
-            Obj->operator[]("Column") = InFunction.Column;
-        }
-        else if (Obj->operator[]("Column").is_null())
-        {
-            Obj->operator[]("Column") = InFunction.Column;
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Column").is_number_integer() )
-            dcp_check( Obj->operator[]("Column") == InFunction.Column )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("Ret") == false)
-        {
-            Obj->operator[]("Ret") = InFunction.Ret;
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Ret") == InFunction.Ret )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("Params") == false)
-        {
-            Obj->operator[]("Params") = json::array();
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Params").is_array() )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->operator[]("Params").empty())
-        {
-            for (const auto& Param : InFunction.Params)
-            {
-                json ParamEntry = json::object();
-                ParamEntry["Identifier"] = Param.Identifier;
-                ParamEntry["Type"] = Param.Type;
-                Obj->operator[]("Params").emplace_back(std::move(ParamEntry));
-            }
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Params").size() == InFunction.Params.size() )
-            for (size_t i = 0; i < InFunction.Params.size(); ++i)
-            {
-                dcp_check( Obj->operator[]("Params")[i]["Identifier"] == InFunction.Params[i].Identifier )
-                dcp_check( Obj->operator[]("Params")[i]["Type"]       == InFunction.Params[i].Type       )
-            }
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("bStatic") == false)
-        {
-            Obj->operator[]("bStatic") = InFunction.bStatic;
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("bStatic") == InFunction.bStatic )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("Decls") == false)
-        {
-            Obj->operator[]("Decls") = json::array();
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Decls").is_array() )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("Callees") == false)
-        {
-            Obj->operator[]("Callees") = json::array();
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Callees").is_array() )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("Records") == false)
-        {
-            Obj->operator[]("Records") = json::array();
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Records").is_array() )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->operator[]("Records").empty())
-        {
-            for (const MyRecordRef& Record : InFunction.Records)
-            {
-                json RecordEntry = json::object();
-                RecordEntry["Identifier"] = Record.Ref;
-                Obj->operator[]("Records").emplace_back(std::move(RecordEntry));
-            }
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Records").size() == InFunction.Records.size() )
-            for (size_t i = 0; i < InFunction.Records.size(); ++i)
-            {
-                dcp_check( Obj->operator[]("Records")[i]["Identifier"] == InFunction.Records[i].Ref )
-            }
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->contains("VarRefs") == false)
-        {
-            Obj->operator[]("VarRefs") = json::array();
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("VarRefs").is_array() )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        if (Obj->operator[]("VarRefs").empty())
-        {
-            for (const MyVarRef& Var : InFunction.Vars)
-            {
-                json VarEntry = json::object();
-                VarEntry["Identifier"] = Var.Ref;
-                VarEntry["Type"] = Var.Type;
-                Obj->operator[]("VarRefs").emplace_back(std::move(VarEntry));
-            }
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("VarRefs").size() == InFunction.Vars.size() )
-            for (size_t i = 0; i < InFunction.Vars.size(); ++i)
-            {
-                dcp_check( Obj->operator[]("VarRefs")[i]["Identifier"] == InFunction.Vars[i].Ref )
-                dcp_check( Obj->operator[]("VarRefs")[i]["Type"] == InFunction.Vars[i].Type )
-            }
-        }
-#endif /* DCP_DO_OUT_CHECKS */
-
-        return;
-    }
-
-    json Entry = json::object();
-    Entry["Identifier"] = InFunction.Identifier;
-    Entry["Source"] = InFunction.Source;
-    Entry["Line"] = InFunction.Line;
-    Entry["Column"] = InFunction.Column;
-    Entry["Ret"] = InFunction.Ret;
-    Entry["bStatic"] = InFunction.bStatic;
-    Entry["Decls"] = json::array();
-    Entry["Params"] = json::array();
-    for (const auto& Param : InFunction.Params)
-    {
-        json ParamEntry = json::object();
-        ParamEntry["Identifier"] = Param.Identifier;
-        ParamEntry["Type"] = Param.Type;
-        Entry["Params"].emplace_back(std::move(ParamEntry));
-    }
-    Entry["Callees"] = json::array();
-    Entry["Records"] = json::array();
-    for (const auto& Record : InFunction.Records)
-    {
-        json RecordEntry = json::object();
-        RecordEntry["Identifier"] = Record.Ref;
-        Entry["Records"].emplace_back(std::move(RecordEntry));
-    }
-    Entry["VarRefs"] = json::array();
-    for (const auto& Var : InFunction.Vars)
-    {
-        json VarEntry = json::object();
-        VarEntry["Identifier"] = Var.Ref;
-        VarEntry["Type"] = Var.Type;
-        Entry["VarRefs"].emplace_back(std::move(VarEntry));
-    }
-
-    J["Functions"].emplace_back(std::move(Entry));
 
     return;
 }
 
 void Dcp::PutToIntermediate(const MyFunctionDecl& InFunction)
 {
-    InFunction.ExpandAndFollowSourceLocation();
+    const std::string Sql = "INSERT OR IGNORE INTO FunctionDecls ("
+                            "Identifier, Source, Line, Column"
+                            ") VALUES ('" + InFunction.Identifier + "', '" + InFunction.Source + "', " +
+                            std::to_string(InFunction.Line) + ", " + std::to_string(InFunction.Column) + ");";
 
-    IrOut Out;
-    json& J = Out.GetHandle();
+    PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
 
-    if (json* Obj = GetArrayObject(J["Functions"], "Identifier", InFunction.Identifier); Obj)
+    return;
+}
+
+void Dcp::PutToIntermediate(const MyFunction& InFunction)
+{
+    PutToIntermediate(static_cast<MyFunctionDecl>(InFunction));
+
     {
-        if (Obj->contains("Decls") == false)
+        std::string ParamsStr;
+        for (const auto& Param : InFunction.Params)
         {
-            Obj->operator[]("Decls") = json::array();
-        }
-#if DCP_DO_OUT_CHECKS
-        else
-        {
-            dcp_check( Obj->operator[]("Decls").is_array() )
-        }
-#endif /* DCP_DO_OUT_CHECKS */
+            if (!ParamsStr.empty())
+            {
+                ParamsStr += ", ";
+            }
 
-        if
-        (
-            ArrayContainsObjectDouble
-            (
-                Obj->operator[]("Decls"),
-                "Line", InFunction.Line,
-                "Source", InFunction.Source
-            ) == false
-        )
-        {
-            json DeclEntry = json::object();
-            DeclEntry["Source"] = InFunction.Source;
-            DeclEntry["Line"] = InFunction.Line;
-            DeclEntry["Column"] = InFunction.Column;
-            Obj->operator[]("Decls").emplace_back(std::move(DeclEntry));
+            ParamsStr += Param.Type + " " + Param.Identifier;
+
+            continue;
         }
 
-        return;
+        const std::string Sql = "INSERT OR IGNORE INTO Functions ("
+                                "Identifier, Source, Line, Column, bStatic, Params, Ret"
+                                ") VALUES (?, ?, ?, ?, ?, ?, ?);";
+
+        sqlite3_stmt* Stmt = nullptr;
+        if (sqlite3_prepare_v2(Db, Sql.c_str(), -1, &Stmt, nullptr) != SQLITE_OK)
+        {
+            llvm::errs() << "Failed to prepare statement: " << sqlite3_errmsg(Db) << "\n";
+            llvm::errs().flush();
+            PRIVATE_DCP_FAIL_BOILERPLATE()
+            return;
+        }
+
+        sqlite3_bind_text(Stmt, 1, InFunction.Identifier.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(Stmt, 2, InFunction.Source.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(Stmt,  3, InFunction.Line);
+        sqlite3_bind_int(Stmt,  4, InFunction.Column);
+        sqlite3_bind_int(Stmt,  5, InFunction.bStatic ? 1 : 0);
+        sqlite3_bind_text(Stmt, 6, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(Stmt, 7, InFunction.Ret.c_str(), -1, SQLITE_TRANSIENT);
+
+        ExecStmt(Stmt);
+        sqlite3_finalize(Stmt);
     }
 
-    json Entry = json::object();
-    Entry["Identifier"] = InFunction.Identifier;
-    J["Functions"].emplace_back(std::move(Entry));
+    for (const auto& Record : InFunction.Records)
+    {
+        const std::string Sql = "INSERT OR IGNORE INTO Refs ("
+                                "Identifier, Source, Line, Column, Ref"
+                                ") VALUES ('" + InFunction.Identifier + "', '" + InFunction.Source + "', " +
+                                std::to_string(InFunction.Line) + ", " + std::to_string(InFunction.Column) + ", '" +
+                                Record.Ref + "');";
 
-    Out.Unlock();
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
+    }
 
-    PutToIntermediate(InFunction);
+    for (const auto& Record : InFunction.Vars)
+    {
+        const std::string Sql = "INSERT OR IGNORE INTO Refs ("
+                                "Identifier, Source, Line, Column, Type, Ref"
+                                ") VALUES ('" + InFunction.Identifier + "', '" + InFunction.Source + "', " +
+                                std::to_string(InFunction.Line) + ", " + std::to_string(InFunction.Column) + ", 'variable', '" +
+                                Record.Ref + "');";
+
+        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
+    }
 
     return;
 }
 
 void Dcp::PutToIntermediate(const MyFunctionRef& InFunctionRef)
 {
-    InFunctionRef.Caller.ExpandAndFollowSourceLocation();
+    const std::string Sql = "INSERT OR IGNORE INTO Refs ("
+                            "Identifier, Source, Line, Column, Ref"
+                            ") VALUES ('" + InFunctionRef.Caller.Identifier + "', '" + InFunctionRef.Caller.Source + "', " +
+                            std::to_string(InFunctionRef.Caller.Line) + ", " + std::to_string(InFunctionRef.Caller.Column) + ", '" +
+                            InFunctionRef.Ref + "');";
 
-    IrOut Out;
-    auto& J = Out.GetHandle();
-
-    json* Caller = nullptr;
-
-    if (Caller = GetArrayObject(J["Functions"], "Identifier", InFunctionRef.Caller.Identifier); Caller)
-    {
-#if DCP_DO_OUT_CHECKS
-        dcp_check( Caller->operator[]("Source") == InFunctionRef.Caller.Source )
-        dcp_check( Caller->operator[]("Line")   == InFunctionRef.Caller.Line   )
-        dcp_check( Caller->operator[]("Column") == InFunctionRef.Caller.Column )
-#endif /* DCP_DO_OUT_CHECKS */
-    }
-    else
-    {
-        Out.Unlock();
-        PutToIntermediate(InFunctionRef.Caller);
-        PutToIntermediate(InFunctionRef);
-        return;
-    }
-    dcp_check( Caller )
-
-    GetOrMakeObjectHandle(&(*Caller)["Callees"], "Identifier", InFunctionRef.Ref);
+    PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
 
     return;
 }
+
+void Dcp::PutToIntermediate(const MyVariableDecl& InVariable)
+{
+    const std::string Sql = "INSERT OR IGNORE INTO Variables ("
+                            "Identifier, Source, Line, Column, Type, bStatic, bExtern"
+                            ") VALUES ('" + InVariable.Identifier + "', '" + InVariable.Source + "', " +
+                            std::to_string(InVariable.Line) + ", " + std::to_string(InVariable.Column) + ", '" +
+                            InVariable.Type + "', " + (InVariable.bStatic ? "1" : "0") + ", " +
+                            (InVariable.bExtern ? "1" : "0") + ");";
+
+    PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
+
+    return;
+}
+
+void Dcp::PutToIntermediate(const MyVariable& InVariable)
+{
+    PutToIntermediate(static_cast<MyVariableDecl>(InVariable));
+
+    return;
+}
+
+#undef PRIVATE_DCP_EXECUTE_TRIVIAL_SQL
+#undef PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE
