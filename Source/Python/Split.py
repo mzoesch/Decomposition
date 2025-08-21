@@ -28,6 +28,9 @@ def split_impl(args) -> None:
     print(f'Exporting [{len(exporter.symbols)}] symbols ...')
     exporter.export(ir)
 
+    if args.Report:
+        exporter.report()
+
     return None
 
 

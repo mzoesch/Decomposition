@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from Source.Python.Types import *
 from Source.Python.Cursor import Cursor
 
@@ -57,10 +58,11 @@ class Symbol:
         self.content = content
         self.decldoc = decldoc
         self.source = source
-        if references is None:
-            self.references = []
-        else:
-            self.references = references.copy()
+        self.references = []
+        if references is not None:
+            for r in references:
+                self.add_reference(r.identifier, r.hint)
+                continue
         self.native: dict | None = native
         return
 
@@ -90,7 +92,9 @@ class Symbol:
             'int', 'unsigned', 'unsigned int', 'signed', 'signed int',
             'long', 'unsigned long', 'signed long',
             'float', 'double',
-            'struct', 'enum'
+            'struct', 'enum',
+            'size_t', 'ptrdiff_t', 'ssize_t', 'intptr_t', 'uintptr_t',
+            'wchar_t', 'char16_t', 'char32_t',
         ]:
             return None
 
@@ -113,9 +117,6 @@ class Symbol:
         decldoc_n: int = 0
         if args.CountDeclDocsToN:
             decldoc_n = sum((not c.isspace()) for c in self.decldoc) if (self.decldoc is not None) else 0
-
-        if decldoc_n > 0:
-            print(decldoc_n)
 
         if args.CountDocsToN is False:
             out: int = 0
@@ -455,6 +456,9 @@ class Exporter:
 
         self.warnings: list[str] = []
 
+        self._ns: list[int] = []
+        self._exceeded_ns: list[int] = []
+
         return
 
     def add_warning(self, warning: str) -> None:
@@ -594,8 +598,10 @@ class Exporter:
 
         for f in self.files:
             f_n: int = f.get_total_n_size(self.args)
+            self._ns.append(f_n)
             if f_n > self.args.N:
                 self.add_warning(f'File [{f.get_file_name()}] exceeds the maximum size of [{self.args.N}] with [{f_n}].')
+                self._exceeded_ns.append(f_n)
             continue
 
         print(f'Creating content for [{len(self.files)}] files ...')
@@ -808,6 +814,31 @@ class Exporter:
               f'[{typedef_len}] typedefs and [{func_len}] functions.')
         return None
 
+    def report(self) -> None:
+
+        with open(self.get_report_file(), 'w') as f:
+            report_data = {
+                'Target': Exporter._current_target,
+                'FilesCount': len(self.files),
+
+                'Symbols': len(self.symbols),
+                'Records': len([s for s in self.symbols if s.symbol_type == ESymbolType.RECORD]),
+                'Functions': len([s for s in self.symbols if s.symbol_type == ESymbolType.FUNCTION]),
+
+                'UsedN': self.args.N,
+                'ExceededNsCount': len(self._exceeded_ns),
+                'AverageN': sum(self._ns) / len(self._ns) if len(self._ns) > 0 else 0,
+                'AverageExceededN': sum(self._exceeded_ns) / len(self._exceeded_ns) if len(self._exceeded_ns) > 0 else 0,
+
+                'Warnings': self.warnings,
+                'Ns': self._ns,
+                'ExceededNs': self._exceeded_ns,
+            }
+            f.write(json.dumps(report_data, indent=4))
+            print(f'Written report to [{self.get_report_file()}].')
+
+        return None
+
     def _get_transitive_includes_non_module(self, visited_set: list[str], export_set: list[str], start, ir) -> None:
         for c_file in ir['Files']:
             if c_file['Identifier'].endswith(start) is False:
@@ -906,11 +937,21 @@ class Exporter:
             return args.TargetBuildBinDir
         return f'{Exporter.get_abs_target_build_dir(args)}/{args.TargetBuildBinDir}'
 
+    @staticmethod
+    def get_report_file_s(args) -> str:
+        return f'{Exporter.get_abs_target_build_dir(args)}/Report.json'
+
     def get_out_dir(self) -> str:
         return Exporter.get_out_dir_s(self.args)
 
     def get_intermediate_file(self) -> str:
         return Exporter.get_intermediate_file_s(self.args)
+
+    def get_bin_dir(self) -> str:
+        return Exporter.get_bin_dir_s(self.args)
+
+    def get_report_file(self):
+        return Exporter.get_report_file_s(self.args)
 
     @staticmethod
     def _path_to_valid_name(path: str) -> str:

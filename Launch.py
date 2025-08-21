@@ -383,6 +383,7 @@ def default_parse_args() -> None:
     group.add_argument('-PurgeInlineDocs',     action='store_true',         help='Whether to purge inline documentation. Defaults to [False].')
     group.add_argument('-CountDeclDocsToN',    action='store_true',         help='Whether to count declaration docs and comments to N. Defaults to [False].')
     group.add_argument('-CountDocsToN',        action='store_true',         help='Whether to count inline docs and comments to N. Defaults to [False].')
+    group.add_argument('-Report',              action='store_true',         help='Whether to do a report after splitting.')
 
 
     group = parser.add_argument_group('Step Three: Compile units')
