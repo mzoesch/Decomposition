@@ -1,3 +1,6 @@
+from Source.Python.SqlConnection import SqlConnection
+
+
 class SourceFile:
     """
     Represents a source file in the original project.
@@ -6,6 +9,14 @@ class SourceFile:
     def __init__(self, ident: str):
         assert ident != ''
         self.ident = ident
+
+    def __eq__(self, other):
+        if not isinstance(other, SourceFile):
+            return NotImplemented
+        return self.ident == other.ident
+
+    def __hash__(self):
+        return hash(self.ident)
 
 
 class SourceLocation:
@@ -27,7 +38,11 @@ class SourceLocation:
         return self.column > 0
 
     def is_translation(self) -> bool:
-        return self.file.ident.endswith('.c') # TODO Use the extensions form the database.
+        return is_source_translation(self.file.ident, None)
 
     def is_header(self) -> bool:
         return not self.is_translation()
+
+
+def is_source_translation(f: str, con: SqlConnection) -> bool: # TODO Use the extensions form the database.
+    return f.endswith('.c')

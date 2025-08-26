@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import os
+import time
 from pathlib import Path
 from Source.Python.Globals import Globals
 from Source.Python.SqlConnection import SqlConnection
@@ -63,14 +64,39 @@ class Unit:
         assert e is not None
         return e
 
+    def get_n_size(self, g: Globals) -> int:
+        out: int = 0
+        for e in self.elements:
+            if g.args.CountDeclDocsToN:
+                out += e.decl_doc_n
+            out += e.content_n
+            continue
+
+        return out
+
+    def cache_content(self, g: Globals, con: SqlConnection) -> None:
+        for e in self.elements:
+            e.cache_content(g, con)
+            continue
+
+        for e in self.elements:
+            e.update_n(g)
+            continue
+
+        return None
+
     def create_content(self, g: Globals, ex: Exporter, con: SqlConnection) -> None:
         assert (self.content is None) and (self.ctx_content is None)
         self.content = f'#include "{self.get_ctx_filename()}"\n'
         self.ctx_content = ''
 
+        unique_source_files: set[SourceFile] = set()
         for e in self.elements:
-            e.finalize_content(g, con)
+            assert e.source.file is not None
+            unique_source_files.add(e.source.file)
+            continue
 
+        for e in self.elements:
             if not g.args.PurgeDeclDocs:
                 if len(e.decl_doc) > 0:
                     self.content += '\n'
@@ -90,7 +116,7 @@ class Unit:
             con.execute_ro("""
             SELECT Ref, Type FROM Refs
             WHERE Source = ? AND Line = ? AND "Column" = ?
-            """, (e.source.file.ident, e.source.line, e.source.column))
+            ;""", (e.source.file.ident, e.source.line, e.source.column))
 
             rows = con.fetchall()
             for r, ty in rows:
@@ -117,7 +143,8 @@ class Unit:
 
                 elif ty == 'variable':
                     u: Unit = ex.find_unit_from_element(r)
-                    assert u is not None
+                    if u is None: # Std, <builtin>, ...
+                        continue
 
                     # It is ok if this references itself.
                     r_ref = u.get_element_asserted(r)
@@ -129,12 +156,23 @@ class Unit:
                 continue
             continue
 
-        seen_macros: list[str] = []
-        # TODO
+        seen_macros: set[tuple[str, str]] = set()
+        for f in unique_source_files:
+            con.execute_ro("""
+            SELECT Identifier, bFunctionLike, Definition, Params FROM SeenMacros
+            WHERE Source = ?
+            ;""", (f.ident,))
+
+            rows = con.fetchall()
+            for ident, function_like, definition, params in rows:
+                seen_macros.add((ident, Unit.create_macro_definition_directive(ident, function_like, definition, params)))
+                continue
+            continue
         if len(seen_macros) > 0:
             self.ctx_content += '/* Seen */\n'
-            seen_macros = sorted(seen_macros, key=lambda x: x)
-            for m in seen_macros:
+            seen_macros_list: list[str] = [m for _, m in seen_macros]
+            seen_macros_list.sort()
+            for m in seen_macros_list:
                 self.ctx_content += m
                 self.ctx_content += '\n'
                 continue
@@ -150,6 +188,8 @@ class Unit:
                 assert False
 
         for fwd in fwds:
+            if fwd is None:
+                continue
             self.ctx_content += fwd
             self.ctx_content += '\n'
             continue
@@ -165,6 +205,39 @@ class Unit:
 
     def get_output_ident_guard_ctx(self) -> str:
         return f'{self.get_output_ident_guard()}_CTX'
+
+    def merge(self, o: Unit) -> None:
+        for o_e in o.elements:
+            added: bool = False
+
+            for i, e in enumerate(self.elements):
+                assert added is False
+
+                if o_e.source.file != e.source.file:
+                    continue
+
+                if o_e.source.line < e.source.line:
+                    self.elements.insert(i, o_e)
+                    added = True
+                    break
+
+                if len(self.elements) == i + 1:
+                    continue
+
+                next_e = self.elements[i + 1]
+                if next_e.source.file != e.source.file:
+                    self.elements.insert(i + 1, o_e)
+                    added = True
+                    break
+
+                continue
+
+            if not added:
+                self.elements.append(o_e)
+
+            continue
+
+        return None
 
     @staticmethod
     def create_guard(content: str, name: str) -> str:
@@ -182,13 +255,41 @@ class Unit:
             continue
         return out
 
+    @staticmethod
+    def remove_quals_from_type(ty: str) -> str:
+        ty = ty.strip()
+        if ('[' in ty) and ty.endswith(']'):
+            ty = ty[:ty.rfind('[')].strip()
+        return ty
+
+    @staticmethod
+    def is_trivial_type(ty: str) -> bool:
+        return ty in [
+            'void',
+            'bool',
+            'char', 'unsigned char', 'signed char',
+            'short', 'unsigned short', 'signed short',
+            'int', 'unsigned', 'unsigned int', 'signed', 'signed int',
+            'long', 'unsigned long', 'signed long',
+            'float', 'double',
+            'size_t', 'ptrdiff_t', 'ssize_t', 'intptr_t', 'uintptr_t',
+            'wchar_t', 'char16_t', 'char32_t',
+            ]
+
+    @staticmethod
+    def create_macro_definition_directive(ident: str, function_like: bool, definition: str, params: str) -> str:
+        if function_like:
+            return f'#define {ident}({params}){definition}'
+        else:
+            return f'#define {ident}{definition}'
+
     def _get_foreign_stuff(self, visited_set: list[str], export_set: list[tuple[str, str]], start: str, until: int, con: SqlConnection) -> None:
         if start in visited_set:
             return None
         visited_set.append(start)
 
         con.execute_ro("""
-        SELECT What, Line, Native, bForeign FROM IncludeDirectives 
+        SELECT What, Line, Native, bForeign FROM IncludeDirectives
         WHERE Source = ?
         ORDER BY Line
         ;""", (start,))
@@ -231,34 +332,6 @@ class Unit:
             continue
 
         return None
-
-    @staticmethod
-    def remove_quals_from_type(ty: str) -> str:
-        ty = ty.strip()
-        if ('[' in ty) and ty.endswith(']'):
-            ty = ty[:ty.rfind('[')].strip()
-        return ty
-
-    @staticmethod
-    def is_trivial_type(ty: str) -> bool:
-        return ty in [
-            'void',
-            'bool',
-            'char', 'unsigned char', 'signed char',
-            'short', 'unsigned short', 'signed short',
-            'int', 'unsigned', 'unsigned int', 'signed', 'signed int',
-            'long', 'unsigned long', 'signed long',
-            'float', 'double',
-            'size_t', 'ptrdiff_t', 'ssize_t', 'intptr_t', 'uintptr_t',
-            'wchar_t', 'char16_t', 'char32_t',
-            ]
-
-    @staticmethod
-    def create_macro_definition_directive(ident: str, function_like: bool, definition: str, params: str) -> str:
-        if function_like:
-            return f'#define {ident}({params}){definition}'
-        else:
-            return f'#define {ident}{definition}'
 
 
 class Exporter:
@@ -311,21 +384,103 @@ class Exporter:
         return u
 
     def report(self) -> None:
+        print('Preparing report ...', flush=True)
+
         p: Path = self.get_report_file()
         with open(p, 'w') as f:
+            exceeded_n: list[Unit] = [u for u in self.units if u.get_n_size(self.g) > self.g.args.N]
+
+            self.con.execute_ro("""SELECT COUNT(*) FROM Decls;""")
+            count_decls = self.con.fetchone()[0]
+
+            self.con.execute_ro("""SELECT COUNT(*) FROM Functions;""")
+            count_functions = self.con.fetchone()[0]
+
+            self.con.execute_ro("""SELECT COUNT(*) FROM Macros;""")
+            count_macros = self.con.fetchone()[0]
+
+            self.con.execute_ro("""SELECT COUNT(*) FROM Records;""")
+            count_records = self.con.fetchone()[0]
+
+            self.con.execute_ro("""SELECT COUNT(*) FROM Refs;""")
+            count_refs = self.con.fetchone()[0]
+
+            self.con.execute_ro("""SELECT COUNT(*) FROM Translations;""")
+            count_translations = self.con.fetchone()[0]
+
+            self.con.execute_ro("""SELECT COUNT(*) FROM Typedefs;""")
+            count_typedefs = self.con.fetchone()[0]
+
+            self.con.execute_ro("""SELECT COUNT(*) FROM Variables;""")
+            count_variables = self.con.fetchone()[0]
+
             data = {
                 'DisplayName': self.display_name,
                 'Directory': self.directory,
-                'Stats': {
-                    'OriginalRecordCount': self.stats.original_record_count,
-                    'OriginalTypedefCount': self.stats.original_typedef_count,
-                    'OriginalFunctionCount': self.stats.original_function_count,
+                'ComplexityScore': count_decls + count_functions + count_macros + count_records +
+                                   count_refs + count_translations + count_typedefs + count_variables,
+
+                'RuntimeStats': {
+                    'AnalysisTime': self.g.analysis_time,
+                    'SplitTime': time.perf_counter() - self.g.time_cursor,
+                },
+
+                'RunParameters': {
+                    'UsedN': self.g.args.N,
+                    'CountDeclDocsToN': self.g.args.CountDeclDocsToN,
+                    'CountDocsToN': self.g.args.CountDocsToN,
+                },
+
+                'SourceStats': {
+                    'SourceFiles': len(self.source_files),
+                    'SourceHeaders': len(self.source_files) - count_translations,
+                    'SourceTranslations': count_translations,
+                },
+
+                'DiscoveredStats': {
+                    'FunctionDecls': count_decls,
+                    'Functions': count_functions,
+                    'Macros': count_macros,
+                    'Records': count_records,
+                    'Refs': count_refs,
+                    'Typedefs': count_typedefs,
+                    'Variables': count_variables,
+                },
+
+                'ProcessedStats': {
+                    'Functions': self.stats.original_function_count,
+                    'Records': self.stats.original_record_count,
+                    'Typedefs': self.stats.original_typedef_count,
+                    'Variables': self.stats.original_variable_count,
+                },
+
+                'UnitStats': {
                     'MaxUnitCount': self.stats.max_unit_count,
+                    'FinalUnitCount': len(self.units),
+                    'HeaderCount': len([u for u in self.units if u.is_header()]),
+                    'TranslationCount': len([u for u in self.units if u.is_translation()]),
+
+                    'ExceededNCount': len(exceeded_n),
+                    'AverageN': sum(u.get_n_size(self.g) for u in self.units) / len(self.units) if len(self.units) > 0 else 0,
+                    'AverageExceededN': sum(u.get_n_size(self.g) for u in exceeded_n) / len(exceeded_n) if len(exceeded_n) > 0 else 0,
                 },
             }
             f.write(json.dumps(data, indent=4))
             if self.g.args.Verbose:
                 print(f'Decomposition-report exported to [{p.__str__()}].')
+
+        return None
+
+    def gather_unit_content(self) -> None:
+        print(f'Gathering unit content for [{len(self.units)}] units ...', flush=True)
+        cursor: int = 1
+        for u in self.units:
+            print(f'[{cursor:0{len(str(len(self.units)))}d}/{len(self.units)}] [{u.get_human_readable_name()}] ...', end=' ', flush=True)
+            u.cache_content(self.g, self.con)
+            print('done')
+            cursor += 1
+            continue
+        print(f'Gathering unit content for [{len(self.units)}] units ... done')
 
         return None
 
@@ -340,7 +495,7 @@ class Exporter:
             continue
         print('done')
 
-        print('Finalizing unit content...', flush=True)
+        print('Finalizing unit content ...', flush=True)
         cursor: int = 1
         for u in self.units:
             print(f'[{cursor:0{len(str(len(self.units)))}d}/{len(self.units)}] [{u.get_human_readable_name()}] ...', end=' ', flush=True)

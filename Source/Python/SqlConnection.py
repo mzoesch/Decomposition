@@ -26,7 +26,7 @@ class SqlConnection:
 
         self.connection = sqlite3.connect(self.db_path)
         self.cursor = self.connection.cursor()
-        print(f'Connected to database at {self.db_path}.')
+        print(f'Connected to database at [{self.db_path}].')
 
         return None
 
@@ -35,7 +35,7 @@ class SqlConnection:
             print('WARNING: No connection to close.')
 
         self.connection.close()
-        print('Connection closed.')
+        print(f'Database connection closed on [{self.db_path}].')
 
         self.connection = None
         self.cursor = None
@@ -64,3 +64,9 @@ class SqlConnection:
             raise RuntimeError("Cannot fetch results. No active database connection.")
 
         return self.cursor.fetchall()
+
+    def fetchone(self) -> any:
+        if not self.is_connected():
+            raise RuntimeError("Cannot fetch result. No active database connection.")
+
+        return self.cursor.fetchone()

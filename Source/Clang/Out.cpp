@@ -158,7 +158,7 @@ bool Dcp::InitializeOutStream()
     }
 
     ExecTrivial("PRAGMA journal_mode=WAL;");
-    sqlite3_busy_timeout(Db, 50);
+    sqlite3_busy_timeout(Db, 5'000);
 
 #define PRIVATE_DCP_REPORT_SQL_ERROR()                         \
     if (const int rc = ExecTrivial(Sql); rc != SQLITE_OK)      \
@@ -220,6 +220,20 @@ bool Dcp::InitializeOutStream()
         PRIVATE_DCP_REPORT_SQL_ERROR()
     }
 
+    // Seen macro definitions
+    {
+        const char* Sql = "CREATE TABLE IF NOT EXISTS SeenMacros ("
+                          "Identifier TEXT NOT NULL,"
+                          "Source TEXT NOT NULL,"
+                          "bFunctionLike INTEGER NOT NULL,"
+                          "Definition TEXT,"
+                          "Params TEXT,"
+                          "PRIMARY KEY (Identifier, Source)"
+                          ");";
+
+        PRIVATE_DCP_REPORT_SQL_ERROR()
+    }
+
     // Typedefs
     {
         const char* Sql = "CREATE TABLE IF NOT EXISTS Typedefs ("
@@ -253,13 +267,16 @@ bool Dcp::InitializeOutStream()
         PRIVATE_DCP_REPORT_SQL_ERROR()
     }
 
-    // Function Decls
+    // Decls
     {
-        const char* Sql = "CREATE TABLE IF NOT EXISTS FunctionDecls ("
+        const char* Sql = "CREATE TABLE IF NOT EXISTS Decls ("
                           "Identifier TEXT NOT NULL,"
                           "Source TEXT NOT NULL,"
                           "Line INTEGER NOT NULL,"
-                          "Column INTEGER NOT NULL,"
+                          "Column INTEGER,"
+                          "bStatic INTEGER,"
+                          "bExtern INTEGER,"
+                          "bDef INTEGER NOT NULL,"
                           "PRIMARY KEY (Identifier, Source, Line)"
                           ");";
 
@@ -389,11 +406,75 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyIncludeDir
 
 void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>>& Files)
 {
+    // We can make this better, who cares rn.
+    std::vector<MyMacroInfo> SeenMacros;
+    for (const auto& [_, Macros] : Files)
+    {
+        for (const auto& M : Macros)
+        {
+            if
+            (
+                std::find_if(
+                SeenMacros.begin(), SeenMacros.end(),
+                [&M](const MyMacroInfo& SeenMacro) { return SeenMacro.Identifier == M.Identifier; }) != SeenMacros.end()
+            )
+            {
+                continue;
+            }
+
+            SeenMacros.emplace_back(M);
+
+            continue;
+        }
+
+        continue;
+    }
+
+    const char* Sql_Macros =
+        "INSERT OR IGNORE INTO Macros "
+        "(Identifier, Source, Line, Column, bFunctionLike, Definition, Params) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?);";
+
+    sqlite3_stmt* Stmt_Macros = nullptr;
+    if (sqlite3_prepare_v2(Db, Sql_Macros, -1, &Stmt_Macros, nullptr) != SQLITE_OK)
+    {
+        llvm::errs() << "Failed to prepare statement: " << sqlite3_errmsg(Db) << "\n";
+        llvm::errs().flush();
+        PRIVATE_DCP_FAIL_BOILERPLATE()
+        return;;
+    }
+
+    const char* Sql_SeenMacros =
+        "INSERT OR IGNORE INTO SeenMacros "
+        "(Identifier, Source, bFunctionLike, Definition, Params) "
+        "VALUES (?, ?, ?, ?, ?);";
+
+    sqlite3_stmt* Stmt_SeenMacros = nullptr;
+    if (sqlite3_prepare_v2(Db, Sql_SeenMacros, -1, &Stmt_SeenMacros, nullptr) != SQLITE_OK)
+    {
+        llvm::errs() << "Failed to prepare statement: " << sqlite3_errmsg(Db) << "\n";
+        llvm::errs().flush();
+        PRIVATE_DCP_FAIL_BOILERPLATE()
+        return;
+    }
+
+    if (ExecTrivial("BEGIN IMMEDIATE;") != SQLITE_OK)
+    {
+        llvm::errs() << "Failed to begin transaction: " << sqlite3_errmsg(Db) << "\n";
+        llvm::errs().flush();
+        PRIVATE_DCP_FAIL_BOILERPLATE()
+        return;
+    }
+
     for (const auto& [Id, Ms] : Files)
     {
         for (const auto& M : Ms)
         {
             dcp_check( Id == M.Source )
+
+            M.ExpandAndFollowSourceLocation();
+
+            int rc;
 
             if (M.bFunctionLike)
             {
@@ -410,60 +491,115 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>
                     continue;
                 }
 
-                const char* Sql =
-                    "INSERT OR IGNORE INTO Macros "
-                    "(Identifier, Source, Line, Column, bFunctionLike, Definition, Params) "
-                    "VALUES (?, ?, ?, ?, 1, ?, ?);";
+                sqlite3_bind_text(Stmt_Macros, 1, M.Identifier.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt_Macros, 2, M.Source.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int(Stmt_Macros,  3, M.Line);
+                sqlite3_bind_int(Stmt_Macros,  4, M.Column);
+                sqlite3_bind_int(Stmt_Macros,  5, 1);
+                sqlite3_bind_text(Stmt_Macros, 6, M.Definition.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt_Macros, 7, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
 
-                sqlite3_stmt* Stmt = nullptr;
-                if (sqlite3_prepare_v2(Db, Sql, -1, &Stmt, nullptr) != SQLITE_OK)
-                {
-                    llvm::errs() << "Failed to prepare statement: " << sqlite3_errmsg(Db) << "\n";
-                    return;
-                }
-
-                sqlite3_bind_text(Stmt, 1, M.Identifier.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_text(Stmt, 2, M.Source.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_int(Stmt,  3, M.Line);
-                sqlite3_bind_int(Stmt,  4, M.Column);
-                sqlite3_bind_text(Stmt, 5, M.Definition.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_text(Stmt, 6, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
-
-                ExecStmt(Stmt);
-                sqlite3_finalize(Stmt);
+                rc = sqlite3_step(Stmt_Macros);
             }
             else
             {
                 dcp_check( M.Params.empty() )
 
-                const std::string Sql = "INSERT OR IGNORE INTO Macros ("
-                                        "Identifier, Source, Line, Column, bFunctionLike, Definition"
-                                        ") VALUES (?, ?, ?, ?, 0, ?);";
+                sqlite3_bind_text(Stmt_Macros, 1, M.Identifier.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt_Macros, 2, M.Source.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int(Stmt_Macros,  3, M.Line);
+                sqlite3_bind_int(Stmt_Macros,  4, M.Column);
+                sqlite3_bind_int(Stmt_Macros,  5, 0);
+                sqlite3_bind_text(Stmt_Macros, 6, M.Definition.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_null(Stmt_Macros, 7);
 
-                sqlite3_stmt* Stmt = nullptr;
-                if (sqlite3_prepare_v2(Db, Sql.c_str(), -1, &Stmt, nullptr) != SQLITE_OK)
-                {
-                    llvm::errs() << "Failed to prepare statement: " << sqlite3_errmsg(Db) << "\n";
-                    llvm::errs().flush();
-                    PRIVATE_DCP_FAIL_BOILERPLATE()
-                    return;
-                }
-
-                sqlite3_bind_text(Stmt, 1, M.Identifier.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_text(Stmt, 2, M.Source.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_int(Stmt,  3, M.Line);
-                sqlite3_bind_int(Stmt,  4, M.Column);
-                sqlite3_bind_text(Stmt, 5, M.Definition.c_str(), -1, SQLITE_TRANSIENT);
-
-                ExecStmt(Stmt);
-                sqlite3_finalize(Stmt);
+                rc = sqlite3_step(Stmt_Macros);
             }
+
+            dcp_check( rc == SQLITE_DONE )
+            sqlite3_reset(Stmt_Macros);
 
             continue;
         }
 
         continue;
     }
+
+    for (const auto& [F, _] : Files)
+    {
+        for (const MyMacroInfo& M : SeenMacros)
+        {
+            int rc;
+
+            if (M.bFunctionLike)
+            {
+                std::string ParamsStr;
+                for (const auto& Param : M.Params)
+                {
+                    if (!ParamsStr.empty())
+                    {
+                        ParamsStr += ", ";
+                    }
+
+                    ParamsStr += Param;
+
+                    continue;
+                }
+
+                sqlite3_bind_text(Stmt_SeenMacros, 1, M.Identifier.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt_SeenMacros, 2, F.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int(Stmt_SeenMacros,  3, 1);
+                sqlite3_bind_text(Stmt_SeenMacros, 4, M.Definition.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt_SeenMacros, 5, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
+
+                rc = sqlite3_step(Stmt_SeenMacros);
+            }
+            else
+            {
+                dcp_check( M.Params.empty() )
+
+                sqlite3_bind_text(Stmt_SeenMacros, 1, M.Identifier.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(Stmt_SeenMacros, 2, F.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int(Stmt_SeenMacros,  3, 0);
+                sqlite3_bind_text(Stmt_SeenMacros, 4, M.Definition.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_null(Stmt_SeenMacros, 5);
+
+                rc = sqlite3_step(Stmt_SeenMacros);
+            }
+
+            dcp_check( rc == SQLITE_DONE )
+            sqlite3_reset(Stmt_SeenMacros);
+        }
+
+        continue;
+    }
+
+    if (ExecTrivial("COMMIT;") != SQLITE_OK)
+    {
+        llvm::errs() << "Failed to commit transaction: " << sqlite3_errmsg(Db) << "\n";
+        llvm::errs().flush();
+        PRIVATE_DCP_FAIL_BOILERPLATE()
+        return;
+    }
+
+    sqlite3_finalize(Stmt_Macros);
+    sqlite3_finalize(Stmt_SeenMacros);
+
+    return;
+}
+
+void Dcp::PutToIntermediate(const MyDecl& InDecl)
+{
+    const std::string Sql =
+        "INSERT OR IGNORE INTO Decls ("
+        "Identifier, Source, Line, Column, bStatic, bExtern, bDef"
+        ") VALUES ('" + InDecl.Identifier + "', '" + InDecl.Source + "', " +
+        std::to_string(InDecl.Line) + ", " + std::to_string(InDecl.Column) + ", " +
+        (InDecl.bStatic == EDeclBool::True ? "1" : (InDecl.bStatic == EDeclBool::False ? "0" : "NULL")) + ", " +
+        (InDecl.bExtern == EDeclBool::True ? "1" : (InDecl.bExtern == EDeclBool::False ? "0" : "NULL")) + ", " +
+        (InDecl.bDef ? "1" : "0") + ");";
+
+    PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
 
     return;
 }
@@ -525,6 +661,14 @@ void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
 
 void Dcp::PutToIntermediate(const MyRecord& InRecord)
 {
+    MyDecl D;
+    D.Identifier = InRecord.Identifier;
+    D.Source = InRecord.Source;
+    D.Line = InRecord.Line;
+    D.Column = InRecord.Column;
+    D.bDef = true;
+    PutToIntermediate(D);
+
     {
         const std::string Sql = "INSERT OR IGNORE INTO Records ("
                                 "Identifier, Source, Line, Column, Type"
@@ -551,6 +695,14 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
 
 void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 {
+    MyDecl D;
+    D.Identifier = InEnumRecord.Identifier;
+    D.Source = InEnumRecord.Source;
+    D.Line = InEnumRecord.Line;
+    D.Column = InEnumRecord.Column;
+    D.bDef = true;
+    PutToIntermediate(D);
+
     dcp_check( InEnumRecord.Enum.has_value() )
 
     {
@@ -577,21 +729,17 @@ void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
     return;
 }
 
-void Dcp::PutToIntermediate(const MyFunctionDecl& InFunction)
-{
-    const std::string Sql = "INSERT OR IGNORE INTO FunctionDecls ("
-                            "Identifier, Source, Line, Column"
-                            ") VALUES ('" + InFunction.Identifier + "', '" + InFunction.Source + "', " +
-                            std::to_string(InFunction.Line) + ", " + std::to_string(InFunction.Column) + ");";
-
-    PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
-
-    return;
-}
-
 void Dcp::PutToIntermediate(const MyFunction& InFunction)
 {
-    PutToIntermediate(static_cast<MyFunctionDecl>(InFunction));
+    MyDecl D;
+    D.Identifier = InFunction.Identifier;
+    D.Source = InFunction.Source;
+    D.Line = InFunction.Line;
+    D.Column = InFunction.Column;
+    D.bStatic = InFunction.bStatic ? EDeclBool::True : EDeclBool::False;
+    D.bDef = true;
+
+    PutToIntermediate(D);
 
     {
         std::string ParamsStr;
@@ -670,23 +818,28 @@ void Dcp::PutToIntermediate(const MyFunctionRef& InFunctionRef)
     return;
 }
 
-void Dcp::PutToIntermediate(const MyVariableDecl& InVariable)
-{
-    const std::string Sql = "INSERT OR IGNORE INTO Variables ("
-                            "Identifier, Source, Line, Column, Type, bStatic, bExtern"
-                            ") VALUES ('" + InVariable.Identifier + "', '" + InVariable.Source + "', " +
-                            std::to_string(InVariable.Line) + ", " + std::to_string(InVariable.Column) + ", '" +
-                            InVariable.Type + "', " + (InVariable.bStatic ? "1" : "0") + ", " +
-                            (InVariable.bExtern ? "1" : "0") + ");";
-
-    PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
-
-    return;
-}
-
 void Dcp::PutToIntermediate(const MyVariable& InVariable)
 {
-    PutToIntermediate(static_cast<MyVariableDecl>(InVariable));
+    MyDecl D;
+    D.Identifier = InVariable.Identifier;
+    D.Source = InVariable.Source;
+    D.Line = InVariable.Line;
+    D.Column = InVariable.Column;
+    D.bStatic = InVariable.bStatic ? EDeclBool::True : EDeclBool::False;
+    D.bExtern = InVariable.bExtern ? EDeclBool::True : EDeclBool::False;
+    D.bDef = true;
+
+    PutToIntermediate(D);
+
+    const std::string Sql =
+        "INSERT OR IGNORE INTO Variables ("
+        "Identifier, Source, Line, Column, Type, bStatic, bExtern"
+        ") VALUES ('" + InVariable.Identifier + "', '" + InVariable.Source + "', " +
+        std::to_string(InVariable.Line) + ", " + std::to_string(InVariable.Column) + ", '" +
+        InVariable.Type + "', " + (InVariable.bStatic ? "1" : "0") + ", " +
+        (InVariable.bExtern ? "1" : "0") + ");";
+
+    PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
 
     return;
 }

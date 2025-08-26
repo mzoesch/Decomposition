@@ -104,24 +104,24 @@ def _analyse_target(g: Globals, target: tuple[str, list]) -> None:
 
                 cursor += 1
 
-                rs = run_concurrent(
-                    g,
-                    cursor,
-                    len(entries),
-                    g.args.NProc,
-                    [(f'Analysing: {e['file']} ...', f'{e['command']} {_get_flags(g, name)}') for e in entries[1:]]
-                    )
-                for cmd, rc, stdout, stderr in rs:
-                    if rc != 0:
-                        print(f'FAIL: [{cmd}] with return code [{rc}].')
+                if len(entries) > 1:
+                    rs = run_concurrent(
+                        g,
+                        cursor,
+                        len(entries),
+                        g.args.NProc,
+                        [(f'Analysing: {e['file']} ...', f'{e['command']} {_get_flags(g, name)}') for e in entries[1:]]
+                        )
+                    for cmd, rc, stdout, stderr in rs:
+                        if rc != 0:
+                            print(f'FAIL: [{cmd}] with return code [{rc}].')
 
-                    if g.args.Verbose:
-                        print(stdout, end='')
-                        if stderr:
-                            print(stderr, end='')
+                        if g.args.Verbose:
+                            print(stdout, end='')
+                            if stderr:
+                                print(stderr, end='')
 
-                    continue
-
+                        continue
 
                 reached_last_entry = True
 

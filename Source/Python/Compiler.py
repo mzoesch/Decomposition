@@ -61,6 +61,12 @@ def _set_target_to_compile(g: Globals) -> None:
         if not found:
             raise ValueError(f'Target [{g.args.CMakeTarget}] not found in CMake targets.')
 
+    elif g.args.ExtractedIndex is not None:
+        if g.args.ExtractedIndex >= len(targets):
+            raise ValueError(f'Extracted index [{g.args.ExtractedIndex}] out of range for CMake targets.')
+        g.split_all_targets = False
+        g.split_target = g.args.ExtractedIndex
+
     elif g.split_target != -1:
         if g.split_target >= len(targets):
             raise ValueError(f'Target index [{g.split_target}] out of range for CMake targets.')

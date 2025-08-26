@@ -21,12 +21,11 @@ struct MySymbol;
     struct MyTypeDef;
     struct MyRecord;
         struct MyEnumRecord;
-    struct MyFunctionDecl;
-        struct MyFunction;
+    struct MyFunction;
     struct MyMacroInfo;
     struct MyIncludeDirective;
-    struct MyVariableDecl;
-        struct MyVariable;
+    struct MyDecl;
+    struct MyVariable;
 
 struct MySymbolRef;
     struct MyFunctionRef;

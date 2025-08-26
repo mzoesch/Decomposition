@@ -25,6 +25,20 @@ struct MySymbol
     DCP_API virtual bool operator==(const MySymbol& InOther) const;
 };
 
+enum class EDeclBool
+{
+    None,
+    True,
+    False
+};
+
+struct MyDecl : public MySymbol
+{
+    EDeclBool bStatic { EDeclBool::None };
+    EDeclBool bExtern { EDeclBool::None };
+    bool bDef { false };
+};
+
 struct MyRecord : public MySymbol
 {
     std::string Type;
@@ -35,7 +49,7 @@ struct MyRecord : public MySymbol
     inline bool AddRecordRef(MyRecordRef&& InRecord);
 };
 
-    struct MyTypeDef final : public MySymbol
+struct MyTypeDef final : public MySymbol
 {
     std::string What;
     std::string Type;
@@ -50,11 +64,7 @@ struct MyEnumRecord final : public MyRecord
     std::optional<std::string> Enum;
 };
 
-struct MyFunctionDecl : public MySymbol
-{
-};
-
-struct MyFunction final : public MyFunctionDecl
+struct MyFunction final : public MySymbol
 {
     struct Param
     {
@@ -73,15 +83,11 @@ struct MyFunction final : public MyFunctionDecl
     inline bool AddVarRef(MyVarRef&& InVarRef);
 };
 
-struct MyVariableDecl : public MySymbol
+struct MyVariable final : public MySymbol
 {
     std::string Type;
     bool bStatic { false };
     bool bExtern { false };
-};
-
-struct MyVariable final : public MyVariableDecl
-{
 };
 
 struct MySymbolRef
@@ -100,7 +106,7 @@ struct MySymbolRef
 
 struct MyFunctionRef final : public MySymbolRef
 {
-    MyFunctionDecl Caller;
+    MyDecl Caller;
 };
 
 struct MyRecordRef final : public MySymbolRef

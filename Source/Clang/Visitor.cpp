@@ -96,6 +96,10 @@ bool Dcp::MyAstVisitor::VisitRecordDecl(const RecordDecl* Rd)
     {
         PutToIntermediate(*Record);
     }
+    else if (std::optional<MyDecl> Decl = this->GetRecordDecl(Rd); Decl)
+    {
+        PutToIntermediate(*Decl);
+    }
 
     return true;
 }
@@ -105,6 +109,10 @@ bool Dcp::MyAstVisitor::VisitEnumDecl(const EnumDecl* Ed)
     if (const std::optional<MyEnumRecord> Enum = this->GetEnum(Ed); Enum)
     {
         PutToIntermediate(*Enum);
+    }
+    else if (std::optional<MyDecl> Decl = this->GetEnumDecl(Ed); Decl)
+    {
+        PutToIntermediate(*Decl);
     }
 
     return true;
@@ -121,12 +129,11 @@ bool Dcp::MyAstVisitor::VisitFunctionDecl(FunctionDecl* Fd)
     }
     else
     {
-        if (const std::optional<MyFunctionDecl> Func = this->GetFunctionDecl(Fd); Func)
+        if (const std::optional<MyDecl> Func = this->GetFunctionDecl(Fd); Func)
         {
             PutToIntermediate(*Func);
         }
     }
-
 
     return true;
 }
@@ -160,7 +167,27 @@ bool Dcp::MyAstVisitor::VisitVarDecl(const VarDecl* Vd)
         return true;
     }
 
-    MyVariableDecl V;
+    if (auto* Dc = Vd->getDeclContext(); Dc->isTranslationUnit() == false)
+    {
+        return true;
+    }
+
+    if (Vd->isThisDeclarationADefinition() == false && Vd->isThisDeclarationADemotedDefinition() == false)
+    {
+        MyDecl D;
+        D.Identifier = Vd->getName().str();
+        D.Source = Context.getSourceManager().getFilename(Vd->getLocation()).str();
+        D.Line = Context.getSourceManager().getSpellingLineNumber(Vd->getLocation());
+        D.Column = Context.getSourceManager().getSpellingColumnNumber(Vd->getLocation());
+        D.bStatic = Vd->isStaticLocal() || Vd->getStorageClass() == SC_Static ? EDeclBool::True : EDeclBool::False;
+        D.bExtern = Vd->getStorageClass() == SC_Extern ? EDeclBool::True : EDeclBool::False;
+
+        PutToIntermediate(D);
+
+        return true;
+    }
+
+    MyVariable V;
     V.Identifier = Vd->getName().str();
     V.Source = Context.getSourceManager().getFilename(Vd->getLocation()).str();
     V.Line = Context.getSourceManager().getSpellingLineNumber(Vd->getLocation());
@@ -168,6 +195,8 @@ bool Dcp::MyAstVisitor::VisitVarDecl(const VarDecl* Vd)
     V.Type = Vd->getType().getAsString();
     V.bStatic = Vd->isStaticLocal() || Vd->getStorageClass() == SC_Static;
     V.bExtern = Vd->getStorageClass() == SC_Extern;
+
+    PutToIntermediate(V);
 
     return true;
 }
@@ -533,6 +562,68 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd, 
     return Record;
 }
 
+std::optional<Dcp::MyDecl> Dcp::MyAstVisitor::GetRecordDecl(const RecordDecl* Rd)
+{
+    if (::IsDeclInTranslationUnit(Rd) == false)
+    {
+        return { };
+    }
+
+    dcp_check( Rd->isStruct() || Rd->isUnion() || Rd->isEnum() )
+
+    const SourceLocation Sl = Rd->getLocation();
+
+    const SourceManager& Sm = this->Context.getSourceManager();
+    const FileID IdF = Sm.getFileID(Sl);
+    dcp_check( IdF.isValid() )
+
+    std::string AbsF = Sm.getFilename(Sl).str();
+    if (Dcp::IsModuleHeader(AbsF) == false)
+    {
+        return { };
+    }
+
+    if (AbsF.empty() || Rd->getIdentifier() == nullptr)
+    {
+        return { };
+    }
+
+    MyDecl D;
+
+    D.Identifier = Rd->getIdentifier()->getName().str();
+    if (D.Identifier.empty())
+    {
+        return { };
+    }
+
+    std::string Prefix;
+    if (Rd->isStruct())
+    {
+        Prefix = "struct ";
+    }
+    else if (Rd->isEnum())
+    {
+        Prefix = "enum ";
+    }
+    else if (Rd->isUnion())
+    {
+        Prefix = "union ";
+    }
+    else
+    {
+        dcp_check( false )
+    }
+    Prefix.append(D.Identifier);
+    D.Identifier = std::move(Prefix);
+
+    D.Source = std::move(AbsF);
+    D.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
+    D.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+    D.bDef = Rd->isCompleteDefinition();
+
+    return D;
+}
+
 std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
 {
     if (Ed->isThisDeclarationADefinition() == false)
@@ -599,14 +690,15 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
     return Record;
 }
 
-std::optional<Dcp::MyFunctionDecl> Dcp::MyAstVisitor::GetFunctionForward(const FunctionDecl* Fd)
+std::optional<Dcp::MyDecl> Dcp::MyAstVisitor::GetEnumDecl(const EnumDecl* Ed)
 {
-    if (Fd->isThisDeclarationADefinition() == false)
+    if (::IsDeclInTranslationUnit(Ed) == false)
     {
         return { };
     }
 
-    const SourceLocation Sl = Fd->getLocation();
+    const SourceLocation Sl = Ed->getLocation();
+
     const SourceManager& Sm = this->Context.getSourceManager();
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
@@ -617,20 +709,25 @@ std::optional<Dcp::MyFunctionDecl> Dcp::MyAstVisitor::GetFunctionForward(const F
         return { };
     }
 
-    if (AbsF.empty() || Fd->getName() == "")
+    if (AbsF.empty() || Ed->getIdentifier() == nullptr)
     {
         return { };
     }
 
-    dcp_check( Fd->hasBody() )
+    MyDecl D;
 
-    MyFunctionDecl Func;
-    Func.Identifier = Fd->getQualifiedNameAsString();
-    Func.Source = std::move(AbsF);
-    Func.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
-    Func.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+    D.Identifier = std::string{"enum "} + Ed->getIdentifier()->getName().str();
+    if (D.Identifier.empty())
+    {
+        return { };
+    }
 
-    return Func;
+    D.Source = std::move(AbsF);
+    D.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
+    D.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+    D.bDef = Ed->isCompleteDefinition();
+
+    return D;
 }
 
 std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
@@ -735,11 +832,13 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
     {
         dcp_check( _Fd )
 
-        MyFunctionDecl Fwd;
+        MyDecl Fwd;
         Fwd.Identifier = Func.Identifier;
         Fwd.Line = Func.Line;
         Fwd.Column = Func.Column;
         Fwd.Source = Func.Source;
+        Fwd.bStatic = Func.bStatic ? EDeclBool::True : EDeclBool::False;
+        Fwd.bExtern = EDeclBool::None;
 
         MyFunctionRef Ref;
         Ref.Caller = Fwd;
@@ -753,10 +852,8 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
     return Func;
 }
 
-std::optional<Dcp::MyFunctionDecl> Dcp::MyAstVisitor::GetFunctionDecl(FunctionDecl* Fd)
+std::optional<Dcp::MyDecl> Dcp::MyAstVisitor::GetFunctionDecl(const FunctionDecl* Fd)
 {
-    dcp_check( Fd->isThisDeclarationADefinition() == false )
-
     const SourceLocation Sl = Fd->getLocation();
     const SourceManager& Sm = this->Context.getSourceManager();
     const FileID IdF = Sm.getFileID(Sl);
@@ -773,11 +870,13 @@ std::optional<Dcp::MyFunctionDecl> Dcp::MyAstVisitor::GetFunctionDecl(FunctionDe
         return { };
     }
 
-    MyFunctionDecl Decl;
+    MyDecl Decl;
     Decl.Identifier = Fd->getQualifiedNameAsString();
     Decl.Source = std::move(AbsF);
     Decl.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Decl.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+    Decl.bStatic = Fd->isStatic() ? EDeclBool::True : EDeclBool::False;
+    Decl.bExtern = EDeclBool::None;
 
     return Decl;
 }
@@ -816,7 +915,7 @@ std::optional<Dcp::MyFunctionRef> Dcp::MyAstVisitor::GetFunctionRef(const CallEx
     dcp_check( Caller )
 
     MyFunctionRef Ref;
-    Ref.Caller = this->GetFunctionForward(Caller).value();
+    Ref.Caller = this->GetFunctionDecl(Caller).value();
     Ref.Ref = Callee->getQualifiedNameAsString();
 
     return Ref;

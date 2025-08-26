@@ -2,5 +2,5 @@
 *.*
 
 !.gitignore
-!Clone.sh
+!Clone.py
 !Test
