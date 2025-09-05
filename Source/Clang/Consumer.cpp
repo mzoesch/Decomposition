@@ -33,6 +33,7 @@ void MyMacroCollector::MacroDefined(const Token& MToken, const MacroDirective* M
 
     const StringRef MacroName = Ii->getName();
     const SourceLocation Loc = MToken.getLocation();
+    dcp_check( Loc.isMacroID() == false )
     const FileEntry* DefiningFile = Sm.getFileEntryForID(Sm.getFileID(Loc));
 
     if (DefiningFile == nullptr) /* <builtin>; we do not care. */

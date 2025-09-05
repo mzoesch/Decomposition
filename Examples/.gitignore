@@ -2,5 +2,6 @@
 *.*
 
 !.gitignore
-!Clone.py
+!Eval.py
+!.Template.cmake
 !Test

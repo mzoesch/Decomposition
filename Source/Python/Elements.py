@@ -9,18 +9,25 @@ class UnitElement:
     High level representation of an element that resides inside a unit.
     """
 
-    def __init__(self, ident: str, source: SourceLocation):
+    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation | None = None):
         assert ident != ''
         assert source is not None
 
         self.ident = ident
         self.source = source
+        self.rsource = rsource
 
         self.decl_doc: str | None = None
         self.content: str | None = None
 
         self.decl_doc_n: int = 0
         self.content_n: int = 0
+
+        self.record_refs: dict[str, bool] | None = None
+        self.var_refs: set[str] | None = None
+
+    def is_rsource_valid(self) -> bool:
+        return self.rsource is not None
 
     def is_content_valid(self) -> bool:
         return self.content is not None
@@ -31,11 +38,11 @@ class UnitElement:
     def is_source_header(self) -> bool:
         return self.source.is_header()
 
-    def is_translation(self) -> bool:
+    def is_translation(self, g: Globals) -> bool:
         assert False
 
-    def is_header(self):
-        return not self.is_translation()
+    def is_header(self, g: Globals) -> bool:
+        return not self.is_translation(g)
 
     def get_forward_declaration(self, g: Globals) -> str | None:
         assert False
@@ -75,6 +82,38 @@ class UnitElement:
 
         return None
 
+    def update_refs(self, g: Globals, con: SqlConnection) -> None:
+        if self.record_refs is not None:
+            assert self.var_refs is not None
+            return None
+
+        self.record_refs = {}
+        self.var_refs = set()
+
+        con.execute_ro("""
+        SELECT Type, Ref, bStrong FROM Refs
+        WHERE Source = ? AND Identifier = ?
+        """, (self.source.file.ident, self.ident)
+        )
+
+        rows = con.fetchall()
+        for t, r, s in rows:
+            s = bool(s)
+
+            if t == 'record':
+                if r not in self.record_refs:
+                    self.record_refs[r] = s
+                elif s:
+                    self.record_refs[r] = True
+            elif t == 'variable':
+                self.var_refs.add(r)
+            else:
+                assert False
+
+            continue
+
+        return None
+
     def _cache_decl_content(self, g: Globals, con: SqlConnection) -> None:
         decl = _get_decl_content(self, g, con)
         if decl is not None:
@@ -87,21 +126,22 @@ class UnitRecord(UnitElement):
     Represents a record in the original project.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, ty: str, enum: str | None):
+    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, ty: str, enum: str | None):
+        assert rsource is not None
         assert (ty is not None) and ty != ''
         assert enum is None or enum != ''
 
-        super().__init__(ident, source)
+        super().__init__(ident, source, rsource)
 
         self.ty: str = ty
         self.enum: str | None = enum
 
-    def is_translation(self) -> bool:
+    def is_translation(self, g: Globals) -> bool:
         return False
 
     def get_forward_declaration(self, g: Globals) -> str | None:
         assert self.ty == 'struct' or self.ty == 'union' or self.ty == 'enum'
-        return f'{self.ty} {self.ident};'
+        return f'{self.ident};'
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
         super().cache_content(g, con)
@@ -110,29 +150,23 @@ class UnitRecord(UnitElement):
             g.args,
             _get_file_content(self.source.file.ident),
             self.source.line,
-            self.source.column
+            self.source.column,
+            self.rsource.line,
+            self.rsource.column + 1
             )
 
         self.content += f'{self.ty} '
 
-        curly_open: int = 0
-        for c, valid in cursor.iter():
+        for c in cursor.iter_no_syntax():
             if c is None:
                 self.content = self.content[:-1]
                 continue
 
-            if valid is False:
-                self.content += c
-                continue
-
-            curly_open += 1 if c == '{' else 0
-            curly_open -= 1 if c == '}' else 0
             self.content += c
-
-            if curly_open == 0 and c == '}':
-                self.content += ';'
-                break
             continue
+
+        if self.content[-1] != ';':
+            self.content += ';'
 
         return None
 
@@ -155,14 +189,14 @@ class UnitTypedef(UnitElement):
         if self.is_anonymous():
             assert (self.anonymous_begin_line is not None) and (self.anonymous_begin_column is not None)
 
-    def is_translation(self) -> bool:
+    def is_translation(self, g: Globals) -> bool:
         return False
 
     def is_anonymous(self) -> bool:
         return self.anonymous
 
     def get_forward_declaration(self, g: Globals) -> str | None:
-        return None
+        return f'typedef {self.what};'
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
         super().cache_content(g, con)
@@ -213,8 +247,12 @@ class UnitVariable(UnitElement):
         self.static: bool = static
         self.extern: bool = extern
 
-    def is_translation(self) -> bool:
-        return self.is_source_translation()
+    def is_translation(self, g: Globals) -> bool:
+        if g.args.ImplInHeader:
+            return True
+        if self.static:
+            return self.is_source_translation()
+        return True
 
     def is_static(self) -> bool:
         return self.static
@@ -246,15 +284,20 @@ class UnitFunction(UnitElement):
     Represents a function in the original project.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, params: str, static: bool, ret: str):
-        super().__init__(ident, source)
+    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, params: str, static: bool, ret: str):
+        assert rsource is not None
+        super().__init__(ident, source, rsource)
 
         self.params: str = params
         self.static: bool = static
         self.ret: str = ret
 
-    def is_translation(self) -> bool:
-        return self.is_source_translation()
+    def is_translation(self, g: Globals) -> bool:
+        if g.args.ImplInHeader:
+            return True
+        if self.static:
+            return self.is_source_translation()
+        return True
 
     def is_static(self) -> bool:
         return self.static
@@ -269,39 +312,39 @@ class UnitFunction(UnitElement):
             g.args,
             _get_file_content(self.source.file.ident),
             self.source.line,
-            self.source.column
+            self.source.column,
+            self.rsource.line,
+            self.rsource.column + 1
             )
 
         if g.args.RespectStatic and self.is_static():
-            self.content += 'static '#
+            self.content += 'static '
 
         self.content += f'{self.ret} '
 
-        curly_open: int = 0
-        for c, valid in cursor.iter():
+        for c in cursor.iter_no_syntax():
             if c is None:
                 self.content = self.content[:-1]
                 continue
 
-            if valid is False:
-                self.content += c
-                continue
-
-            curly_open += 1 if c == '{' else 0
-            curly_open -= 1 if c == '}' else 0
             self.content += c
-
-            if curly_open == 0 and c == '}':
-                self.content += ';'
-                break
             continue
+
+        if self.content[-1] != '}':
+            self.content += '}'
 
         return None
 
 
+_file_content_cache: dict[str, str] = {}
 def _get_file_content(file_path) -> str:
-    with open(file_path, 'r') as c_file:
-        content = c_file.read()
+    entry = _file_content_cache.get(file_path)
+    if entry is not None:
+        return entry
+
+    with open(file_path, 'r') as f:
+        content = f.read()
+        _file_content_cache[file_path] = content
         return content
 
 
@@ -316,10 +359,11 @@ def _get_decl_content(e: UnitElement, g: Globals, con: SqlConnection) -> str | N
 
     row_definition = None
     sorted_rows = []
-    for row in rows:
-        source, _, _, static, definition = row
+    for source, line, column, static, definition in rows:
+        static = bool(static)
+        definition = bool(definition)
         if definition:
-            row_definition = row
+            row_definition = (source, line, column, static, definition)
             continue
 
         if static and is_source_translation(source, con):
@@ -327,7 +371,7 @@ def _get_decl_content(e: UnitElement, g: Globals, con: SqlConnection) -> str | N
                 # Unrelated static declarations in another translation unit.
                 continue
 
-        sorted_rows.append(row)
+        sorted_rows.append((source, line, column, static, definition))
 
         continue
 

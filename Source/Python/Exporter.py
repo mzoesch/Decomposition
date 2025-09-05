@@ -2,12 +2,13 @@ from __future__ import annotations
 import json
 import os
 import time
+from multiprocessing.forkserver import connect_to_new_process
 from pathlib import Path
 from Source.Python.Globals import Globals
 from Source.Python.SqlConnection import SqlConnection
 from Source.Python.StatTrack import StatTrack
 from Source.Python.Locations import SourceFile
-from Source.Python.Elements import UnitElement
+from Source.Python.Elements import UnitElement, UnitTypedef
 
 
 class Unit:
@@ -22,6 +23,10 @@ class Unit:
 
         self.content: str | None = None
         self.ctx_content: str | None = None
+
+        self.record_refs: dict[str, bool] = {}
+        self.var_refs: set[str] = set()
+        self._strong_record_refs_cache: set[str] | None = None
 
     def get_human_readable_name(self) -> str:
         assert len(self.elements) > 0
@@ -38,12 +43,12 @@ class Unit:
     def is_content_valid(self) -> bool:
         return self.content is not None
 
-    def is_translation(self) -> bool:
+    def is_translation(self, g: Globals) -> bool:
         assert len(self.elements) > 0
-        return self.elements[0].is_translation()
+        return self.elements[0].is_translation(g)
 
-    def is_header(self) -> bool:
-        return not self.is_translation()
+    def is_header(self, g: Globals) -> bool:
+        return not self.is_translation(g)
 
     def get_filename(self) -> str:
         assert self.is_output_ident_valid()
@@ -85,6 +90,35 @@ class Unit:
 
         return None
 
+    def update_refs(self, g: Globals, con: SqlConnection) -> None:
+        for e in self.elements:
+            e.update_refs(g, con)
+            continue
+
+        self.record_refs = {}
+        self.var_refs = set()
+        self._strong_record_refs_cache = None
+
+        for e in self.elements:
+            for r, strong in e.record_refs.items():
+                existing = self.record_refs.get(r)
+                if existing is None:
+                    self.record_refs[r] = strong
+                else:
+                    self.record_refs[r] = existing or strong
+                continue
+
+            for v in e.var_refs:
+                self.var_refs.add(v)
+            continue
+
+        return None
+
+    def get_strong_record_refs(self) -> set[str]:
+        if self._strong_record_refs_cache is None:
+            self._strong_record_refs_cache = { r for r, strong in self.record_refs.items() if strong }
+        return self._strong_record_refs_cache
+
     def create_content(self, g: Globals, ex: Exporter, con: SqlConnection) -> None:
         assert (self.content is None) and (self.ctx_content is None)
         self.content = f'#include "{self.get_ctx_filename()}"\n'
@@ -111,15 +145,18 @@ class Unit:
 
             continue
 
-        fwds: list[str] = []
+        fwds: set[str] = set()
+        inc: set[str] = set()
         for e in self.elements:
             con.execute_ro("""
-            SELECT Ref, Type FROM Refs
+            SELECT Ref, Type, bStrong FROM Refs
             WHERE Source = ? AND Line = ? AND "Column" = ?
             ;""", (e.source.file.ident, e.source.line, e.source.column))
 
             rows = con.fetchall()
-            for r, ty in rows:
+            for r, ty, strong in rows:
+                strong = bool(strong)
+
                 if ty == 'record':
                     r = Unit.remove_quals_from_type(r)
                     if Unit.is_trivial_type(r):
@@ -130,16 +167,21 @@ class Unit:
                         continue
                     assert u.is_output_ident_valid()
 
-                    if u is self:
-                        r_ref = u.get_element_asserted(r)
-                        fwds.append(r_ref.get_forward_declaration(g))
+                    r_ref = u.get_element_asserted(r)
+
+                    ignore_strong = False
+                    if isinstance(e, UnitTypedef):
+                        if not e.anonymous:
+                            ignore_strong = True
+
+                    if ((not ignore_strong) and strong is False) or (u is self):
+                        fwds.add(r_ref.get_forward_declaration(g))
                         continue
 
-                    if u.is_header():
-                        self.ctx_content += f'#include "{u.get_filename()}"\n'
-                    else:
-                        r_ref = u.get_element_asserted(r)
-                        fwds.append(r_ref.get_forward_declaration(g))
+                    if u.is_translation(g):
+                        assert False, 'Cannot reference another translation unit strongly.'
+
+                    inc.add(u.get_filename())
 
                 elif ty == 'variable':
                     u: Unit = ex.find_unit_from_element(r)
@@ -148,13 +190,20 @@ class Unit:
 
                     # It is ok if this references itself.
                     r_ref = u.get_element_asserted(r)
-                    fwds.append(r_ref.get_forward_declaration(g))
+                    fwds.add(r_ref.get_forward_declaration(g))
 
                 else:
                     assert False
 
                 continue
             continue
+
+        if len(inc) > 0:
+            self.ctx_content += '\n/* Includes */\n'
+            for i in sorted(inc):
+                self.ctx_content += f'#include "{i}"\n'
+                continue
+
 
         seen_macros: set[tuple[str, str]] = set()
         for f in unique_source_files:
@@ -165,20 +214,15 @@ class Unit:
 
             rows = con.fetchall()
             for ident, function_like, definition, params in rows:
+                function_like = bool(function_like)
                 seen_macros.add((ident, Unit.create_macro_definition_directive(ident, function_like, definition, params)))
                 continue
             continue
-        if len(seen_macros) > 0:
-            self.ctx_content += '/* Seen */\n'
-            seen_macros_list: list[str] = [m for _, m in seen_macros]
-            seen_macros_list.sort()
-            for m in seen_macros_list:
-                self.ctx_content += m
-                self.ctx_content += '\n'
-                continue
-            self.ctx_content += '\n'
 
-        for ty, val in self.get_foreign_stuff(con):
+        fs = self.get_foreign_stuff(con)
+        if len(fs) > 0:
+            self.ctx_content += '\n/* Foreign */\n'
+        for ty, val in fs:
             if ty == 'include':
                 self.ctx_content += f'#include "{val}"\n'
             elif ty == 'macro':
@@ -187,12 +231,35 @@ class Unit:
             else:
                 assert False
 
-        for fwd in fwds:
+        fwds_list = list(fwds) # Deterministic order.
+        fwds_list.sort()
+        if len(fwds_list) > 0:
+            self.ctx_content += '\n/* Forwards */\n'
+        for fwd in fwds_list:
             if fwd is None:
+                continue
+            if ('(' in fwd ) or (')' in fwd): # See #Concept in thesis.
                 continue
             self.ctx_content += fwd
             self.ctx_content += '\n'
             continue
+        for fwd in fwds_list:
+            if fwd is None:
+                continue
+            if not (('(' in fwd ) or (')' in fwd)):
+                continue
+            self.ctx_content += fwd
+            self.ctx_content += '\n'
+            continue
+
+        if len(seen_macros) > 0:
+            self.ctx_content += '\n/* Seen */\n'
+            seen_macros_list: list[tuple[str, str]] = [m for m in seen_macros]
+            seen_macros_list.sort(key=lambda x: x[0])
+            for i, m in seen_macros_list:
+                self.ctx_content += f'#ifndef {i}\n    {m}\n#endif /* {i} */\n'
+                continue
+            self.ctx_content += '\n'
 
         self.content = Unit.create_guard(self.content, self.get_output_ident_guard())
         self.ctx_content = Unit.create_double_inclusion_error(self.ctx_content, self.get_output_ident_guard_ctx())
@@ -206,7 +273,7 @@ class Unit:
     def get_output_ident_guard_ctx(self) -> str:
         return f'{self.get_output_ident_guard()}_CTX'
 
-    def merge(self, o: Unit) -> None:
+    def merge(self, g: Globals, o: Unit, con: SqlConnection) -> None:
         for o_e in o.elements:
             added: bool = False
 
@@ -237,7 +304,16 @@ class Unit:
 
             continue
 
+        self.update_refs(g, con)
+
         return None
+
+    def depends_only_on_trivials(self) -> bool:
+        for r in self.get_strong_record_refs():
+            if Unit.is_trivial_type(r):
+                continue
+            return False
+        return True
 
     @staticmethod
     def create_guard(content: str, name: str) -> str:
@@ -249,10 +325,22 @@ class Unit:
 
     def get_foreign_stuff(self, con: SqlConnection) -> list[tuple[str, str]]:
         out: list[tuple[str, str]] = []
+
+        search: dict[str, int] = {}
         for e in self.elements:
-            visited_set: list[str] = []
-            self._get_foreign_stuff(visited_set, out, e.source.file.ident, e.source.line, con)
+            search_element = search.get(e.source.file.ident)
+            if search_element is None:
+                search[e.source.file.ident] = e.source.line
+            else:
+                if e.source.line < search_element:
+                    search[e.source.file.ident] = e.source.line
             continue
+
+        for ident, until in search.items():
+            visited_set: list[str] = []
+            self._get_foreign_stuff(visited_set, out, ident, until, con)
+            continue
+
         return out
 
     @staticmethod
@@ -312,6 +400,7 @@ class Unit:
 
             if inc_cursor < len(inc_rows):
                 what, line, native, foreign = inc_rows[inc_cursor]
+                foreign = bool(foreign)
                 if line <= line_cursor:
                     inc_cursor += 1
                     if not foreign:
@@ -322,6 +411,7 @@ class Unit:
 
             if macro_cursor < len(macro_rows):
                 ident, line, function_like, definition, params = macro_rows[macro_cursor]
+                function_like = bool(function_like)
                 if line <= line_cursor:
                     macro_cursor += 1
                     if not any(s == ident for _, s in export_set):
@@ -414,6 +504,9 @@ class Exporter:
             self.con.execute_ro("""SELECT COUNT(*) FROM Variables;""")
             count_variables = self.con.fetchone()[0]
 
+            exp = self.units
+            exp.sort(key=lambda u: u.get_n_size(self.g), reverse=True)
+
             data = {
                 'DisplayName': self.display_name,
                 'Directory': self.directory,
@@ -438,7 +531,7 @@ class Exporter:
                 },
 
                 'DiscoveredStats': {
-                    'FunctionDecls': count_decls,
+                    'Decls': count_decls,
                     'Functions': count_functions,
                     'Macros': count_macros,
                     'Records': count_records,
@@ -457,13 +550,25 @@ class Exporter:
                 'UnitStats': {
                     'MaxUnitCount': self.stats.max_unit_count,
                     'FinalUnitCount': len(self.units),
-                    'HeaderCount': len([u for u in self.units if u.is_header()]),
-                    'TranslationCount': len([u for u in self.units if u.is_translation()]),
+                    'HeaderCount': len([u for u in self.units if u.is_header(self.g)]),
+                    'TranslationCount': len([u for u in self.units if u.is_translation(self.g)]),
 
                     'ExceededNCount': len(exceeded_n),
                     'AverageN': sum(u.get_n_size(self.g) for u in self.units) / len(self.units) if len(self.units) > 0 else 0,
                     'AverageExceededN': sum(u.get_n_size(self.g) for u in exceeded_n) / len(exceeded_n) if len(exceeded_n) > 0 else 0,
+
+                    'AverageElemCount': sum(len(u.elements) for u in self.units) / len(self.units) if len(self.units) > 0 else 0,
                 },
+
+                'Units': [
+                    {
+                        'Name': u.get_human_readable_name(),
+                        'Filename': u.get_filename(),
+                        'ElementCount': len(u.elements),
+                        'N': u.get_n_size(self.g),
+                    }
+                    for u in exp
+                ]
             }
             f.write(json.dumps(data, indent=4))
             if self.g.args.Verbose:
@@ -484,13 +589,21 @@ class Exporter:
 
         return None
 
+    def gather_unit_refs(self) -> None:
+        print(f'Gathering unit refs for [{len(self.units)}] units ...', end=' ', flush=True)
+        for u in self.units:
+            u.update_refs(self.g, self.con)
+            continue
+        print('done')
+        return None
+
     def export_units(self) -> None:
         print('Assigning output filenames ...', end=' ', flush=True)
         cursor: int = 1
         for u in self.units:
             assert u.output_ident is None
             u.output_ident = f'Unit_{cursor:0{len(str(len(self.units)))}d}'
-            u.master_ext = '.c' if u.is_translation() else '.h'
+            u.master_ext = '.c' if u.is_translation(self.g) else '.h'
             cursor += 1
             continue
         print('done')

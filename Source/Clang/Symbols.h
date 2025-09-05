@@ -41,6 +41,9 @@ struct MyDecl : public MySymbol
 
 struct MyRecord : public MySymbol
 {
+    int64_t RBraceLine { INDEX_NONE };
+    int64_t RBraceColumn { INDEX_NONE };
+
     std::string Type;
     std::set<MyRecordRef> Records;
     bool bAnonymous { false };
@@ -72,6 +75,9 @@ struct MyFunction final : public MySymbol
         std::string Type;
     };
 
+    int64_t RBraceLine { INDEX_NONE };
+    int64_t RBraceColumn { INDEX_NONE };
+
     bool bStatic { false };
     std::string Ret;
     std::vector<Param> Params;
@@ -79,6 +85,7 @@ struct MyFunction final : public MySymbol
     std::set<MyRecordRef> Records;
     std::set<MyVarRef> Vars;
 
+    inline bool AddRecordRef(const MyRecordRef& InRecord);
     inline bool AddRecordRef(MyRecordRef&& InRecord);
     inline bool AddVarRef(MyVarRef&& InVarRef);
 };
@@ -94,6 +101,7 @@ struct MySymbolRef
 {
     // Make this safer by combining the declaration of the #Ref with a deferred definition??
     std::string Ref;
+    mutable bool bStrong { true };
 
     DCP_API bool IsValid() const;
     DCP_API bool operator==(const MySymbolRef& InOther) const;
@@ -130,10 +138,40 @@ inline bool MyRecord::AddRecordRef(MyRecordRef&& InRecord)
     return true;
 }
 
+inline bool MyFunction::AddRecordRef(const MyRecordRef& InRecord)
+{
+    auto R = this->Records.find(InRecord);
+    if (R == this->Records.end())
+    {
+        this->Records.emplace(InRecord);
+        return true;
+    }
+
+    if (R->bStrong == false && InRecord.bStrong == true)
+    {
+        R->bStrong = true;
+        return true;
+    }
+
+    return false;
+}
+
 inline bool MyFunction::AddRecordRef(MyRecordRef&& InRecord)
 {
-    this->Records.emplace(std::move(InRecord));
-    return true;
+    auto R = this->Records.find(InRecord);
+    if (R == this->Records.end())
+    {
+        this->Records.emplace(std::move(InRecord));
+        return true;
+    }
+
+    if (R->bStrong == false && InRecord.bStrong == true)
+    {
+        R->bStrong = true;
+        return true;
+    }
+
+    return false;
 }
 
 inline bool MyFunction::AddVarRef(MyVarRef&& InVarRef)

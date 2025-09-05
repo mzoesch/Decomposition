@@ -84,7 +84,7 @@ class Cursor:
         while line <= len(self.lines):
             if (
                     (self.end_line is not None) and
-                    (self.end_line == line) and
+                    (self.end_line <= line) and
                     (self.end_column is None)
                 ):
                 return
@@ -92,9 +92,9 @@ class Cursor:
             while col <= len(self.lines[line-1]):
                 if (
                         (self.end_line is not None)
-                    and (self.end_line == line)
+                    and (self.end_line <= line)
                     and (self.end_column is not None)
-                    and (self.end_column == col)
+                    and (self.end_column <= col)
                     ):
                     return
 

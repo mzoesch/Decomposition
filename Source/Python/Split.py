@@ -130,6 +130,7 @@ def _split(g: Globals, display_name: str, directory: str, con: SqlConnection) ->
     print(f'done with [{e.stats.original_function_count}] functions.')
 
     e.gather_unit_content()
+    e.gather_unit_refs()
 
     e.stats.max_unit_count = len(e.units)
 

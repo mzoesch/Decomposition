@@ -20,7 +20,8 @@ public:
     DCP_API bool VisitVarDecl(const clang::VarDecl* Vd);
     DCP_API bool VisitDeclRefExpr(const clang::DeclRefExpr* Dre);
 
-    DCP_API void GetAllRefs(std::set<MyRecordRef>* Refs, clang::QualType&& InQt);
+    DCP_API void GetAllRefs(std::set<MyRecordRef>* Refs, const clang::QualType& InQt);
+    DCP_API static bool IsStrongQual(const clang::QualType& Qt);
 
 private:
 

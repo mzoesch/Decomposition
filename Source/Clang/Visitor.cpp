@@ -155,9 +155,14 @@ bool Dcp::MyAstVisitor::VisitVarDecl(const VarDecl* Vd)
         return true;
     }
 
-    const SourceLocation Sl = Vd->getLocation();
-
     const SourceManager& Sm = Context.getSourceManager();
+
+    SourceLocation Sl = Vd->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
@@ -176,9 +181,9 @@ bool Dcp::MyAstVisitor::VisitVarDecl(const VarDecl* Vd)
     {
         MyDecl D;
         D.Identifier = Vd->getName().str();
-        D.Source = Context.getSourceManager().getFilename(Vd->getLocation()).str();
-        D.Line = Context.getSourceManager().getSpellingLineNumber(Vd->getLocation());
-        D.Column = Context.getSourceManager().getSpellingColumnNumber(Vd->getLocation());
+        D.Source = Sm.getFilename(Sl).str();
+        D.Line = Sm.getSpellingLineNumber(Sl);
+        D.Column = Sm.getSpellingColumnNumber(Sl);
         D.bStatic = Vd->isStaticLocal() || Vd->getStorageClass() == SC_Static ? EDeclBool::True : EDeclBool::False;
         D.bExtern = Vd->getStorageClass() == SC_Extern ? EDeclBool::True : EDeclBool::False;
 
@@ -189,9 +194,9 @@ bool Dcp::MyAstVisitor::VisitVarDecl(const VarDecl* Vd)
 
     MyVariable V;
     V.Identifier = Vd->getName().str();
-    V.Source = Context.getSourceManager().getFilename(Vd->getLocation()).str();
-    V.Line = Context.getSourceManager().getSpellingLineNumber(Vd->getLocation());
-    V.Column = Context.getSourceManager().getSpellingColumnNumber(Vd->getLocation());
+    V.Source = Sm.getFilename(Sl).str();
+    V.Line = Sm.getSpellingLineNumber(Sl);
+    V.Column = Sm.getSpellingColumnNumber(Sl);
     V.Type = Vd->getType().getAsString();
     V.bStatic = Vd->isStaticLocal() || Vd->getStorageClass() == SC_Static;
     V.bExtern = Vd->getStorageClass() == SC_Extern;
@@ -205,39 +210,13 @@ bool Dcp::MyAstVisitor::VisitDeclRefExpr(const DeclRefExpr* Dre)
 {
     if (auto* Vd = dyn_cast<VarDecl>(Dre->getDecl()))
     {
-        if (auto* Dc = Vd->getDeclContext(); Dc->isTranslationUnit())
-        {
-            const SourceLocation Sl = Dre->getLocation();
-
-            const SourceManager& Sm = Context.getSourceManager();
-            const FileID IdF = Sm.getFileID(Sl);
-            dcp_check( IdF.isValid() )
-
-            std::string AbsF = Sm.getFilename(Sl).str();
-            if (AbsF.empty() || Dcp::IsModuleHeader(AbsF) == false)
-            {
-                return true;
-            }
-
-            QualType Qt = Vd->getType();
-            Qt = ::GetBasicName(std::move(Qt));
-
-            MyVariable V;
-            V.Identifier = Vd->getName().str();
-            V.Source = Context.getSourceManager().getFilename(Vd->getLocation()).str();
-            V.Line = Context.getSourceManager().getSpellingLineNumber(Vd->getLocation());
-            V.Column = Context.getSourceManager().getSpellingColumnNumber(Vd->getLocation());
-            V.Type = Qt.getAsString();
-            V.bStatic = Vd->isStaticLocal() || Vd->getStorageClass() == SC_Static;
-
-            PutToIntermediate(V);
-        }
+        return this->VisitVarDecl(Vd);
     }
 
     return true;
 }
 
-void Dcp::MyAstVisitor::GetAllRefs(std::set<MyRecordRef>* Refs, QualType&& InQt)
+void Dcp::MyAstVisitor::GetAllRefs(std::set<MyRecordRef>* Refs, const QualType& InQt)
 {
     dcp_check( Refs )
 
@@ -252,6 +231,7 @@ void Dcp::MyAstVisitor::GetAllRefs(std::set<MyRecordRef>* Refs, QualType&& InQt)
 
                 MyRecordRef RetRef;
                 RetRef.Ref = RetQt.getAsString();
+                RetRef.bStrong = false;
                 Refs->emplace(std::move(RetRef));
 
                 for (QualType QtParam : Proto->getParamTypes())
@@ -260,6 +240,7 @@ void Dcp::MyAstVisitor::GetAllRefs(std::set<MyRecordRef>* Refs, QualType&& InQt)
 
                     MyRecordRef MyRecordRef;
                     MyRecordRef.Ref = QtParam.getAsString();
+                    MyRecordRef.bStrong = false;
                     Refs->emplace(std::move(MyRecordRef));
 
                     continue;
@@ -268,52 +249,120 @@ void Dcp::MyAstVisitor::GetAllRefs(std::set<MyRecordRef>* Refs, QualType&& InQt)
 
             if (const FunctionNoProtoType* NoProto = PtrType->getPointeeType()->getAs<FunctionNoProtoType>(); NoProto)
             {
+                const QualType NoProtoQt = NoProto->getReturnType();
+
                 MyRecordRef Ref;
-                Ref.Ref = NoProto->getReturnType().getAsString();
+                Ref.Ref = NoProtoQt.getAsString();
+                Ref.bStrong = false;
                 Refs->emplace(std::move(Ref));
             }
         }
     }
 
-    const QualType Qt = ::GetBasicName(std::move(InQt));
+    const QualType Qt = ::GetBasicName(QualType{InQt});
 
     if (Qt->hasUnnamedOrLocalType() == false)
     {
         MyRecordRef Ref;
         Ref.Ref = Qt.getAsString();
-        if (std::find(Refs->begin(), Refs->end(), Ref) == Refs->end())
+        Ref.bStrong = this->IsStrongQual(InQt);
+        if (auto Elem = std::find(Refs->begin(), Refs->end(), Ref); Elem == Refs->end())
         {
             Refs->emplace(std::move(Ref));
         }
         else
         {
+            if (Elem->bStrong == false)
+            {
+                Elem->bStrong = Ref.bStrong;
+            }
+
             return;
         }
     }
 
-    const Type* T = Qt.getTypePtrOrNull();
-    if (T == nullptr)
+    if (const Type* T = Qt.getTypePtrOrNull(); T == nullptr)
     {
         return;
     }
 
-    if (const RecordType* Rt = Qt->getAs<RecordType>(); Rt)
+    if (this->IsStrongQual(InQt))
     {
-        const RecordDecl* Rd = Rt->getDecl();
-        for (const FieldDecl* Fd : Rd->fields())
+        if (const RecordType* Rt = Qt->getAs<RecordType>(); Rt)
         {
-            this->GetAllRefs(Refs, Fd->getType());
+            const RecordDecl* Rd = Rt->getDecl();
+            for (const FieldDecl* Fd : Rd->fields())
+            {
+                this->GetAllRefs(Refs, Fd->getType());
+            }
         }
     }
 
     return;
 }
 
+bool Dcp::MyAstVisitor::IsStrongQual(const QualType& Qt)
+{
+    if (Qt->isVoidType() || Qt->isVoidPointerType())
+    {
+        return true;
+    }
+
+    if (Qt->isAnyPointerType())
+    {
+        return false;
+    }
+
+    const Type* T { Qt.getTypePtrOrNull() };
+    if (T == nullptr)
+    {
+        return false;
+    }
+
+    T = T->getUnqualifiedDesugaredType();
+
+    if (T->isIncompleteType())
+    {
+        return false;
+    }
+
+    if (const auto* Rt = dyn_cast<RecordType>(T))
+    {
+        const RecordDecl* Rd = Rt->getDecl();
+
+        if (Qt->isPointerType() || Qt->isReferenceType())
+        {
+            return false;
+        }
+
+        if (!Rd->isCompleteDefinition())
+        {
+            return false;
+        }
+    }
+
+    if (const auto* Et = dyn_cast<EnumType>(T))
+    {
+        const EnumDecl* Ed = Et->getDecl();
+        if (!Ed->isCompleteDefinition())
+        {
+            return false;
+        }
+    }
+
+    return true; /* <builtin> */
+}
+
 std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* Td)
 {
-    const SourceLocation Sl = Td->getLocation();
-
     const SourceManager& Sm = Context.getSourceManager();
+
+    SourceLocation Sl = Td->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
@@ -498,9 +547,14 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd, 
 
     dcp_check( Rd->isStruct() || Rd->isUnion() || Rd->isEnum() )
 
-    const SourceLocation Sl = Rd->getLocation();
-
     const SourceManager& Sm = Context.getSourceManager();
+
+    SourceLocation Sl = Rd->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
@@ -559,6 +613,21 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd, 
         this->GetAllRefs(&Record.Records, Field->getType());
     }
 
+    SourceLocation RBrace = Rd->getBraceRange().getEnd();
+    while (RBrace.isMacroID())
+    {
+        RBrace = Sm.getExpansionLoc(RBrace);
+    }
+
+    SourceLocation CSl = Sm.getFileLoc(RBrace);
+    while (CSl.isMacroID())
+    {
+        CSl = Sm.getExpansionLoc(CSl);
+    }
+
+    Record.RBraceLine = Sm.getSpellingLineNumber(CSl);
+    Record.RBraceColumn = Sm.getSpellingColumnNumber(CSl);
+
     return Record;
 }
 
@@ -571,9 +640,14 @@ std::optional<Dcp::MyDecl> Dcp::MyAstVisitor::GetRecordDecl(const RecordDecl* Rd
 
     dcp_check( Rd->isStruct() || Rd->isUnion() || Rd->isEnum() )
 
-    const SourceLocation Sl = Rd->getLocation();
-
     const SourceManager& Sm = this->Context.getSourceManager();
+
+    SourceLocation Sl = Rd->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
@@ -633,9 +707,14 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
 
     dcp_check( Ed->isStruct() || Ed->isUnion() || Ed->isEnum() )
 
-    const SourceLocation Sl = Ed->getLocation();
-
     const SourceManager& Sm = this->Context.getSourceManager();
+
+    SourceLocation Sl = Ed->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
@@ -683,9 +762,25 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
         {
             MyRecordRef Ref;
             Ref.Ref = Qt.getAsString();
+            Ref.bStrong = true;
             Record.AddRecordRef(std::move(Ref));
         }
     }
+
+    SourceLocation RBrace = Ed->getBraceRange().getEnd();
+    while (RBrace.isMacroID())
+    {
+        RBrace = Sm.getExpansionLoc(RBrace);
+    }
+
+    SourceLocation CSl = Sm.getFileLoc(RBrace);
+    while (CSl.isMacroID())
+    {
+        CSl = Sm.getExpansionLoc(CSl);
+    }
+
+    Record.RBraceLine = Sm.getSpellingLineNumber(CSl);
+    Record.RBraceColumn = Sm.getSpellingColumnNumber(CSl);
 
     return Record;
 }
@@ -697,9 +792,14 @@ std::optional<Dcp::MyDecl> Dcp::MyAstVisitor::GetEnumDecl(const EnumDecl* Ed)
         return { };
     }
 
-    const SourceLocation Sl = Ed->getLocation();
-
     const SourceManager& Sm = this->Context.getSourceManager();
+
+    SourceLocation Sl = Ed->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
@@ -734,8 +834,14 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 {
     dcp_check( Fd->isThisDeclarationADefinition() )
 
-    const SourceLocation Sl = Fd->getLocation();
     const SourceManager& Sm = this->Context.getSourceManager();
+
+    SourceLocation Sl = Fd->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
@@ -751,6 +857,7 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
     }
 
     dcp_check( Fd->hasBody() )
+    const Stmt* Body = Fd->getBody();
 
     MyFunction Func;
     Func.Identifier = Fd->getQualifiedNameAsString();
@@ -760,13 +867,13 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 
     Func.bStatic = Fd->isStatic();
 
-    QualType QtRet = Fd->getReturnType();
-    Func.Ret = QtRet.getAsString();
-    QtRet = ::GetBasicName(std::move(QtRet));
-    if (QtRet->hasUnnamedOrLocalType() == false)
+    const QualType RealQtRet = Fd->getReturnType();
+    Func.Ret = RealQtRet.getAsString();
+    if (const QualType QtRet = ::GetBasicName(QualType{RealQtRet}); QtRet->hasUnnamedOrLocalType() == false)
     {
         MyRecordRef Ref;
         Ref.Ref = QtRet.getAsString();
+        Ref.bStrong = this->IsStrongQual(RealQtRet);
         Func.AddRecordRef(std::move(Ref));
     }
 
@@ -777,34 +884,39 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
         P.Identifier = Param->getName().str();
         Func.Params.emplace_back(std::move(P));
 
-        QualType Qt = Param->getType();
-        Qt = ::GetBasicName(std::move(Qt));
+        const QualType QtParam = Param->getType();
+        QualType Qt = ::GetBasicName(QualType{QtParam});
         if (Qt->hasUnnamedOrLocalType())
         {
+            std::set<MyRecordRef> TmpRefs;
+            GetAllRefs(&TmpRefs, QtParam);
+            for (const MyRecordRef& R : TmpRefs)
+            {
+                Func.AddRecordRef(MyRecordRef{R});
+            }
+
             continue;
         }
 
         MyRecordRef Ref;
         Ref.Ref = Qt.getAsString();
+        Ref.bStrong = this->IsStrongQual(QtParam);
         Func.AddRecordRef(std::move(Ref));
 
         continue;
     }
 
-    MyTypeCollector TypeCollector;
-    TypeCollector.TraverseDecl(Fd);
-    for (const QualType& Type : TypeCollector.GetCollectables())
+    MyRefCollector RefCollector;
+    RefCollector.TraverseDecl(Fd);
+    for (const auto& Ref : RefCollector.Refs)
     {
-        MyRecordRef Ref;
-        Ref.Ref = Type.getAsString();
-        Func.AddRecordRef(std::move(Ref));
-
+        Func.AddRecordRef(Ref);
         continue;
     }
 
-    MyVarRefCollector RefCollector {Fd, this->Context};
-    RefCollector.TraverseFunction();
-    for (const VarDecl* Vd : RefCollector.GetExternalReferences())
+    MyVarRefCollector VarRefCollector {Fd, this->Context};
+    VarRefCollector.TraverseFunction();
+    for (const VarDecl* Vd : VarRefCollector.GetExternalReferences())
     {
         dcp_check( Vd )
 
@@ -821,10 +933,20 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
             Ref.Type = VdQt.getAsString();
         }
 
+        Ref.bStrong = false;
+
         Func.AddVarRef(std::move(Ref));
 
         continue;
     }
+
+    MyDecl Fwd;
+    Fwd.Identifier = Func.Identifier;
+    Fwd.Line = Func.Line;
+    Fwd.Column = Func.Column;
+    Fwd.Source = Func.Source;
+    Fwd.bStatic = Func.bStatic ? EDeclBool::True : EDeclBool::False;
+    Fwd.bExtern = EDeclBool::None;
 
     MyFuncPointerCollector FCollector {Fd, this->Context};
     FCollector.TraverseFunction();
@@ -832,21 +954,32 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
     {
         dcp_check( _Fd )
 
-        MyDecl Fwd;
-        Fwd.Identifier = Func.Identifier;
-        Fwd.Line = Func.Line;
-        Fwd.Column = Func.Column;
-        Fwd.Source = Func.Source;
-        Fwd.bStatic = Func.bStatic ? EDeclBool::True : EDeclBool::False;
-        Fwd.bExtern = EDeclBool::None;
-
         MyFunctionRef Ref;
         Ref.Caller = Fwd;
         Ref.Ref = _Fd->getQualifiedNameAsString();
+        Ref.bStrong = false;
 
         PutToIntermediate(Ref);
 
         continue;
+    }
+
+    if (const auto* CStmt = dyn_cast<CompoundStmt>(Body))
+    {
+        SourceLocation RBrace = CStmt->getRBracLoc();
+        while (RBrace.isMacroID())
+        {
+            RBrace = Sm.getExpansionLoc(RBrace);
+        }
+
+        SourceLocation CSl = Sm.getFileLoc(RBrace);
+        while (CSl.isMacroID())
+        {
+            CSl = Sm.getExpansionLoc(CSl);
+        }
+
+        Func.RBraceLine = Sm.getSpellingLineNumber(CSl);
+        Func.RBraceColumn = Sm.getSpellingColumnNumber(CSl);
     }
 
     return Func;
@@ -854,8 +987,14 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 
 std::optional<Dcp::MyDecl> Dcp::MyAstVisitor::GetFunctionDecl(const FunctionDecl* Fd)
 {
-    const SourceLocation Sl = Fd->getLocation();
     const SourceManager& Sm = this->Context.getSourceManager();
+
+    SourceLocation Sl = Fd->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+
     const FileID IdF = Sm.getFileID(Sl);
     dcp_check( IdF.isValid() )
 
@@ -886,7 +1025,17 @@ std::optional<Dcp::MyFunctionRef> Dcp::MyAstVisitor::GetFunctionRef(const CallEx
     const SourceManager& Sm = this->Context.getSourceManager();
 
     const FunctionDecl* Callee = Ce->getDirectCallee();
-    if (Callee == nullptr || Sm.isInSystemHeader(Callee->getLocation()))
+    if (Callee == nullptr)
+    {
+        return { };
+    }
+
+    SourceLocation Sl = Callee->getLocation();
+    while (Sl.isMacroID())
+    {
+        Sl = Sm.getExpansionLoc(Sl);
+    }
+    if (Sm.isInSystemHeader(Sl))
     {
         return { };
     }
@@ -917,6 +1066,7 @@ std::optional<Dcp::MyFunctionRef> Dcp::MyAstVisitor::GetFunctionRef(const CallEx
     MyFunctionRef Ref;
     Ref.Caller = this->GetFunctionDecl(Caller).value();
     Ref.Ref = Callee->getQualifiedNameAsString();
+    Ref.bStrong = false;
 
     return Ref;
 }

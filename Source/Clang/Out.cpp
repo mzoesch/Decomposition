@@ -259,6 +259,8 @@ bool Dcp::InitializeOutStream()
                           "Source TEXT NOT NULL,"
                           "Line INTEGER NOT NULL,"
                           "Column INTEGER NOT NULL,"
+                          "RBraceLine INTEGER NOT NULL,"
+                          "RBraceColumn INTEGER NOT NULL,"
                           "Type TEXT NOT NULL,"
                           "Enum TEXT,"
                           "PRIMARY KEY (Identifier, Source)"
@@ -290,6 +292,8 @@ bool Dcp::InitializeOutStream()
                           "Source TEXT NOT NULL,"
                           "Line INTEGER NOT NULL,"
                           "Column INTEGER NOT NULL,"
+                          "RBraceLine INTEGER NOT NULL,"
+                          "RBraceColumn INTEGER NOT NULL,"
                           "bStatic INTEGER NOT NULL DEFAULT 0,"
                           "Params TEXT,"
                           "Ret TEXT NOT NULL,"
@@ -308,6 +312,7 @@ bool Dcp::InitializeOutStream()
                           "Column INTEGER NOT NULL,"
                           "Type TEXT NOT NULL DEFAULT 'record',"
                           "Ref TEXT NOT NULL,"
+                          "bStrong INTEGER NOT NULL,"
                           "PRIMARY KEY (Identifier, Source, Line, Column, Ref)"
                           ");";
 
@@ -632,13 +637,18 @@ void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
             PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
         }
 
-        if (!InTypeDef.Type.empty()) /* Non Trivial */
+        if (!InTypeDef.Type.empty()) /* Trivial */
         {
             const std::string Sql = "INSERT OR IGNORE INTO Refs ("
-                                    "Identifier, Source, Line, Column, Ref"
+                                    "Identifier, Source, Line, Column, Ref, bStrong"
                                     ") VALUES ('" + InTypeDef.Identifier + "', '" + InTypeDef.Source + "', " +
                                     std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '" +
-                                    InTypeDef.Type + "');";
+                                        InTypeDef.Type + "', 0) " +
+                                    "ON CONFLICT(Identifier, Source, Line, Column, Ref) DO UPDATE SET "
+                                    "bStrong = CASE"
+                                    "    WHEN excluded.bStrong = 1 AND Refs.bStrong = 0 THEN 1"
+                                    "    ELSE Refs.bStrong "
+                                    "END;";
 
             PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
         }
@@ -647,10 +657,15 @@ void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
     for (const auto& R : InTypeDef.Records)
     {
         const std::string Sql = "INSERT OR IGNORE INTO Refs ("
-                                "Identifier, Source, Line, Column, Ref"
+                                "Identifier, Source, Line, Column, Ref, bStrong"
                                 ") VALUES ('" + InTypeDef.Identifier + "', '" + InTypeDef.Source + "', " +
                                 std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '" +
-                                R.Ref + "');";
+                                    R.Ref + "', " + (R.bStrong ? "1" : "0") + ") " +
+                                    "ON CONFLICT(Identifier, Source, Line, Column, Ref) DO UPDATE SET "
+                                    "bStrong = CASE"
+                                    "    WHEN excluded.bStrong = 1 AND Refs.bStrong = 0 THEN 1"
+                                    "    ELSE Refs.bStrong "
+                                    "END;";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
     }
@@ -671,9 +686,10 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
 
     {
         const std::string Sql = "INSERT OR IGNORE INTO Records ("
-                                "Identifier, Source, Line, Column, Type"
+                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, Type"
                                 ") VALUES ('" + InRecord.Identifier + "', '" + InRecord.Source + "', " +
-                                std::to_string(InRecord.Line) + ", " + std::to_string(InRecord.Column) + ", '" +
+                                std::to_string(InRecord.Line) + ", " + std::to_string(InRecord.Column) + ", " +
+                                std::to_string(InRecord.RBraceLine) + ", " + std::to_string(InRecord.RBraceColumn) + ", '" +
                                 InRecord.Type + "');";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
@@ -682,10 +698,15 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
     for (const auto& R : InRecord.Records)
     {
         const std::string Sql = "INSERT OR IGNORE INTO Refs ("
-                                "Identifier, Source, Line, Column, Ref"
+                                "Identifier, Source, Line, Column, Ref, bStrong"
                                 ") VALUES ('" + InRecord.Identifier + "', '" + InRecord.Source + "', " +
                                 std::to_string(InRecord.Line) + ", " + std::to_string(InRecord.Column) + ", '" +
-                                R.Ref + "');";
+                                    R.Ref + "', " + (R.bStrong ? "1" : "0") + ") " +
+                                    "ON CONFLICT(Identifier, Source, Line, Column, Ref) DO UPDATE SET "
+                                    "bStrong = CASE"
+                                    "    WHEN excluded.bStrong = 1 AND Refs.bStrong = 0 THEN 1"
+                                    "    ELSE Refs.bStrong "
+                                    "END;";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
     }
@@ -707,9 +728,10 @@ void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 
     {
         const std::string Sql = "INSERT OR IGNORE INTO Records ("
-                                "Identifier, Source, Line, Column, Type, Enum"
+                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, Type, Enum"
                                 ") VALUES ('" + InEnumRecord.Identifier + "', '" + InEnumRecord.Source + "', " +
-                                std::to_string(InEnumRecord.Line) + ", " + std::to_string(InEnumRecord.Column) + ", '" +
+                                std::to_string(InEnumRecord.Line) + ", " + std::to_string(InEnumRecord.Column) + ", " +
+                                std::to_string(InEnumRecord.RBraceLine) + ", " + std::to_string(InEnumRecord.RBraceColumn) + ", '" +
                                 InEnumRecord.Type + "', '" + InEnumRecord.Enum.value() + "');";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
@@ -718,10 +740,15 @@ void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
     for (const auto& R : InEnumRecord.Records)
     {
         const std::string Sql = "INSERT OR IGNORE INTO Refs ("
-                                "Identifier, Source, Line, Column, Ref"
+                                "Identifier, Source, Line, Column, Ref, bStrong"
                                 ") VALUES ('" + InEnumRecord.Identifier + "', '" + InEnumRecord.Source + "', " +
                                 std::to_string(InEnumRecord.Line) + ", " + std::to_string(InEnumRecord.Column) + ", '" +
-                                R.Ref + "');";
+                                    R.Ref + "', " + (R.bStrong ? "1" : "0") + ") " +
+                                    "ON CONFLICT(Identifier, Source, Line, Column, Ref) DO UPDATE SET "
+                                    "bStrong = CASE"
+                                    "    WHEN excluded.bStrong = 1 AND Refs.bStrong = 0 THEN 1"
+                                    "    ELSE Refs.bStrong "
+                                    "END;";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
     }
@@ -756,8 +783,8 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
         }
 
         const std::string Sql = "INSERT OR IGNORE INTO Functions ("
-                                "Identifier, Source, Line, Column, bStatic, Params, Ret"
-                                ") VALUES (?, ?, ?, ?, ?, ?, ?);";
+                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, bStatic, Params, Ret"
+                                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
         sqlite3_stmt* Stmt = nullptr;
         if (sqlite3_prepare_v2(Db, Sql.c_str(), -1, &Stmt, nullptr) != SQLITE_OK)
@@ -772,9 +799,11 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
         sqlite3_bind_text(Stmt, 2, InFunction.Source.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_int(Stmt,  3, InFunction.Line);
         sqlite3_bind_int(Stmt,  4, InFunction.Column);
-        sqlite3_bind_int(Stmt,  5, InFunction.bStatic ? 1 : 0);
-        sqlite3_bind_text(Stmt, 6, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_text(Stmt, 7, InFunction.Ret.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(Stmt,  5, InFunction.RBraceLine);
+        sqlite3_bind_int(Stmt,  6, InFunction.RBraceColumn);
+        sqlite3_bind_int(Stmt,  7, InFunction.bStatic ? 1 : 0);
+        sqlite3_bind_text(Stmt, 8, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(Stmt, 9, InFunction.Ret.c_str(), -1, SQLITE_TRANSIENT);
 
         ExecStmt(Stmt);
         sqlite3_finalize(Stmt);
@@ -783,21 +812,28 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
     for (const auto& Record : InFunction.Records)
     {
         const std::string Sql = "INSERT OR IGNORE INTO Refs ("
-                                "Identifier, Source, Line, Column, Ref"
+                                "Identifier, Source, Line, Column, Ref, bStrong"
                                 ") VALUES ('" + InFunction.Identifier + "', '" + InFunction.Source + "', " +
                                 std::to_string(InFunction.Line) + ", " + std::to_string(InFunction.Column) + ", '" +
-                                Record.Ref + "');";
+                                    Record.Ref + "', " + (Record.bStrong ? "1" : "0") + ") " +
+                                "ON CONFLICT(Identifier, Source, Line, Column, Ref) DO UPDATE SET "
+                                "bStrong = CASE"
+                                "    WHEN excluded.bStrong = 1 AND Refs.bStrong = 0 THEN 1"
+                                "    ELSE Refs.bStrong "
+                                "END;";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
     }
 
     for (const auto& Record : InFunction.Vars)
     {
+        dcp_check( Record.bStrong == false )
+
         const std::string Sql = "INSERT OR IGNORE INTO Refs ("
-                                "Identifier, Source, Line, Column, Type, Ref"
+                                "Identifier, Source, Line, Column, Type, Ref, bStrong"
                                 ") VALUES ('" + InFunction.Identifier + "', '" + InFunction.Source + "', " +
                                 std::to_string(InFunction.Line) + ", " + std::to_string(InFunction.Column) + ", 'variable', '" +
-                                Record.Ref + "');";
+                                    Record.Ref + "', 0);";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL_CONTINUE()
     }
@@ -807,11 +843,13 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
 
 void Dcp::PutToIntermediate(const MyFunctionRef& InFunctionRef)
 {
+    dcp_check( InFunctionRef.bStrong == false )
+
     const std::string Sql = "INSERT OR IGNORE INTO Refs ("
-                            "Identifier, Source, Line, Column, Ref"
+                            "Identifier, Source, Line, Column, Ref, bStrong"
                             ") VALUES ('" + InFunctionRef.Caller.Identifier + "', '" + InFunctionRef.Caller.Source + "', " +
                             std::to_string(InFunctionRef.Caller.Line) + ", " + std::to_string(InFunctionRef.Caller.Column) + ", '" +
-                            InFunctionRef.Ref + "');";
+                                InFunctionRef.Ref + "', 0);";
 
     PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
 

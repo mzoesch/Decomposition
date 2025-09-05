@@ -1,6 +1,5 @@
 #include "Fwd.h"
 #include <clang/Basic/SourceManager.h>
-#include <llvm/Support/raw_ostream.h>
 
 DCP_API std::vector<std::string> Dcp::ModuleHeaderPaths;
 

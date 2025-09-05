@@ -7,22 +7,6 @@
 namespace Dcp
 {
 
-class MyTypeCollector : public clang::RecursiveASTVisitor<MyTypeCollector>
-{
-public:
-
-    DCP_API bool VisitVarDecl(const clang::VarDecl* Vd);
-    DCP_API bool VisitCallExpr(const clang::CallExpr* Ce);
-
-    const std::vector<clang::QualType>& GetCollectables() const { return this->Collectables; }
-
-private:
-
-    bool AddQualifiedType(clang::QualType&& Qt);
-
-    std::vector<clang::QualType> Collectables;
-};
-
 class MyVarRefCollector : public clang::RecursiveASTVisitor<MyVarRefCollector>
 {
 public:
@@ -74,6 +58,26 @@ private:
     clang::FunctionDecl* Fd;
     clang::ASTContext& Context;
     std::set<const clang::FunctionDecl*> Fds;
+};
+
+class MyRefCollector : public clang::RecursiveASTVisitor<MyRefCollector>
+{
+public:
+
+    bool shouldVisitImplicitCode() const { return true; }
+
+    DCP_API bool VisitVarDecl(const clang::VarDecl* Vd);
+    DCP_API bool VisitDeclRefExpr(const clang::DeclRefExpr* Dre);
+    DCP_API bool VisitFieldDecl(const clang::FieldDecl* Fd);
+    DCP_API bool VisitParmVarDecl(const clang::ParmVarDecl* Pd);
+    DCP_API bool VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr* E);
+    DCP_API bool VisitUnaryOperator(clang::UnaryOperator* Uo);
+    DCP_API bool VisitBinaryOperator(const clang::BinaryOperator* Bo);
+    DCP_API bool VisitMemberExpr(const clang::MemberExpr* Me);
+
+    DCP_API void AddQualRecord(const clang::QualType Qt);
+
+    std::set<MyRecordRef> Refs;
 };
 
 } /* ~Namespace Dcp */

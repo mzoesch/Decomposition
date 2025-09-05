@@ -12,6 +12,7 @@ async def _run(cmd):
     stdout, stderr = await proc.communicate()
     return cmd, proc.returncode, stdout.decode(), stderr.decode()
 
+
 async def _run_concurrent_impl(g: Globals, cursor: int, display_name_max: int, nproc: int, cmds: list[tuple[str, str]]) -> any:
     active = set()
     cmd_iter = iter(cmds)
@@ -51,6 +52,7 @@ async def _run_concurrent_impl(g: Globals, cursor: int, display_name_max: int, n
             continue
 
     return results
+
 
 def run_concurrent(g: Globals, cursor: int, display_name_max: int, nproc: int, cmds: list[tuple[str, str]]) -> any:
     assert nproc > 0

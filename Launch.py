@@ -111,6 +111,7 @@ def default_entry() -> None:
     group.add_argument('-N',                    type=int, default=2048,                                     help='Size of N. N describes the number of non whitespace characters that impact the binary.')
     group.add_argument('-CountDeclDocsToN',     action='store_true',                                        help='Whether to count declaration docs and comments to N. Defaults to [False].')
     group.add_argument('-CountDocsToN',         action='store_true',                                        help='Whether to count inline docs and comments to N. Defaults to [False].')
+    group.add_argument('-ImplInHeader',         action='store_true',                                        help='Whether this is a header lib. Often the implementation is in the header files to be implemented in translation files with a macro definition. Defaults to [False].')
 
     group = parser.add_argument_group('Step Three: Compile units')
     group.add_argument('-DoCompile',            action='store_true',                                        help='Whether to compile the output files. Defaults to [False].')
