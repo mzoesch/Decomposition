@@ -92,7 +92,7 @@ def __trivial_merge_impl_header_impl_typedef(g: Globals, xs: list[Unit], out: li
 
         u_n: int = u.get_n_size(g)
 
-        if td.is_anonymous():
+        if td.is_no_tag():
             if u.depends_only_on_trivials():
                 referenceless_typedefs.append(u)
             else:
@@ -103,15 +103,45 @@ def __trivial_merge_impl_header_impl_typedef(g: Globals, xs: list[Unit], out: li
             referenceless_typedefs.append(u)
             continue
 
-        assert len(td.record_refs) == 1
-        ref, strong = next(iter(td.record_refs.items()))
-        assert strong is False
+        mvp_ref = None
+        if len(td.record_refs) == 1:
+            r, s = next(iter(td.record_refs.items()))
+            if s:
+                out.append(u)
+                u = None
+                continue
+            mvp_ref = r
+        else:
+            for r, s in td.record_refs.items():
+                if s:
+                    out.append(u)
+                    u = None
+                    mvp_ref = None
+                    break
+
+                if Unit.is_trivial_type(r):
+                    continue
+
+                if mvp_ref is None:
+                    mvp_ref = r
+                    continue
+
+                mvp_ref = None
+                out.append(u)
+                u = None
+                break
+
+        if mvp_ref is None:
+            if u:
+                out.append(u)
+                u = None
+            continue
 
         for other_u in others:
             if u_n + other_u.get_n_size(g) >= g.args.N:
                 continue
 
-            e = other_u.get_element(ref)
+            e = other_u.get_element(mvp_ref)
             if e is None:
                 continue
 

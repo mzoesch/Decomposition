@@ -23,11 +23,16 @@ def collect_typedefs(g: Globals, e: Exporter) -> None:
     e.con.execute_ro("""SELECT * FROM Typedefs;""")
 
     rows = e.con.fetchall()
-    for ident, source, line, column, what, ty, anonymous, anonymous_begin_line, anonymous_begin_column in rows:
-        anonymous = bool(anonymous)
+    for ident, source, line, column, what, ty, no_tag, no_tag_line, no_tag_column, r_no_tag_line, r_no_tag_column in rows:
+        no_tag = bool(no_tag)
         e.stats.original_typedef_count += 1
-        e.make_unit(UnitTypedef(ident, SourceLocation(e.get_or_register_source_file(source), line, column),
-            what, ty, anonymous, anonymous_begin_line, anonymous_begin_column))
+        e.make_unit(UnitTypedef(
+            ident,
+            SourceLocation(e.get_or_register_source_file(source), line, column),
+            what, ty, no_tag,
+            no_tag_line, no_tag_column,
+            r_no_tag_line, r_no_tag_column
+            ))
         continue
 
     return None
@@ -37,12 +42,12 @@ def collect_variables(g: Globals, e: Exporter) -> None:
     e.con.execute_ro("""SELECT * FROM Variables;""")
 
     rows = e.con.fetchall()
-    for ident, source, line, column, ty, static, extern in rows:
+    for ident, source, line, column, ty, static, extern, init in rows:
         static = bool(static)
         extern = bool(extern)
         e.stats.original_variable_count += 1
         e.make_unit(UnitVariable(ident, SourceLocation(e.get_or_register_source_file(source), line, column),
-            ty, static, extern))
+            ty, static, extern, init))
         continue
 
     return None

@@ -32,6 +32,23 @@ bool MySymbol::operator==(const MySymbol& InOther) const
         && this->Column == InOther.Column;
 }
 
+void MyTypeDef::AddRecordRef(const MyRecordRef& InRecord)
+{
+    const std::set<MyRecordRef>::iterator R = this->Records.find(InRecord);
+    if (R == this->Records.end())
+    {
+        this->Records.emplace(InRecord);
+        return;
+    }
+
+    if (InRecord.bStrong)
+    {
+        R->bStrong = InRecord.bStrong;
+    }
+
+    return;
+}
+
 bool MySymbolRef::IsValid() const
 {
     return this->Ref.empty() != false;

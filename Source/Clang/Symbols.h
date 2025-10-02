@@ -57,9 +57,13 @@ struct MyTypeDef final : public MySymbol
     std::string What;
     std::string Type;
     std::set<MyRecordRef> Records;
-    bool bComplex { false };
-    int64_t ComplexBeginLine { INDEX_NONE };
-    int64_t ComplexBeginColumn { INDEX_NONE };
+    bool bNoTag { false };
+    int64_t NoTagLine { INDEX_NONE };
+    int64_t NoTagColumn { INDEX_NONE };
+    int64_t RNoTagLine { INDEX_NONE };
+    int64_t RNoTagColumn { INDEX_NONE };
+
+    DCP_API void AddRecordRef(const MyRecordRef& InRecord);
 };
 
 struct MyEnumRecord final : public MyRecord
@@ -95,6 +99,7 @@ struct MyVariable final : public MySymbol
     std::string Type;
     bool bStatic { false };
     bool bExtern { false };
+    std::optional<std::string> Init;
 };
 
 struct MySymbolRef

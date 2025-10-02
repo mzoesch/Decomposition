@@ -2,13 +2,12 @@ from __future__ import annotations
 import json
 import os
 import time
-from multiprocessing.forkserver import connect_to_new_process
 from pathlib import Path
 from Source.Python.Globals import Globals
 from Source.Python.SqlConnection import SqlConnection
 from Source.Python.StatTrack import StatTrack
 from Source.Python.Locations import SourceFile
-from Source.Python.Elements import UnitElement, UnitTypedef
+from Source.Python.Elements import UnitElement, UnitTypedef, UnitVariable
 
 
 class Unit:
@@ -148,6 +147,17 @@ class Unit:
         fwds: set[str] = set()
         inc: set[str] = set()
         for e in self.elements:
+            if isinstance(e, UnitVariable):
+                var_type = Unit.remove_quals_from_type(e.ty)
+                if not Unit.is_trivial_type(var_type):
+                    u: Unit = ex.find_unit_from_element(var_type)
+                    if u is not None:
+                        assert u.is_output_ident_valid()
+                        r_ref = u.get_element_asserted(var_type)
+                        fwds.add(r_ref.get_forward_declaration(g))
+                        if u is not self:
+                            inc.add(u.get_filename())
+
             con.execute_ro("""
             SELECT Ref, Type, bStrong FROM Refs
             WHERE Source = ? AND Line = ? AND "Column" = ?
@@ -171,7 +181,7 @@ class Unit:
 
                     ignore_strong = False
                     if isinstance(e, UnitTypedef):
-                        if not e.anonymous:
+                        if not e.no_tag:
                             ignore_strong = True
 
                     if ((not ignore_strong) and strong is False) or (u is self):
@@ -352,7 +362,7 @@ class Unit:
 
     @staticmethod
     def is_trivial_type(ty: str) -> bool:
-        return ty in [
+        trivials = [
             'void',
             'bool',
             'char', 'unsigned char', 'signed char',
@@ -363,6 +373,24 @@ class Unit:
             'size_t', 'ptrdiff_t', 'ssize_t', 'intptr_t', 'uintptr_t',
             'wchar_t', 'char16_t', 'char32_t',
             ]
+
+        ty = ty.strip()
+        while True:
+            if ty.startswith('*'):
+                ty = ty[1:].strip()
+                continue
+            if ty.endswith('*'):
+                ty = ty[:-1].strip()
+                continue
+            if ty.startswith('const ') or ty.startswith('volatile '):
+                ty = ty[ty.find(' ') + 1:].strip()
+                continue
+            if ty.endswith(']') and ('[' in ty):
+                ty = ty[:ty.rfind('[')].strip()
+                continue
+            break
+
+        return ty in trivials
 
     @staticmethod
     def create_macro_definition_directive(ident: str, function_like: bool, definition: str, params: str) -> str:

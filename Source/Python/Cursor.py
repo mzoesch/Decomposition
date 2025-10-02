@@ -83,9 +83,9 @@ class Cursor:
 
         while line <= len(self.lines):
             if (
-                    (self.end_line is not None) and
-                    (self.end_line <= line) and
-                    (self.end_column is None)
+                (self.end_line is not None) and
+                (self.end_line <= line) and
+                (self.end_column is None)
                 ):
                 return
 
@@ -101,7 +101,33 @@ class Cursor:
                 c = self.lines[line-1][col-1]
 
                 if self._in_pp:
-                    yield c, False
+                    if self._in_comment or self._in_multiline_comment:
+                        if not self.args.PurgeInlineDocs:
+                            yield c, False
+
+                    elif c == '/' and self._last_char == '/':
+                        yield c, False
+                        self._in_comment = True
+                        if self.args.PurgeInlineDocs:
+                            yield None, False
+                            yield None, False
+
+                    elif c == '*' and self._last_char == '/':
+                        yield c, False
+                        self._in_multiline_comment = True
+                        if self.args.PurgeInlineDocs:
+                            yield None, False
+                            yield None, False
+
+                    elif self._in_multiline_comment:
+                        if not self.args.PurgeInlineDocs:
+                            yield c, False
+                        if c == '/' and self._last_char == '*':
+                            self._in_multiline_comment = False
+
+                    else:
+                        yield c, False
+
                     next_col()
                     assert( self._is_escaped is False )
                     continue
@@ -202,9 +228,7 @@ class Cursor:
                 next_col()
                 continue
 
-            assert( self._is_escaped is False )
             assert( self._in_char is False )
-            assert( self._in_string is False )
 
             if self._in_pp:
                 if self._last_char == '\\' or (self._last_char == '\r' and self._last_last_char == '\\'):
@@ -218,6 +242,17 @@ class Cursor:
             if self._in_comment:
                 yield '\n', True
                 self._in_comment = False
+                next_line()
+                continue
+
+            if self._in_string:
+                yield '\n', False
+                next_line()
+                continue
+
+            if self._is_escaped:
+                yield '\n', False
+                self._is_escaped = False
                 next_line()
                 continue
 

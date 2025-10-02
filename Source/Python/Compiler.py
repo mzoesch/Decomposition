@@ -130,18 +130,59 @@ def _compile_target_impl(g: Globals, display_name: str, directory: str) -> None:
     if unit_max == -1:
         raise ValueError("No valid Unit_*.c files found in the output directory.")
 
+    objs: list[str] = []
+
     cursor: int = unit_max - _get_count_of_c_files(out_dir_s) + 1
     for p, _, fs in os.walk(out_dir):
         for f in fs:
             if f.endswith('.c') is False:
                 continue
 
-            path_f = os.path.join(p, f)
-            _compile_file(g.args.Verbose, cursor, path_f, f'{bin_dir_s}/{f.replace('.c', '.o')}', f, unit_max)
-            cursor += 1
+            if not g.args.SkipCompile:
+                path_f = os.path.join(p, f)
+                _compile_file(g.args.Verbose, cursor, path_f, f'{bin_dir_s}/{f.replace('.c', '.o')}', f, unit_max)
+                cursor += 1
+
+            objs.append(f'{bin_dir_s}/{f.replace('.c', '.o')}')
 
             continue
         continue
+
+    if len(objs) == 0:
+        return None
+
+    if g.args.DoLinkA or g.args.DoLinkSo or g.args.DoLinkExe:
+        print(f'Linking target [{display_name}] ...', end=' ', flush=True)
+
+        prefix = 'lib'
+        if g.args.DoLinkExe:
+            prefix = ''
+
+        ext = ''
+        if g.args.DoLinkA:
+            ext = '.a'
+        if g.args.DoLinkSo:
+            ext = '.so'
+
+        # Static only currently
+        cmd = ['llvm-ar', 'rcs', f'{bin_dir_s}/../{prefix}{display_name}{ext}']
+        print(cmd)
+
+        cmd.extend(objs)
+
+        new_line: bool = False
+        if g.args.Verbose:
+            print(' '.join(cmd), end=' ', flush=True)
+        for out in _run_yielded_cmd(cmd):
+            if out:
+                if not new_line:
+                    print('')
+                    new_line = True
+                print(out, end='')
+            continue
+
+        if not new_line:
+            print('done')
 
     return None
 
@@ -156,6 +197,7 @@ def _compile_file(verbose: bool, cursor: int, path_f: str, path_o: str, file: st
     print(f'[{cursor:0{len(str(unit_max))}d}/{unit_max}] Compiling to [{path_o}] ...', end=' ', flush=True)
 
     cmd = ['clang', '-c', path_f, '-o', path_o,
+           '-std=c17',
            '-Wno-visibility',
            '-Wno-macro-redefined',
            ]

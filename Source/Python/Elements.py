@@ -1,3 +1,4 @@
+import hashlib
 from Source.Python.Globals import Globals
 from Source.Python.Cursor import Cursor
 from Source.Python.Locations import SourceLocation, is_source_translation
@@ -177,32 +178,44 @@ class UnitTypedef(UnitElement):
     """
 
     def __init__(self, ident: str, source: SourceLocation, what: str | None, ty: str | None,
-                 anonymous: bool, anonymous_begin_line: int | None, anonymous_begin_column: int| None):
+                 no_tag: bool, no_tag_line: int | None, no_tag_column: int | None, r_no_tag_line: int, r_no_tag_column: int):
         super().__init__(ident, source)
 
         self.what = what
         self.ty = ty
-        self.anonymous = anonymous
-        self.anonymous_begin_line = anonymous_begin_line
-        self.anonymous_begin_column = anonymous_begin_column
+        self.no_tag = no_tag
 
-        if self.is_anonymous():
-            assert (self.anonymous_begin_line is not None) and (self.anonymous_begin_column is not None)
+        self.no_tag_line = no_tag_line
+        self.no_tag_column = no_tag_column
+        self.r_no_tag_line = r_no_tag_line
+        self.r_no_tag_column = r_no_tag_column
+
+        if self.no_tag_line:
+            assert self.no_tag_column
+            assert self.r_no_tag_line
+            assert self.r_no_tag_column
+
+        if self.is_no_tag():
+            assert (self.no_tag_line is not None) and (self.no_tag_column is not None)
+            assert (self.r_no_tag_line is not None) and (self.r_no_tag_column is not None)
 
     def is_translation(self, g: Globals) -> bool:
         return False
 
-    def is_anonymous(self) -> bool:
-        return self.anonymous
+    def is_no_tag(self) -> bool:
+        return self.no_tag
 
     def get_forward_declaration(self, g: Globals) -> str | None:
-        return f'typedef {self.what};'
+        if self.is_no_tag():
+            return f'typedef {self.ty} {self.get_no_tag_name()} {self.ident};'
+        else:
+            return f'typedef {self.what};'
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
         super().cache_content(g, con)
 
-        if self.is_anonymous():
-            self.finalize_content_anonymous(g)
+        if self.is_no_tag():
+            self.finalize_content_not_tagged(g)
         else:
             self.finalize_content_tagged()
 
@@ -212,14 +225,14 @@ class UnitTypedef(UnitElement):
         self.content += f'typedef {self.what};'
         return None
 
-    def finalize_content_anonymous(self, g: Globals) -> None:
+    def finalize_content_not_tagged(self, g: Globals) -> None:
         cursor: Cursor = Cursor(
             g.args,
             _get_file_content(self.source.file.ident),
-            self.anonymous_begin_line,
-            self.anonymous_begin_column,
-            self.source.line,
-            self.source.column
+            self.no_tag_line,
+            self.no_tag_column,
+            self.r_no_tag_line,
+            self.r_no_tag_column + 1
             )
 
         self.content += 'typedef '
@@ -232,7 +245,22 @@ class UnitTypedef(UnitElement):
         self.content += self.ident
         self.content += ';'
 
+        ty_index = self.content.find(self.ty)
+        if ty_index != -1:
+            ty_index += len(self.ty)
+            self.content = self.content[:ty_index] + ' ' + self.get_no_tag_name() + self.content[ty_index:]
+
+
         return None
+
+    def get_no_tag_name(self) -> str:
+        assert self.is_no_tag()
+        hasher = hashlib.sha256()
+        hasher.update(self.ident.encode('utf-8'))
+        hasher.update(self.ty.encode('utf-8'))
+        hasher.update(self.source.file.ident.encode('utf-8'))
+
+        return f'__no_tag_{hasher.hexdigest()[:16]}'
 
 
 class UnitVariable(UnitElement):
@@ -240,12 +268,13 @@ class UnitVariable(UnitElement):
     Represents a variable in the original project.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, ty: str, static: bool, extern: bool):
+    def __init__(self, ident: str, source: SourceLocation, ty: str, static: bool, extern: bool, init: str | None):
         super().__init__(ident, source)
 
         self.ty: str = ty
         self.static: bool = static
         self.extern: bool = extern
+        self.init: str | None = init
 
     def is_translation(self, g: Globals) -> bool:
         if g.args.ImplInHeader:
@@ -262,11 +291,16 @@ class UnitVariable(UnitElement):
 
     def get_forward_declaration(self, g: Globals) -> str:
         out: str = ''
-        if g.args.RespectStatic and self.is_static():
-            out += 'static '
-        elif self.is_extern():
-            out += 'extern '
-        out += f'{self.ty} {self.ident};'
+        # if g.args.RespectStatic and self.is_static():
+        #     out += 'static '
+        # elif self.is_extern():
+        #     out += 'extern '
+
+        if self.ty.endswith(']'):
+            out += f'extern {self.ty[:self.ty.index('[')]} {self.ident}{self.ty[self.ty.index('['):]};'
+        else:
+            out += f'extern {self.ty} {self.ident};'
+
         return out
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
@@ -275,7 +309,13 @@ class UnitVariable(UnitElement):
         if g.args.RespectStatic and self.is_static():
             self.content += 'static '
 
-        self.content += f'{self.ty} {self.ident};'
+        if self.init is None:
+            self.content += f'{self.ty} {self.ident};'
+        else:
+            if self.ty.endswith(']'):
+                self.content += f'{self.ty[:self.ty.index('[')]} {self.ident}{self.ty[self.ty.index('['):]} = {self.init};'
+            else:
+                self.content += f'{self.ty} {self.ident} = {self.init};'
         return None
 
 

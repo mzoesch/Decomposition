@@ -9,7 +9,13 @@ from Source.Python.Merger import merge
 
 
 def split_to_units(g: Globals) -> None:
-    _set_target_to_split(g)
+    if g.args.RepositoryLocation is not None:
+        assert g.args.SplitNonCMakeTarName is not None
+        _split_target_impl(g, g.args.SplitNonCMakeTarName, f'{g.args.TargetBuildDir}/Saved/tar-{g.args.SplitNonCMakeTarName}')
+
+        return None
+
+    _set_cmake_target_to_split(g)
 
     if g.split_all_targets:
         targets = load_cmake_targets(g)
@@ -32,7 +38,7 @@ def split_to_units(g: Globals) -> None:
     return
 
 
-def _set_target_to_split(g: Globals) -> None:
+def _set_cmake_target_to_split(g: Globals) -> None:
     if g.args.SplitWd is not None:
         return None
 

@@ -14,16 +14,29 @@ from Source.Python.Compiler import compile_units
 def processed_args_entry(g: Globals) -> None:
     if g.args.DoAnalyse or g.args.DoSplit or g.args.DoCompile:
         if g.args.CMakeLocation is None:
+            assert g.args.RepositoryLocation is not None, 'Repository location must be specified for non CMake projects.'
+            g.args.RepositoryLocation = os.path.abspath(g.args.RepositoryLocation)
+            if not os.path.exists(g.args.RepositoryLocation) or not os.path.isdir(g.args.RepositoryLocation):
+                raise ValueError(f'No such directory [{g.args.RepositoryLocation}].')
+
             assert g.args.TargetBuildDir is not None, 'Target build dir must be specified for non CMake projects.'
-        else:
+
             cwd = os.getcwd()
-            if not os.path.exists(g.args.CMakeLocation) or not os.path.isdir(g.args.CMakeLocation):
-                raise ValueError(f'No such directory [{g.args.CMakeLocation}].')
-            os.chdir(g.args.CMakeLocation)
-            out = os.path.abspath(g.args.TargetBuildDir)
+            os.chdir(g.args.RepositoryLocation)
+            g.args.TargetBuildDir = os.path.abspath(g.args.TargetBuildDir)
             os.chdir(cwd)
 
-            g.args.TargetBuildDir = out
+            if not os.path.exists(g.args.TargetBuildDir):
+                os.makedirs(g.args.TargetBuildDir)
+
+        else:
+            if not os.path.exists(g.args.CMakeLocation) or not os.path.isdir(g.args.CMakeLocation):
+                raise ValueError(f'No such directory [{g.args.CMakeLocation}].')
+
+            cwd = os.getcwd()
+            os.chdir(g.args.CMakeLocation)
+            g.args.TargetBuildDir = os.path.abspath(g.args.TargetBuildDir)
+            os.chdir(cwd)
 
     p: Path = Path(g.args.ClangPlugin)
     if not p.is_absolute():
@@ -96,12 +109,14 @@ def default_entry() -> None:
     group.add_argument('-NProc',                type=int, default=6,                                        help='Number of processes to use for concurrency.')
     group = parser.add_argument_group('Step One: Intermediate representation (For non CMake projects)')
     group.add_argument('-BuildCommand',         type=str,                                                   help='Custom build command to run. If this is set the CMake arguments will be ignored.')
+    group.add_argument('-RepositoryLocation',   type=str,                                                   help='Location of the repository to analyse. Either relative or absolute path.')
 
 
     group = parser.add_argument_group('Step Two: Split to units')
     group.add_argument('-DoSplit',              action='store_true',                                        help='Whether to split to units.')
     group.add_argument('-ClearOut',             action='store_true',                                        help='Whether to clear the out dir. Defaults to [False].')
     group.add_argument('-SplitWd',              type=str, default=None,                                     help='Working directory to use for the split. Automatically set if CMake is used. Defaults to [None].')
+    group.add_argument('-SplitNonCMakeTarName', type=str, default=None,                                     help='Name of the target to split. Only used if CMake is not used. Defaults to the pathname of the repository.')
     group.add_argument('-Report',               action='store_true',                                        help='Whether to do a report after splitting. Defaults to [False].')
     group.add_argument('-SkipMerge',            action='store_true',                                        help='Whether to skip the merge step. Defaults to [False].')
     group.add_argument('-OkIfExists',           action='store_true',                                        help='Whether to ignore if the out files already are existing. Development only.')
@@ -111,10 +126,14 @@ def default_entry() -> None:
     group.add_argument('-N',                    type=int, default=2048,                                     help='Size of N. N describes the number of non whitespace characters that impact the binary.')
     group.add_argument('-CountDeclDocsToN',     action='store_true',                                        help='Whether to count declaration docs and comments to N. Defaults to [False].')
     group.add_argument('-CountDocsToN',         action='store_true',                                        help='Whether to count inline docs and comments to N. Defaults to [False].')
-    group.add_argument('-ImplInHeader',         action='store_true',                                        help='Whether this is a header lib. Often the implementation is in the header files to be implemented in translation files with a macro definition. Defaults to [False].')
+    group.add_argument('-ImplInHeader',         action='store_true',                                        help='Whether this is a header lib. Often the implementation is in the header files to be implemented in implementation files with a macro definition. Defaults to [False].')
 
     group = parser.add_argument_group('Step Three: Compile units')
     group.add_argument('-DoCompile',            action='store_true',                                        help='Whether to compile the output files. Defaults to [False].')
+    group.add_argument('-SkipCompile',          action='store_true',                                        help='Whether to skip compilation. Defaults to [False].')
+    group.add_argument('-DoLinkA',              action='store_true',                                        help='Link to a static library. Defaults to [False].')
+    group.add_argument('-DoLinkSo',             action='store_true',                                        help='Link to a shared object. Defaults to [False].')
+    group.add_argument('-DoLinkExe',            action='store_true',                                        help='Link to an executable. Defaults to [False].')
     group.add_argument('-TargetBinDir',         type=str, default='Intermediates',                          help='The bin build dir to use. Either relative or absolute path.')
     group.add_argument('-ClearBinOut',          action='store_true',                                        help='Whether to clear the target bin out dir. Defaults to [False].')
 
@@ -126,13 +145,16 @@ def default_entry() -> None:
     for arg in unknown:
         args.CMakeArgs.append(arg)
 
+    if args.RepositoryLocation is not None and args.SplitNonCMakeTarName is None:
+        args.SplitNonCMakeTarName = os.path.basename(os.path.normpath(args.RepositoryLocation))
+
     _globals: Globals = Globals(start_time=start_time, args=args)
     processed_args_entry(g=_globals)
     return None
 
 
 def _guarded_processed_args_entry(g: Globals) -> None:
-    """Guarded processing entry."""
+    """Safe to fail entry point."""
 
     """
     Step Zero.
@@ -153,7 +175,12 @@ def _guarded_processed_args_entry(g: Globals) -> None:
         if g.args.BuildCommand is not None:
             if g.args.Verbose:
                 print(f'Running custom build command [{g.args.BuildCommand}].')
-            os.system(g.args.BuildCommand)
+            cwd = os.getcwd()
+            os.chdir(g.args.TargetBuildDir)
+            try:
+                os.system(g.args.BuildCommand)
+            finally:
+                os.chdir(cwd)
         else:
             compile_to_ir(g)
 

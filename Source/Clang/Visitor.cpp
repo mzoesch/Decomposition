@@ -3,6 +3,7 @@
 #include "Collectors.h"
 #include <clang/AST/ParentMapContext.h>
 #include <clang/Basic/SourceManager.h>
+#include "clang/Lex/Lexer.h"
 
 using namespace clang;
 
@@ -201,6 +202,19 @@ bool Dcp::MyAstVisitor::VisitVarDecl(const VarDecl* Vd)
     V.bStatic = Vd->isStaticLocal() || Vd->getStorageClass() == SC_Static;
     V.bExtern = Vd->getStorageClass() == SC_Extern;
 
+    if (const Expr* Init { Vd->getInit() })
+    {
+        LangOptions LangOpts = Context.getLangOpts();
+
+        SourceLocation Begin = Init->getBeginLoc();
+        SourceLocation End = Init->getEndLoc();
+
+        CharSourceRange Range = CharSourceRange::getTokenRange(Begin, End);
+
+        StringRef Text = Lexer::getSourceText(Range, Sm, LangOpts);
+        V.Init = Text.str();
+    }
+
     PutToIntermediate(V);
 
     return true;
@@ -389,9 +403,18 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
     {
         const RecordDecl* Rd = Rt->getDecl();
         dcp_check( Rd )
-        if (Rd->getName().empty())
+
+        if (const TypedefType* Tt = Qt->getAs<TypedefType>(); Tt)
         {
-            Def.bComplex = true;
+            const TypedefNameDecl* Tnd = Tt->getDecl();
+            Def.Type = Tnd->getName().str();
+            dcp_check( Def.Type.empty() == false )
+
+            Def.AddRecordRef(MyRecordRef{Def.Type, false});
+        }
+        else if (Rd->isAnonymousStructOrUnion() || !Rd->getIdentifier())
+        {
+            Def.bNoTag = true;
 
             if (Rd->isStruct())
             {
@@ -411,19 +434,23 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
             }
 
             SourceLocation BeginSl = Rd->getBeginLoc();
-            Def.ComplexBeginLine = Sm.getSpellingLineNumber(BeginSl);
-            Def.ComplexBeginColumn = Sm.getSpellingColumnNumber(BeginSl);
+            Def.NoTagLine = Sm.getSpellingLineNumber(BeginSl);
+            Def.NoTagColumn = Sm.getSpellingColumnNumber(BeginSl);
+            SourceLocation EndSl = Rd->getEndLoc();
+            Def.RNoTagLine = Sm.getSpellingLineNumber(EndSl);
+            Def.RNoTagColumn = Sm.getSpellingColumnNumber(EndSl);
 
             if (std::optional<MyRecord> Record = this->GetRecord(Rd, true); Record.has_value())
             {
                 for (const MyRecordRef& R : Record->Records)
                 {
-                    Def.Records.emplace(R);
+                    Def.AddRecordRef(R);
                 }
             }
         }
         else
         {
+            dcp_check( Rd->getName().empty() == false )
             if (Rd->isStruct())
             {
                 Def.Type = "struct " + Rd->getName().str();
@@ -448,11 +475,14 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
         dcp_check( Ed )
         if (Ed->getName().empty())
         {
-            Def.bComplex = true;
+            Def.bNoTag = true;
             Def.Type = "enum";
             SourceLocation BeginSl = Ed->getBeginLoc();
-            Def.ComplexBeginLine = Sm.getSpellingLineNumber(BeginSl);
-            Def.ComplexBeginColumn = Sm.getSpellingColumnNumber(BeginSl);
+            Def.NoTagLine = Sm.getSpellingLineNumber(BeginSl);
+            Def.NoTagColumn = Sm.getSpellingColumnNumber(BeginSl);
+            SourceLocation EndSl = Ed->getEndLoc();
+            Def.RNoTagLine = Sm.getSpellingLineNumber(EndSl);
+            Def.RNoTagColumn = Sm.getSpellingColumnNumber(EndSl);
         }
         else
         {
@@ -520,7 +550,7 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
         }
     }
 
-    if (Def.bComplex == false)
+    if (Def.bNoTag == false)
     {
         std::string Buf;
         llvm::raw_string_ostream OStream(Buf);

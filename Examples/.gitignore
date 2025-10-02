@@ -1,7 +1,12 @@
 *
 *.*
 
+# Ourselves
 !.gitignore
+
+# Eval
 !Eval.py
 !.Template.cmake
-!Test
+!AutoconfIntercepter.py
+!CompareLibsForDiff.py
+!Intercepter_sqlite3.py
