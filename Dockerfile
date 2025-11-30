@@ -13,8 +13,9 @@ RUN if [ "$USE_LOCAL_FILES" = "false" ]; then \
     git clone $DCP_GIT_URL $DCP_GIT_DIR; \
     fi
 
+COPY . /.dcp_tmp_local_copy
+
 RUN if [ "$USE_LOCAL_FILES" = "true" ]; then \
-    COPY . /.dcp_tmp_local_copy \
     mkdir -p $DCP_GIT_DIR && cp -r /.dcp_tmp_local_copy/* $DCP_GIT_DIR; \
     fi
 

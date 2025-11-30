@@ -140,7 +140,7 @@ def _compile_target_impl(g: Globals, display_name: str, directory: str) -> None:
 
             if not g.args.SkipCompile:
                 path_f = os.path.join(p, f)
-                _compile_file(g.args.Verbose, cursor, path_f, f'{bin_dir_s}/{f.replace('.c', '.o')}', f, unit_max)
+                _compile_file(g, cursor, path_f, f'{bin_dir_s}/{f.replace('.c', '.o')}', f, unit_max)
                 cursor += 1
 
             objs.append(f'{bin_dir_s}/{f.replace('.c', '.o')}')
@@ -187,7 +187,7 @@ def _compile_target_impl(g: Globals, display_name: str, directory: str) -> None:
     return None
 
 
-def _compile_file(verbose: bool, cursor: int, path_f: str, path_o: str, file: str, unit_max: int) -> None:
+def _compile_file(g: Globals, cursor: int, path_f: str, path_o: str, file: str, unit_max: int) -> None:
     pattern_c = re.compile(r"Unit_(\d+)\.c$")
 
     match = pattern_c.match(file)
@@ -197,12 +197,12 @@ def _compile_file(verbose: bool, cursor: int, path_f: str, path_o: str, file: st
     print(f'[{cursor:0{len(str(unit_max))}d}/{unit_max}] Compiling to [{path_o}] ...', end=' ', flush=True)
 
     cmd = ['clang', '-c', path_f, '-o', path_o,
-           '-std=c17',
+           f'-std={g.args.CStd}',
            '-Wno-visibility',
            '-Wno-macro-redefined',
            ]
     new_line: bool = False
-    if verbose:
+    if g.args.Verbose:
         print(' '.join(cmd), end=' ', flush=True)
     for out in _run_yielded_cmd(cmd):
         if out:

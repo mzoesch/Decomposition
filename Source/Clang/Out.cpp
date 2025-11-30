@@ -277,6 +277,7 @@ bool Dcp::InitializeOutStream()
                           "RBraceColumn INTEGER NOT NULL,"
                           "Type TEXT NOT NULL,"
                           "Enum TEXT,"
+                          "bKwInPpp INTEGER NOT NULL DEFAULT 0,"
                           "PRIMARY KEY (Identifier, Source)"
                           ");";
 
@@ -311,6 +312,7 @@ bool Dcp::InitializeOutStream()
                           "bStatic INTEGER NOT NULL DEFAULT 0,"
                           "Params TEXT,"
                           "Ret TEXT NOT NULL,"
+                          "bRetInPpp INTEGER NOT NULL DEFAULT 0,"
                           "PRIMARY KEY (Identifier, Source, Line)"
                           ");";
 
@@ -702,11 +704,11 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
 
     {
         const std::string Sql = "INSERT OR IGNORE INTO Records ("
-                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, Type"
+                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, Type, bKwInPpp"
                                 ") VALUES ('" + InRecord.Identifier + "', '" + ToAbsolutePath(InRecord.Source) + "', " +
                                 std::to_string(InRecord.Line) + ", " + std::to_string(InRecord.Column) + ", " +
                                 std::to_string(InRecord.RBraceLine) + ", " + std::to_string(InRecord.RBraceColumn) + ", '" +
-                                InRecord.Type + "');";
+                                InRecord.Type + "', " + (InRecord.bKwInPpp ? "1" : "0") + ");";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
     }
@@ -744,11 +746,11 @@ void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 
     {
         const std::string Sql = "INSERT OR IGNORE INTO Records ("
-                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, Type, Enum"
+                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, Type, Enum, bKwInPpp"
                                 ") VALUES ('" + InEnumRecord.Identifier + "', '" + ToAbsolutePath(InEnumRecord.Source) + "', " +
                                 std::to_string(InEnumRecord.Line) + ", " + std::to_string(InEnumRecord.Column) + ", " +
                                 std::to_string(InEnumRecord.RBraceLine) + ", " + std::to_string(InEnumRecord.RBraceColumn) + ", '" +
-                                InEnumRecord.Type + "', '" + InEnumRecord.Enum.value() + "');";
+                                InEnumRecord.Type + "', '" + InEnumRecord.Enum.value() + "', " + (InEnumRecord.bKwInPpp ? "1" : "0") + ");";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
     }
@@ -793,14 +795,14 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
                 ParamsStr += ", ";
             }
 
-            ParamsStr += Param.Type + " " + Param.Identifier;
+            ParamsStr += Param.Type;
 
             continue;
         }
 
         const std::string Sql = "INSERT OR IGNORE INTO Functions ("
-                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, bStatic, Params, Ret"
-                                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, bStatic, Params, Ret, bRetInPpp"
+                                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
         sqlite3_stmt* Stmt = nullptr;
         if (sqlite3_prepare_v2(Db, Sql.c_str(), -1, &Stmt, nullptr) != SQLITE_OK)
@@ -820,6 +822,7 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
         sqlite3_bind_int(Stmt,  7, InFunction.bStatic ? 1 : 0);
         sqlite3_bind_text(Stmt, 8, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(Stmt, 9, InFunction.Ret.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(Stmt,  10, InFunction.bRetInPpp ? 1 : 0);
 
         ExecStmt(Stmt);
         sqlite3_finalize(Stmt);
@@ -921,6 +924,32 @@ void Dcp::PutToIntermediate(const MyVariable& InVariable)
         sqlite3_bind_int(Stmt,  6, InVariable.bStatic ? 1 : 0);
         sqlite3_bind_int(Stmt,  7, InVariable.bExtern ? 1 : 0);
         sqlite3_bind_text(Stmt, 8, InVariable.Init->c_str(), -1, SQLITE_TRANSIENT);
+
+        ExecStmt(Stmt);
+        sqlite3_finalize(Stmt);
+    }
+
+    const std::string Sql =
+        "INSERT OR IGNORE INTO Refs ("
+        "Identifier, Source, Line, Column, Type, Ref, bStrong"
+        ") VALUES (?, ?, ?, ?, 'record', ?, ?);";
+    for (const auto& Ref : InVariable.Refs)
+    {
+        sqlite3_stmt* Stmt = nullptr;
+        if (sqlite3_prepare_v2(Db, Sql.c_str(), -1, &Stmt, nullptr) != SQLITE_OK)
+        {
+            llvm::errs() << "Failed to prepare statement: " << sqlite3_errmsg(Db) << "\n";
+            llvm::errs().flush();
+            PRIVATE_DCP_FAIL_BOILERPLATE()
+            return;
+        }
+
+        sqlite3_bind_text(Stmt, 1, InVariable.Identifier.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(Stmt, 2, ToAbsolutePath(InVariable.Source).c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(Stmt,  3, InVariable.Line);
+        sqlite3_bind_int(Stmt,  4, InVariable.Column);
+        sqlite3_bind_text(Stmt, 5, Ref.Ref.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(Stmt,  6, Ref.bStrong ? 1 : 0);
 
         ExecStmt(Stmt);
         sqlite3_finalize(Stmt);

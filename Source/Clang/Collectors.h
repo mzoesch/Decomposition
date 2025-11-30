@@ -66,6 +66,7 @@ public:
 
     bool shouldVisitImplicitCode() const { return true; }
 
+    DCP_API bool VisitCallExpr(clang::CallExpr* Ce);
     DCP_API bool VisitVarDecl(const clang::VarDecl* Vd);
     DCP_API bool VisitDeclRefExpr(const clang::DeclRefExpr* Dre);
     DCP_API bool VisitFieldDecl(const clang::FieldDecl* Fd);
@@ -77,6 +78,7 @@ public:
 
     DCP_API void AddQualRecord(const clang::QualType Qt);
 
+    clang::SourceManager const* Sm{};
     std::set<MyRecordRef> Refs;
 };
 

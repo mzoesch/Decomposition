@@ -1,6 +1,7 @@
 #include "Collectors.h"
 #include "Symbols.h"
 #include "Visitor.h"
+#include <clang/Basic/SourceManager.h>
 
 using namespace clang;
 
@@ -109,6 +110,51 @@ bool Dcp::MyFuncPointerCollector::VisitBinaryOperator(const BinaryOperator* Bo)
     return true;
 }
 
+bool Dcp::MyRefCollector::VisitCallExpr(CallExpr* Ce)
+{
+    if (!Ce)
+    {
+        return true;
+    }
+
+    for (Expr* Arg : Ce->arguments())
+    {
+        Arg = Arg->IgnoreImpCasts();
+
+        this->AddQualRecord(Arg->getType());
+
+        if (auto* Dre = llvm::dyn_cast<DeclRefExpr>(Arg))
+        {
+            if (auto* Fd = llvm::dyn_cast<FunctionDecl>(Dre->getDecl()))
+            {
+                MyRecordRef Ref;
+                Ref.Ref = Fd->getNameAsString();
+                Ref.bStrong = false;
+                if (const auto R = this->Refs.find(Ref); R == this->Refs.end())
+                {
+                    this->Refs.emplace(std::move(Ref));
+                }
+            }
+            else if (auto* Vd = llvm::dyn_cast<VarDecl>(Dre->getDecl()))
+            {
+                QualType Qt = Vd->getType();
+                if (Qt->isFunctionPointerType())
+                {
+                    MyRecordRef Ref;
+                    Ref.Ref = Vd->getNameAsString();
+                    Ref.bStrong = false;
+                    if (const auto R = this->Refs.find(Ref); R == this->Refs.end())
+                    {
+                        this->Refs.emplace(std::move(Ref));
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 bool Dcp::MyRefCollector::VisitVarDecl(const VarDecl* Vd)
 {
     if (!Vd)
@@ -129,6 +175,47 @@ bool Dcp::MyRefCollector::VisitDeclRefExpr(const DeclRefExpr* Dre)
     }
 
     this->AddQualRecord(Dre->getType());
+
+    if (EnumConstantDecl const* Ecd = dyn_cast<EnumConstantDecl>(Dre->getDecl()))
+    {
+        const EnumDecl* Ed = dyn_cast<EnumDecl>(Ecd->getDeclContext());
+        if (!Ed)
+        {
+            return true;
+        }
+
+        if (TypedefNameDecl* Td = Ed->getTypedefNameForAnonDecl())
+        {
+            MyRecordRef Ref;
+            Ref.Ref = Td->getNameAsString();
+            Ref.bStrong = true;
+
+            if (const auto R = this->Refs.find(Ref); R == this->Refs.end())
+            {
+                this->Refs.emplace(std::move(Ref));
+            }
+        }
+        else
+        {
+            SourceLocation Sl = Ed->getLocation();
+            while (Sl.isMacroID())
+            {
+                Sl = Sm->getExpansionLoc(Sl);
+            }
+
+            MyRecordRef Ref;
+            Ref.Ref = "<anonymous enum:";
+            Ref.Ref.append(Sm->getFilename(Sl));
+            Ref.Ref.append("::");
+            Ref.Ref.append(std::to_string(Sm->getSpellingLineNumber(Sl)) + "::" + std::to_string(Sm->getSpellingColumnNumber(Sl)) + ">");
+            Ref.bStrong = true;
+
+            if (const auto R = this->Refs.find(Ref); R == this->Refs.end())
+            {
+                this->Refs.emplace(std::move(Ref));
+            }
+        }
+    }
 
     return true;
 }

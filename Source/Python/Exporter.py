@@ -241,6 +241,13 @@ class Unit:
             else:
                 assert False
 
+        reflexive_fwds: set[str] = set()
+        for e in self.elements:
+            fwd = e.get_forward_declaration(g)
+            if fwd is not None:
+                reflexive_fwds.add(fwd)
+            continue
+
         fwds_list = list(fwds) # Deterministic order.
         fwds_list.sort()
         if len(fwds_list) > 0:
@@ -250,6 +257,8 @@ class Unit:
                 continue
             if ('(' in fwd ) or (')' in fwd): # See #Concept in thesis.
                 continue
+            if fwd in reflexive_fwds:
+                continue
             self.ctx_content += fwd
             self.ctx_content += '\n'
             continue
@@ -257,6 +266,16 @@ class Unit:
             if fwd is None:
                 continue
             if not (('(' in fwd ) or (')' in fwd)):
+                continue
+            if fwd in reflexive_fwds:
+                continue
+            self.ctx_content += fwd
+            self.ctx_content += '\n'
+            continue
+        for fwd in fwds_list:
+            if fwd is None:
+                continue
+            if fwd not in reflexive_fwds:
                 continue
             self.ctx_content += fwd
             self.ctx_content += '\n'
@@ -271,7 +290,8 @@ class Unit:
                 continue
             self.ctx_content += '\n'
 
-        self.content = Unit.create_guard(self.content, self.get_output_ident_guard())
+        if self.is_header(g):
+            self.content = Unit.create_guard(self.content, self.get_output_ident_guard())
         self.ctx_content = Unit.create_double_inclusion_error(self.ctx_content, self.get_output_ident_guard_ctx())
 
         return None
@@ -342,7 +362,7 @@ class Unit:
             if search_element is None:
                 search[e.source.file.ident] = e.source.line
             else:
-                if e.source.line < search_element:
+                if e.source.line > search_element:
                     search[e.source.file.ident] = e.source.line
             continue
 
@@ -395,7 +415,7 @@ class Unit:
     @staticmethod
     def create_macro_definition_directive(ident: str, function_like: bool, definition: str, params: str) -> str:
         if function_like:
-            return f'#define {ident}({params}){definition}'
+            return f'#define {ident}({params.replace('__VA_ARGS__', '...')}){definition}'
         else:
             return f'#define {ident}{definition}'
 

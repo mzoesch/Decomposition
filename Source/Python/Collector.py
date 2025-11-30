@@ -8,12 +8,13 @@ def collect_records(g: Globals, e: Exporter) -> None:
     e.con.execute_ro("""SELECT * FROM Records;""")
 
     rows = e.con.fetchall()
-    for ident, source, line, column, rline, rcolumn, ty, enum in rows:
+    for ident, source, line, column, rline, rcolumn, ty, enum, kw_ppp in rows:
+        kw_ppp = bool(kw_ppp)
         e.stats.original_record_count += 1
         e.make_unit(UnitRecord(ident,
             SourceLocation(e.get_or_register_source_file(source), line, column),
             SourceLocation(e.get_or_register_source_file(source), rline, rcolumn),
-            ty, enum))
+            ty, enum, kw_ppp))
         continue
 
     return None
@@ -57,13 +58,14 @@ def collect_functions(g: Globals, e: Exporter) -> None:
     e.con.execute_ro("""SELECT * FROM Functions;""")
 
     rows = e.con.fetchall()
-    for ident, source, line, column, rline, rcolumn, static, params, ret in rows:
+    for ident, source, line, column, rline, rcolumn, static, params, ret, ret_ppp in rows:
         static = bool(static)
+        ret_ppp = bool(ret_ppp)
         e.stats.original_function_count += 1
         e.make_unit(UnitFunction(ident,
                 SourceLocation(e.get_or_register_source_file(source), line, column),
                 SourceLocation(e.get_or_register_source_file(source), rline, rcolumn),
-            params, static, ret))
+            params, static, ret, ret_ppp))
         continue
 
     return None

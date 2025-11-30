@@ -136,7 +136,7 @@ def default_entry() -> None:
     group.add_argument('-DoLinkExe',            action='store_true',                                        help='Link to an executable. Defaults to [False].')
     group.add_argument('-TargetBinDir',         type=str, default='Intermediates',                          help='The bin build dir to use. Either relative or absolute path.')
     group.add_argument('-ClearBinOut',          action='store_true',                                        help='Whether to clear the target bin out dir. Defaults to [False].')
-
+    group.add_argument('-CStd',                 type=str, default='c23',                                    help='C standard to use. Defaults to [c23].')
 
     args, unknown = parser.parse_known_args(args=sys.argv[1:])
 

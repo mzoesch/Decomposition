@@ -79,6 +79,28 @@ QualType SafeRemovePointerType(QualType&& Qt)
     return Qt;
 }
 
+bool IsVaList(const ParmVarDecl* Param)
+{
+    return Param->getType().getCanonicalType().getAsString() == "struct __va_list_tag *";
+}
+
+class VarDeclDependencyVisitor : public RecursiveASTVisitor<VarDeclDependencyVisitor>
+{
+public:
+
+    explicit VarDeclDependencyVisitor(std::vector<Decl const*>* deps) : Deps(*deps) {}
+
+    bool VisitDeclRefExpr(DeclRefExpr* Dre)
+    {
+        Deps.push_back(Dre->getDecl());
+        return true;
+    }
+
+private:
+
+    std::vector<Decl const*>& Deps;
+};
+
 } /* ~Namespace <Anonymous> */
 
 bool Dcp::MyAstVisitor::VisitTypedefDecl(const TypedefDecl* Td)
@@ -213,6 +235,35 @@ bool Dcp::MyAstVisitor::VisitVarDecl(const VarDecl* Vd)
 
         StringRef Text = Lexer::getSourceText(Range, Sm, LangOpts);
         V.Init = Text.str();
+
+        std::vector<Decl const*> InitDeps;
+        ::VarDeclDependencyVisitor Visitor(&InitDeps);
+        Visitor.TraverseStmt(const_cast<Expr*>(Init));
+
+        for (const Decl* D : InitDeps)
+        {
+            std::string DepName;
+            if (const auto* VD = dyn_cast<VarDecl>(D))
+            {
+                DepName = VD->getQualifiedNameAsString();
+            }
+            else if (const auto* FD = dyn_cast<FunctionDecl>(D))
+            {
+                DepName = FD->getQualifiedNameAsString();
+            }
+            else
+            {
+                continue;
+            }
+
+            MySymbolRef Ref;
+            Ref.Ref = DepName;
+            Ref.bStrong = false;
+
+            V.Refs.emplace_back(std::move(Ref));
+
+            continue;
+        }
     }
 
     PutToIntermediate(V);
@@ -658,6 +709,26 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd, 
     Record.RBraceLine = Sm.getSpellingLineNumber(CSl);
     Record.RBraceColumn = Sm.getSpellingColumnNumber(CSl);
 
+    auto SlId = Rd->getLocation();
+    auto SlKeyword = Rd->getBeginLoc();
+    if (SlKeyword.isMacroID() && SlId.isMacroID())
+    {
+        if (Sm.getExpansionLoc(SlId) == Sm.getExpansionLoc(SlKeyword))
+        {
+            auto GetMostOuter = [](SourceLocation _Loc, SourceManager const& _Sm)
+            {
+                while (_Loc.isMacroID())
+                {
+                    _Loc = _Sm.getExpansionLoc(_Loc);
+                }
+
+                return _Loc;
+            };
+
+            Record.bKwInPpp = (GetMostOuter(SlId, Sm) == GetMostOuter(SlKeyword, Sm));
+        }
+    }
+
     return Record;
 }
 
@@ -754,17 +825,37 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
         return { };
     }
 
-    if (AbsF.empty() || Ed->getIdentifier() == nullptr)
+    if (AbsF.empty())
+    {
+        return { };
+    }
+
+    if (TypedefNameDecl* Td = Ed->getTypedefNameForAnonDecl())
     {
         return { };
     }
 
     MyEnumRecord Record;
     Record.Identifier += "enum ";
-    Record.Identifier += Ed->getIdentifier()->getName().str();
+
     Record.Source = std::move(AbsF);
     Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
     Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+
+    if (Ed->getIdentifier())
+    {
+        Record.Identifier += Ed->getIdentifier()->getName().str();
+    }
+    else
+    {
+        Record.Identifier = "<anonymous enum:";
+        Record.Identifier += Record.Source;
+        Record.Identifier += "::";
+        Record.Identifier += std::to_string(Record.Line);
+        Record.Identifier += "::";
+        Record.Identifier += std::to_string(Record.Column);
+        Record.Identifier += ">";
+    }
 
     if (Ed->isStruct())
     {
@@ -907,11 +998,41 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
         Func.AddRecordRef(std::move(Ref));
     }
 
+    auto SlId = Fd->getLocation();
+    auto SlRet = Fd->getReturnTypeSourceRange().getBegin();
+    if (SlRet.isMacroID() && SlId.isMacroID())
+    {
+        if (Sm.getExpansionLoc(SlId) == Sm.getExpansionLoc(SlRet))
+        {
+            auto GetMostOuter = [](SourceLocation _Loc, SourceManager const& _Sm)
+            {
+                while (_Loc.isMacroID())
+                {
+                    _Loc = _Sm.getExpansionLoc(_Loc);
+                }
+
+                return _Loc;
+            };
+
+            Func.bRetInPpp = (GetMostOuter(SlId, Sm) == GetMostOuter(SlRet, Sm));
+        }
+    }
+
     for (const ParmVarDecl* Param : Fd->parameters())
     {
         MyFunction::Param P;
-        P.Type = Param->getType().getAsString();
-        P.Identifier = Param->getName().str();
+        if (::IsVaList(Param))
+        {
+            P.Type = "va_list";
+        }
+        else
+        {
+            std::string ParamStr;
+            llvm::raw_string_ostream Os(ParamStr);
+            Param->print(Os);
+            P.Type = Os.str();
+        }
+
         Func.Params.emplace_back(std::move(P));
 
         const QualType QtParam = Param->getType();
@@ -935,8 +1056,15 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 
         continue;
     }
+    if (Fd->isVariadic())
+    {
+        MyFunction::Param P;
+        P.Type = "...";
+        Func.Params.emplace_back(std::move(P));
+    }
 
     MyRefCollector RefCollector;
+    RefCollector.Sm = &Sm;
     RefCollector.TraverseDecl(Fd);
     for (const auto& Ref : RefCollector.Refs)
     {

@@ -89,6 +89,7 @@ enum : signed char
     #define dcp_check(Expr)
     #define dcp_noentry(Msg)
     #define dcp_checkcode(Stmt)
+    #define PRIVATE_DCP_FAIL_BOILERPLATE()
 
 #endif /* !DCP_IN_DEBUG */
 

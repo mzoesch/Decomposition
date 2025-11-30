@@ -127,7 +127,7 @@ class UnitRecord(UnitElement):
     Represents a record in the original project.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, ty: str, enum: str | None):
+    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, ty: str, enum: str | None, kw_ppp: bool):
         assert rsource is not None
         assert (ty is not None) and ty != ''
         assert enum is None or enum != ''
@@ -137,11 +137,17 @@ class UnitRecord(UnitElement):
         self.ty: str = ty
         self.enum: str | None = enum
 
+        self.kw_ppp: bool = kw_ppp
+
     def is_translation(self, g: Globals) -> bool:
         return False
 
     def get_forward_declaration(self, g: Globals) -> str | None:
         assert self.ty == 'struct' or self.ty == 'union' or self.ty == 'enum'
+
+        if self.ident.startswith('<'):
+            return None
+
         return f'{self.ident};'
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
@@ -156,7 +162,8 @@ class UnitRecord(UnitElement):
             self.rsource.column + 1
             )
 
-        self.content += f'{self.ty} '
+        if (not self.kw_ppp) and (self.ident.startswith('<') is False):
+            self.content += f'{self.ty} '
 
         for c in cursor.iter_no_syntax():
             if c is None:
@@ -299,7 +306,7 @@ class UnitVariable(UnitElement):
         if self.ty.endswith(']'):
             out += f'extern {self.ty[:self.ty.index('[')]} {self.ident}{self.ty[self.ty.index('['):]};'
         else:
-            out += f'extern {self.ty} {self.ident};'
+            out += f'extern {self._get_type_decl(g)} {self.ident};'
 
         return out
 
@@ -310,13 +317,45 @@ class UnitVariable(UnitElement):
             self.content += 'static '
 
         if self.init is None:
-            self.content += f'{self.ty} {self.ident};'
+            self.content += f'{self._get_type_decl(g)} {self.ident};'
         else:
             if self.ty.endswith(']'):
                 self.content += f'{self.ty[:self.ty.index('[')]} {self.ident}{self.ty[self.ty.index('['):]} = {self.init};'
             else:
-                self.content += f'{self.ty} {self.ident} = {self.init};'
+                self.content += f'{self._get_type_decl(g)} {self.ident} = {self.init};'
         return None
+
+    def _get_type_decl(self, g: Globals) -> str:
+        if (   self.ty.startswith('struct (unnamed struct at ')
+            or self.ty.startswith('union (unnamed union at ')
+            or self.ty.startswith('enum (unnamed enum at ')
+            ):
+            start_index = self.ty.rfind(':')
+            column = int(self.ty[start_index + 1:self.ty.rfind(')')])
+            line = int(self.ty[self.ty.rfind(':', 0, start_index) + 1:start_index])
+
+            cursor: Cursor = Cursor(
+                g.args,
+                _get_file_content(self.source.file.ident),
+                line, column,
+                self.source.line, self.source.column
+                )
+
+            ty_str = ''
+            for c in cursor.iter_no_syntax():
+                if c is None:
+                    ty_str = ty_str[:-1]
+                    continue
+
+                ty_str += c
+                continue
+
+            if ty_str.endswith(' '):
+                ty_str = ty_str[:-1]
+
+            return ty_str
+
+        return self.ty
 
 
 class UnitFunction(UnitElement):
@@ -324,13 +363,14 @@ class UnitFunction(UnitElement):
     Represents a function in the original project.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, params: str, static: bool, ret: str):
+    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, params: str, static: bool, ret: str, ret_ppp: bool):
         assert rsource is not None
         super().__init__(ident, source, rsource)
 
         self.params: str = params
         self.static: bool = static
         self.ret: str = ret
+        self.ret_ppp: bool = ret_ppp
 
     def is_translation(self, g: Globals) -> bool:
         if g.args.ImplInHeader:
@@ -360,7 +400,8 @@ class UnitFunction(UnitElement):
         if g.args.RespectStatic and self.is_static():
             self.content += 'static '
 
-        self.content += f'{self.ret} '
+        if not self.ret_ppp:
+            self.content += f'{self.ret} '
 
         for c in cursor.iter_no_syntax():
             if c is None:

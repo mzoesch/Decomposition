@@ -48,6 +48,8 @@ struct MyRecord : public MySymbol
     std::set<MyRecordRef> Records;
     bool bAnonymous { false };
 
+    bool bKwInPpp { false };
+
     inline bool AddRecordRef(const MyRecordRef& InRecord);
     inline bool AddRecordRef(MyRecordRef&& InRecord);
 };
@@ -75,7 +77,6 @@ struct MyFunction final : public MySymbol
 {
     struct Param
     {
-        std::string Identifier;
         std::string Type;
     };
 
@@ -84,6 +85,7 @@ struct MyFunction final : public MySymbol
 
     bool bStatic { false };
     std::string Ret;
+    bool bRetInPpp { false };
     std::vector<Param> Params;
 
     std::set<MyRecordRef> Records;
@@ -100,6 +102,7 @@ struct MyVariable final : public MySymbol
     bool bStatic { false };
     bool bExtern { false };
     std::optional<std::string> Init;
+    std::vector<MySymbolRef> Refs;
 };
 
 struct MySymbolRef
