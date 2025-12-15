@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from Source.Python.Elements import UnitWrap, UnitElement
 from Source.Python.Globals import Globals
 from Source.Python.SqlConnection import SqlConnection
 from Source.Python.CMakeTargetLoader import load_cmake_targets, pretty_print_cmake_targets
@@ -135,6 +136,8 @@ def _split(g: Globals, display_name: str, directory: str, con: SqlConnection) ->
     collect_functions(g, e)
     print(f'done with [{e.stats.original_function_count}] functions.')
 
+    _combine_tightly_coupled_units(g, e)
+
     e.gather_unit_content()
     e.gather_unit_refs()
 
@@ -152,6 +155,45 @@ def _split(g: Globals, display_name: str, directory: str, con: SqlConnection) ->
 
     if g.args.Report:
         e.report()
+
+    return None
+
+
+def _combine_tightly_coupled_units(g: Globals, e: Exporter) -> None:
+    units = e.units
+    e.units = []
+
+    while len(units) > 0:
+        u = units.pop(0)
+        assert len(u.elements) == 1
+
+        # Other tightly coupled units
+        us: list[UnitElement] = []
+
+        source = u.elements[0].source
+
+        i: int = 0
+        while i < len(units):
+            assert len(units[i].elements) == 1
+            o = units[i].elements[0]
+
+            if o.source != source:
+                i += 1
+                continue
+
+            us.append(o)
+            units.pop(i)
+            continue
+
+        if len(us) == 0:
+            e.units.append(u)
+            continue
+
+        assert len(u.elements) == 1
+        us.append(u.elements[0])
+        wrap: UnitWrap = UnitWrap(us)
+        e.make_unit(wrap)
+        continue
 
     return None
 

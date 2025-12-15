@@ -101,6 +101,26 @@ private:
     std::vector<Decl const*>& Deps;
 };
 
+CharSourceRange GetFullyExpandedSourceRange(SourceManager const& Sm, LangOptions const& LangOpts, SourceLocation Begin, SourceLocation End)
+{
+
+    if (Begin == End)
+    {
+        auto TokenRange = Sm.getExpansionRange(Begin);
+        auto CharEnd = Lexer::getLocForEndOfToken(
+            TokenRange.getEnd(),
+            0,
+            Sm,
+            LangOpts
+            );
+
+        return CharSourceRange::getCharRange(TokenRange.getBegin(), CharEnd);
+    }
+
+    return CharSourceRange::getCharRange(Sm.getExpansionRange(Begin).getBegin(),
+                                         Sm.getExpansionRange(End).getEnd());
+}
+
 } /* ~Namespace <Anonymous> */
 
 bool Dcp::MyAstVisitor::VisitTypedefDecl(const TypedefDecl* Td)
@@ -442,13 +462,17 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
     PrintingPolicy Policy(Td->getASTContext().getLangOpts());
     Policy.SuppressTagKeyword = false;
 
+    auto Range = ::GetFullyExpandedSourceRange(Sm, Context.getLangOpts(), Td->getBeginLoc(), Td->getEndLoc());
+
     MyTypeDef Def;
     Def.Identifier = Td->getName();
     dcp_check( Def.Identifier.empty() == false )
     Def.Source = std::move(AbsF);
     dcp_check( Def.Source.empty() == false )
-    Def.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
-    Def.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
+    Def.Line = Sm.getSpellingLineNumber(Range.getBegin());
+    Def.Column = Sm.getSpellingColumnNumber(Range.getBegin());
+    Def.RLine = Sm.getSpellingLineNumber(Range.getEnd());
+    Def.RColumn = Sm.getSpellingColumnNumber(Range.getEnd());
 
     if (const RecordType* Rt = Qt->getAs<RecordType>(); Rt)
     {
@@ -458,39 +482,13 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
         if (const TypedefType* Tt = Qt->getAs<TypedefType>(); Tt)
         {
             const TypedefNameDecl* Tnd = Tt->getDecl();
-            Def.Type = Tnd->getName().str();
-            dcp_check( Def.Type.empty() == false )
+            Def.TagRecord = Tnd->getName().str();
+            dcp_check( Def.TagRecord.empty() == false )
 
-            Def.AddRecordRef(MyRecordRef{Def.Type, false});
+            Def.AddRecordRef(MyRecordRef{Def.TagRecord, false});
         }
         else if (Rd->isAnonymousStructOrUnion() || !Rd->getIdentifier())
         {
-            Def.bNoTag = true;
-
-            if (Rd->isStruct())
-            {
-                Def.Type = "struct";
-            }
-            else if (Rd->isUnion())
-            {
-                Def.Type = "union";
-            }
-            else if (Rd->isEnum())
-            {
-                Def.Type = "enum";
-            }
-            else
-            {
-                dcp_check( false )
-            }
-
-            SourceLocation BeginSl = Rd->getBeginLoc();
-            Def.NoTagLine = Sm.getSpellingLineNumber(BeginSl);
-            Def.NoTagColumn = Sm.getSpellingColumnNumber(BeginSl);
-            SourceLocation EndSl = Rd->getEndLoc();
-            Def.RNoTagLine = Sm.getSpellingLineNumber(EndSl);
-            Def.RNoTagColumn = Sm.getSpellingColumnNumber(EndSl);
-
             if (std::optional<MyRecord> Record = this->GetRecord(Rd, true); Record.has_value())
             {
                 for (const MyRecordRef& R : Record->Records)
@@ -504,15 +502,15 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
             dcp_check( Rd->getName().empty() == false )
             if (Rd->isStruct())
             {
-                Def.Type = "struct " + Rd->getName().str();
+                Def.TagRecord = "struct " + Rd->getName().str();
             }
             else if (Rd->isUnion())
             {
-                Def.Type = "union " + Rd->getName().str();
+                Def.TagRecord = "union " + Rd->getName().str();
             }
             else if (Rd->isEnum())
             {
-                Def.Type = "enum " + Rd->getName().str();
+                Def.TagRecord = "enum " + Rd->getName().str();
             }
             else
             {
@@ -526,18 +524,18 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
         dcp_check( Ed )
         if (Ed->getName().empty())
         {
-            Def.bNoTag = true;
-            Def.Type = "enum";
-            SourceLocation BeginSl = Ed->getBeginLoc();
-            Def.NoTagLine = Sm.getSpellingLineNumber(BeginSl);
-            Def.NoTagColumn = Sm.getSpellingColumnNumber(BeginSl);
-            SourceLocation EndSl = Ed->getEndLoc();
-            Def.RNoTagLine = Sm.getSpellingLineNumber(EndSl);
-            Def.RNoTagColumn = Sm.getSpellingColumnNumber(EndSl);
+            // Def.bNoTag = true;
+            // Def.Type = "enum";
+            // SourceLocation BeginSl = Ed->getBeginLoc();
+            // Def.NoTagLine = Sm.getSpellingLineNumber(BeginSl);
+            // Def.NoTagColumn = Sm.getSpellingColumnNumber(BeginSl);
+            // SourceLocation EndSl = Ed->getEndLoc();
+            // Def.RNoTagLine = Sm.getSpellingLineNumber(EndSl);
+            // Def.RNoTagColumn = Sm.getSpellingColumnNumber(EndSl);
         }
         else
         {
-            Def.Type = "enum " + Ed->getName().str();
+            Def.TagRecord = "enum " + Ed->getName().str();
         }
     }
     else if (Qt->isFunctionPointerType())
@@ -599,16 +597,23 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
                 Def.Records.emplace(std::move(Ref));
             }
         }
+
+        std::string Buf;
+        llvm::raw_string_ostream OStream(Buf);
+        Qt.print(OStream, Policy, Td->getName());
+        OStream.flush();
+        Def.OStream = std::move(Buf);
+        dcp_check( Def.OStream.empty() == false )
     }
 
-    if (Def.bNoTag == false)
+    if (Def.TagRecord.empty() == false && Def.OStream.empty() == false)
     {
         std::string Buf;
         llvm::raw_string_ostream OStream(Buf);
         Qt.print(OStream, Policy, Td->getName());
         OStream.flush();
-        Def.What = std::move(Buf);
-        dcp_check( Def.What.empty() == false )
+        Def.OStream = std::move(Buf);
+        dcp_check( Def.OStream.empty() == false )
     }
 
     return Def;
@@ -662,8 +667,6 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd, 
     }
 
     Record.Source = std::move(AbsF);
-    Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
-    Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
     Record.bAnonymous = Rd->isAnonymousStructOrUnion();
 
     std::string Prefix;
@@ -694,40 +697,11 @@ std::optional<Dcp::MyRecord> Dcp::MyAstVisitor::GetRecord(const RecordDecl* Rd, 
         this->GetAllRefs(&Record.Records, Field->getType());
     }
 
-    SourceLocation RBrace = Rd->getBraceRange().getEnd();
-    while (RBrace.isMacroID())
-    {
-        RBrace = Sm.getExpansionLoc(RBrace);
-    }
-
-    SourceLocation CSl = Sm.getFileLoc(RBrace);
-    while (CSl.isMacroID())
-    {
-        CSl = Sm.getExpansionLoc(CSl);
-    }
-
-    Record.RBraceLine = Sm.getSpellingLineNumber(CSl);
-    Record.RBraceColumn = Sm.getSpellingColumnNumber(CSl);
-
-    auto SlId = Rd->getLocation();
-    auto SlKeyword = Rd->getBeginLoc();
-    if (SlKeyword.isMacroID() && SlId.isMacroID())
-    {
-        if (Sm.getExpansionLoc(SlId) == Sm.getExpansionLoc(SlKeyword))
-        {
-            auto GetMostOuter = [](SourceLocation _Loc, SourceManager const& _Sm)
-            {
-                while (_Loc.isMacroID())
-                {
-                    _Loc = _Sm.getExpansionLoc(_Loc);
-                }
-
-                return _Loc;
-            };
-
-            Record.bKwInPpp = (GetMostOuter(SlId, Sm) == GetMostOuter(SlKeyword, Sm));
-        }
-    }
+    auto Range = ::GetFullyExpandedSourceRange(Sm, Context.getLangOpts(), Rd->getBeginLoc(), Rd->getEndLoc());
+    Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getBegin()));
+    Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getBegin()));
+    Record.RLine = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getEnd()));
+    Record.RColumn = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getEnd()));
 
     return Record;
 }
@@ -839,8 +813,6 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
     Record.Identifier += "enum ";
 
     Record.Source = std::move(AbsF);
-    Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
-    Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
 
     if (Ed->getIdentifier())
     {
@@ -888,20 +860,12 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
         }
     }
 
-    SourceLocation RBrace = Ed->getBraceRange().getEnd();
-    while (RBrace.isMacroID())
-    {
-        RBrace = Sm.getExpansionLoc(RBrace);
-    }
 
-    SourceLocation CSl = Sm.getFileLoc(RBrace);
-    while (CSl.isMacroID())
-    {
-        CSl = Sm.getExpansionLoc(CSl);
-    }
-
-    Record.RBraceLine = Sm.getSpellingLineNumber(CSl);
-    Record.RBraceColumn = Sm.getSpellingColumnNumber(CSl);
+    auto Range = ::GetFullyExpandedSourceRange(Sm, Context.getLangOpts(), Ed->getBeginLoc(), Ed->getEndLoc());
+    Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getBegin()));
+    Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getBegin()));
+    Record.RLine = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getEnd()));
+    Record.RColumn = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getEnd()));
 
     return Record;
 }
@@ -983,8 +947,6 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
     MyFunction Func;
     Func.Identifier = Fd->getQualifiedNameAsString();
     Func.Source = std::move(AbsF);
-    Func.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Sl));
-    Func.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Sl));
 
     Func.bStatic = Fd->isStatic();
 
@@ -1000,23 +962,6 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 
     auto SlId = Fd->getLocation();
     auto SlRet = Fd->getReturnTypeSourceRange().getBegin();
-    if (SlRet.isMacroID() && SlId.isMacroID())
-    {
-        if (Sm.getExpansionLoc(SlId) == Sm.getExpansionLoc(SlRet))
-        {
-            auto GetMostOuter = [](SourceLocation _Loc, SourceManager const& _Sm)
-            {
-                while (_Loc.isMacroID())
-                {
-                    _Loc = _Sm.getExpansionLoc(_Loc);
-                }
-
-                return _Loc;
-            };
-
-            Func.bRetInPpp = (GetMostOuter(SlId, Sm) == GetMostOuter(SlRet, Sm));
-        }
-    }
 
     for (const ParmVarDecl* Param : Fd->parameters())
     {
@@ -1100,11 +1045,27 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
 
     MyDecl Fwd;
     Fwd.Identifier = Func.Identifier;
-    Fwd.Line = Func.Line;
-    Fwd.Column = Func.Column;
     Fwd.Source = Func.Source;
     Fwd.bStatic = Func.bStatic ? EDeclBool::True : EDeclBool::False;
     Fwd.bExtern = EDeclBool::None;
+
+    if (const auto* CStmt = dyn_cast<CompoundStmt>(Body))
+    {
+        auto Range = ::GetFullyExpandedSourceRange(Sm, Context.getLangOpts(), SlRet, CStmt->getRBracLoc());
+
+        Func.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getBegin()));
+        Func.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getBegin()));
+        Func.RLine = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getEnd()));
+        Func.RColumn = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getEnd()));
+
+        Fwd.Line = Func.Line;
+        Fwd.Column = Func.Column;
+    }
+    else
+    {
+        dcp_noentry()
+        return {};
+    }
 
     MyFuncPointerCollector FCollector {Fd, this->Context};
     FCollector.TraverseFunction();
@@ -1120,24 +1081,6 @@ std::optional<Dcp::MyFunction> Dcp::MyAstVisitor::GetFunction(FunctionDecl* Fd)
         PutToIntermediate(Ref);
 
         continue;
-    }
-
-    if (const auto* CStmt = dyn_cast<CompoundStmt>(Body))
-    {
-        SourceLocation RBrace = CStmt->getRBracLoc();
-        while (RBrace.isMacroID())
-        {
-            RBrace = Sm.getExpansionLoc(RBrace);
-        }
-
-        SourceLocation CSl = Sm.getFileLoc(RBrace);
-        while (CSl.isMacroID())
-        {
-            CSl = Sm.getExpansionLoc(CSl);
-        }
-
-        Func.RBraceLine = Sm.getSpellingLineNumber(CSl);
-        Func.RBraceColumn = Sm.getSpellingColumnNumber(CSl);
     }
 
     return Func;

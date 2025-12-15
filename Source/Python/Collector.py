@@ -8,13 +8,12 @@ def collect_records(g: Globals, e: Exporter) -> None:
     e.con.execute_ro("""SELECT * FROM Records;""")
 
     rows = e.con.fetchall()
-    for ident, source, line, column, rline, rcolumn, ty, enum, kw_ppp in rows:
-        kw_ppp = bool(kw_ppp)
+    for ident, source, line, column, rline, rcolumn, ty, enum in rows:
         e.stats.original_record_count += 1
         e.make_unit(UnitRecord(ident,
             SourceLocation(e.get_or_register_source_file(source), line, column),
             SourceLocation(e.get_or_register_source_file(source), rline, rcolumn),
-            ty, enum, kw_ppp))
+            ty, enum))
         continue
 
     return None
@@ -24,15 +23,13 @@ def collect_typedefs(g: Globals, e: Exporter) -> None:
     e.con.execute_ro("""SELECT * FROM Typedefs;""")
 
     rows = e.con.fetchall()
-    for ident, source, line, column, what, ty, no_tag, no_tag_line, no_tag_column, r_no_tag_line, r_no_tag_column in rows:
-        no_tag = bool(no_tag)
+    for ident, source, line, column, rline, rcolumn, tag_record, ostream in rows:
         e.stats.original_typedef_count += 1
         e.make_unit(UnitTypedef(
             ident,
             SourceLocation(e.get_or_register_source_file(source), line, column),
-            what, ty, no_tag,
-            no_tag_line, no_tag_column,
-            r_no_tag_line, r_no_tag_column
+            SourceLocation(e.get_or_register_source_file(source), rline, rcolumn),
+            tag_record, ostream
             ))
         continue
 
@@ -58,14 +55,13 @@ def collect_functions(g: Globals, e: Exporter) -> None:
     e.con.execute_ro("""SELECT * FROM Functions;""")
 
     rows = e.con.fetchall()
-    for ident, source, line, column, rline, rcolumn, static, params, ret, ret_ppp in rows:
+    for ident, source, line, column, rline, rcolumn, static, params, ret in rows:
         static = bool(static)
-        ret_ppp = bool(ret_ppp)
         e.stats.original_function_count += 1
         e.make_unit(UnitFunction(ident,
                 SourceLocation(e.get_or_register_source_file(source), line, column),
                 SourceLocation(e.get_or_register_source_file(source), rline, rcolumn),
-            params, static, ret, ret_ppp))
+            params, static, ret))
         continue
 
     return None

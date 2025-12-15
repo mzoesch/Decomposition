@@ -254,13 +254,10 @@ bool Dcp::InitializeOutStream()
             "Source TEXT NOT NULL,"
             "Line INTEGER NOT NULL ,"
             "Column INTEGER NOT NULL,"
-            "What TEXT,"
-            "Type TEXT,"
-            "bNoTag INTEGER NOT NULL DEFAULT 0,"
-            "NoTagLine INTEGER,"
-            "NoTagColumn INTEGER,"
-            "RNoTagLine INTEGER,"
-            "RNoTagColumn INTEGER,"
+            "RLine INTEGER NOT NULL,"
+            "RColumn INTEGER NOT NULL,"
+            "TagRecord TEXT,"
+            "OStream TEXT,"
             "PRIMARY KEY (Identifier, Source)"
             ");"; {
         PRIVATE_DCP_REPORT_SQL_ERROR()
@@ -273,11 +270,10 @@ bool Dcp::InitializeOutStream()
                           "Source TEXT NOT NULL,"
                           "Line INTEGER NOT NULL,"
                           "Column INTEGER NOT NULL,"
-                          "RBraceLine INTEGER NOT NULL,"
-                          "RBraceColumn INTEGER NOT NULL,"
+                          "RLine INTEGER NOT NULL,"
+                          "RColumn INTEGER NOT NULL,"
                           "Type TEXT NOT NULL,"
                           "Enum TEXT,"
-                          "bKwInPpp INTEGER NOT NULL DEFAULT 0,"
                           "PRIMARY KEY (Identifier, Source)"
                           ");";
 
@@ -307,12 +303,11 @@ bool Dcp::InitializeOutStream()
                           "Source TEXT NOT NULL,"
                           "Line INTEGER NOT NULL,"
                           "Column INTEGER NOT NULL,"
-                          "RBraceLine INTEGER NOT NULL,"
-                          "RBraceColumn INTEGER NOT NULL,"
+                          "RLine INTEGER NOT NULL,"
+                          "RColumn INTEGER NOT NULL,"
                           "bStatic INTEGER NOT NULL DEFAULT 0,"
                           "Params TEXT,"
                           "Ret TEXT NOT NULL,"
-                          "bRetInPpp INTEGER NOT NULL DEFAULT 0,"
                           "PRIMARY KEY (Identifier, Source, Line)"
                           ");";
 
@@ -409,6 +404,8 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyIncludeDir
     {
         for (const auto& D : Ds)
         {
+            D.ExpandAndFollowSourceLocation();
+
             dcp_check( Id == D.Source )
 
             const std::string Sql = "INSERT OR IGNORE INTO IncludeDirectives (What, Source, Line, Native, bForeign) VALUES ('" +
@@ -434,6 +431,8 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>
     {
         for (const auto& M : Macros)
         {
+            M.ExpandAndFollowSourceLocation();
+
             if
             (
                 std::find_if(
@@ -612,6 +611,8 @@ void Dcp::PutToIntermediate(const std::map<std::string, std::vector<MyMacroInfo>
 
 void Dcp::PutToIntermediate(const MyDecl& InDecl)
 {
+    InDecl.ExpandAndFollowSourceLocation();
+
     const std::string Sql =
         "INSERT OR IGNORE INTO Decls ("
         "Identifier, Source, Line, Column, bStatic, bExtern, bDef"
@@ -628,45 +629,60 @@ void Dcp::PutToIntermediate(const MyDecl& InDecl)
 
 void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
 {
-    if (InTypeDef.bNoTag)
-    {
-        dcp_check( InTypeDef.What.empty() )
+    InTypeDef.ExpandAndFollowSourceLocation();
 
-        const std::string Sql = "INSERT OR IGNORE INTO Typedefs ("
-                                "Identifier, Source, Line, Column, Type, bNoTag, NoTagLine, NoTagColumn, RNoTagLine, RNoTagColumn"
-                                ") VALUES ('" + InTypeDef.Identifier + "', '" + ToAbsolutePath(InTypeDef.Source) + "', " +
-                                std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '"
-                                + InTypeDef.Type + "', 1, "
-                                + std::to_string(InTypeDef.NoTagLine) +
-                                ", " + std::to_string(InTypeDef.NoTagColumn) + ", " +
-                                std::to_string(InTypeDef.RNoTagLine) + ", " + std::to_string(InTypeDef.RNoTagColumn) + ");";
-
-        PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
-    }
-    else
+    if (InTypeDef.OStream.empty() == false)
     {
+        if (InTypeDef.TagRecord.empty())
         {
+            dcp_check( InTypeDef.TagRecord.empty() )
+
             const std::string Sql = "INSERT OR IGNORE INTO Typedefs ("
-                                    "Identifier, Source, Line, Column, What, bNoTag"
+                                    "Identifier, Source, Line, Column, RLine, RColumn, OStream"
                                     ") VALUES ('" + InTypeDef.Identifier + "', '" + ToAbsolutePath(InTypeDef.Source) + "', " +
-                                    std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '" +
-                                    InTypeDef.What + "', 0);";
+                                    std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column)
+                                    + ", " + std::to_string(InTypeDef.RLine) + ", " + std::to_string(InTypeDef.RColumn) +
+                                    " , '" + InTypeDef.OStream + "');";
+
 
             PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
         }
-
-        if (!InTypeDef.Type.empty()) /* Trivial */
+        else
         {
-            const std::string Sql = "INSERT OR IGNORE INTO Refs ("
-                                    "Identifier, Source, Line, Column, Ref, bStrong"
+            const std::string Sql = "INSERT OR IGNORE INTO Typedefs ("
+                                    "Identifier, Source, Line, Column, RLine, RColumn, TagRecord, OStream"
                                     ") VALUES ('" + InTypeDef.Identifier + "', '" + ToAbsolutePath(InTypeDef.Source) + "', " +
-                                    std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", '" +
-                                        InTypeDef.Type + "', 0) " +
-                                    "ON CONFLICT(Identifier, Source, Line, Column, Ref) DO UPDATE SET "
-                                    "bStrong = CASE"
-                                    "    WHEN excluded.bStrong = 1 AND Refs.bStrong = 0 THEN 1"
-                                    "    ELSE Refs.bStrong "
-                                    "END;";
+                                    std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", " +
+                                    std::to_string(InTypeDef.RLine) + ", " + std::to_string(InTypeDef.RColumn) + ", '" +
+                                    InTypeDef.TagRecord + "', '" + InTypeDef.OStream + "');";
+
+            PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
+        }
+    }
+    else
+    {
+        if (InTypeDef.TagRecord.empty())
+        {
+            dcp_check( InTypeDef.TagRecord.empty() )
+
+            const std::string Sql = "INSERT OR IGNORE INTO Typedefs ("
+                                    "Identifier, Source, Line, Column, RLine, RColumn"
+                                    ") VALUES ('" + InTypeDef.Identifier + "', '" + ToAbsolutePath(InTypeDef.Source) + "', " +
+                                    std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column)
+                                    + ", " + std::to_string(InTypeDef.RLine) + ", " + std::to_string(InTypeDef.RColumn) +
+                                    ");";
+
+
+            PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
+        }
+        else
+        {
+            const std::string Sql = "INSERT OR IGNORE INTO Typedefs ("
+                                    "Identifier, Source, Line, Column, RLine, RColumn, TagRecord"
+                                    ") VALUES ('" + InTypeDef.Identifier + "', '" + ToAbsolutePath(InTypeDef.Source) + "', " +
+                                    std::to_string(InTypeDef.Line) + ", " + std::to_string(InTypeDef.Column) + ", " +
+                                    std::to_string(InTypeDef.RLine) + ", " + std::to_string(InTypeDef.RColumn) + ", '" +
+                                    InTypeDef.TagRecord + "');";
 
             PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
         }
@@ -694,6 +710,8 @@ void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
 
 void Dcp::PutToIntermediate(const MyRecord& InRecord)
 {
+    InRecord.ExpandAndFollowSourceLocation();
+
     MyDecl D;
     D.Identifier = InRecord.Identifier;
     D.Source = ToAbsolutePath(InRecord.Source);
@@ -704,11 +722,11 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
 
     {
         const std::string Sql = "INSERT OR IGNORE INTO Records ("
-                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, Type, bKwInPpp"
+                                "Identifier, Source, Line, Column, RLine, RColumn, Type"
                                 ") VALUES ('" + InRecord.Identifier + "', '" + ToAbsolutePath(InRecord.Source) + "', " +
                                 std::to_string(InRecord.Line) + ", " + std::to_string(InRecord.Column) + ", " +
-                                std::to_string(InRecord.RBraceLine) + ", " + std::to_string(InRecord.RBraceColumn) + ", '" +
-                                InRecord.Type + "', " + (InRecord.bKwInPpp ? "1" : "0") + ");";
+                                std::to_string(InRecord.RLine) + ", " + std::to_string(InRecord.RColumn) + ", '" +
+                                InRecord.Type + "');";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
     }
@@ -734,6 +752,8 @@ void Dcp::PutToIntermediate(const MyRecord& InRecord)
 
 void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 {
+    InEnumRecord.ExpandAndFollowSourceLocation();
+
     MyDecl D;
     D.Identifier = InEnumRecord.Identifier;
     D.Source = ToAbsolutePath(InEnumRecord.Source);
@@ -746,11 +766,11 @@ void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 
     {
         const std::string Sql = "INSERT OR IGNORE INTO Records ("
-                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, Type, Enum, bKwInPpp"
+                                "Identifier, Source, Line, Column, RLine, RColumn, Type, Enum"
                                 ") VALUES ('" + InEnumRecord.Identifier + "', '" + ToAbsolutePath(InEnumRecord.Source) + "', " +
                                 std::to_string(InEnumRecord.Line) + ", " + std::to_string(InEnumRecord.Column) + ", " +
-                                std::to_string(InEnumRecord.RBraceLine) + ", " + std::to_string(InEnumRecord.RBraceColumn) + ", '" +
-                                InEnumRecord.Type + "', '" + InEnumRecord.Enum.value() + "', " + (InEnumRecord.bKwInPpp ? "1" : "0") + ");";
+                                std::to_string(InEnumRecord.RLine) + ", " + std::to_string(InEnumRecord.RColumn) + ", '" +
+                                InEnumRecord.Type + "', '" + InEnumRecord.Enum.value() + "');";
 
         PRIVATE_DCP_EXECUTE_TRIVIAL_SQL()
     }
@@ -776,6 +796,8 @@ void Dcp::PutToIntermediate(const MyEnumRecord& InEnumRecord)
 
 void Dcp::PutToIntermediate(const MyFunction& InFunction)
 {
+    InFunction.ExpandAndFollowSourceLocation();
+
     MyDecl D;
     D.Identifier = InFunction.Identifier;
     D.Source = ToAbsolutePath(InFunction.Source);
@@ -801,8 +823,8 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
         }
 
         const std::string Sql = "INSERT OR IGNORE INTO Functions ("
-                                "Identifier, Source, Line, Column, RBraceLine, RBraceColumn, bStatic, Params, Ret, bRetInPpp"
-                                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                                "Identifier, Source, Line, Column, RLine, RColumn, bStatic, Params, Ret"
+                                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
         sqlite3_stmt* Stmt = nullptr;
         if (sqlite3_prepare_v2(Db, Sql.c_str(), -1, &Stmt, nullptr) != SQLITE_OK)
@@ -817,12 +839,11 @@ void Dcp::PutToIntermediate(const MyFunction& InFunction)
         sqlite3_bind_text(Stmt, 2, ToAbsolutePath(InFunction.Source).c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_int(Stmt,  3, InFunction.Line);
         sqlite3_bind_int(Stmt,  4, InFunction.Column);
-        sqlite3_bind_int(Stmt,  5, InFunction.RBraceLine);
-        sqlite3_bind_int(Stmt,  6, InFunction.RBraceColumn);
+        sqlite3_bind_int(Stmt,  5, InFunction.RLine);
+        sqlite3_bind_int(Stmt,  6, InFunction.RColumn);
         sqlite3_bind_int(Stmt,  7, InFunction.bStatic ? 1 : 0);
         sqlite3_bind_text(Stmt, 8, ParamsStr.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(Stmt, 9, InFunction.Ret.c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_int(Stmt,  10, InFunction.bRetInPpp ? 1 : 0);
 
         ExecStmt(Stmt);
         sqlite3_finalize(Stmt);
@@ -877,6 +898,8 @@ void Dcp::PutToIntermediate(const MyFunctionRef& InFunctionRef)
 
 void Dcp::PutToIntermediate(const MyVariable& InVariable)
 {
+    InVariable.ExpandAndFollowSourceLocation();
+
     MyDecl D;
     D.Identifier = InVariable.Identifier;
     D.Source = InVariable.Source;

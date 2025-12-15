@@ -33,7 +33,7 @@ class Unit:
         for s in self.elements:
             if len(human_readable_name) > 0:
                 human_readable_name += '; '
-            human_readable_name += s.ident
+            human_readable_name += s.get_human_readable_display_name()
         return human_readable_name
 
     def is_output_ident_valid(self) -> bool:
@@ -154,7 +154,9 @@ class Unit:
                     if u is not None:
                         assert u.is_output_ident_valid()
                         r_ref = u.get_element_asserted(var_type)
-                        fwds.add(r_ref.get_forward_declaration(g))
+                        _fwd = r_ref.get_forward_declaration(g, var_type)
+                        assert _fwd
+                        fwds.add(_fwd)
                         if u is not self:
                             inc.add(u.get_filename())
 
@@ -181,11 +183,13 @@ class Unit:
 
                     ignore_strong = False
                     if isinstance(e, UnitTypedef):
-                        if not e.no_tag:
+                        if not e.tag_record is None:
                             ignore_strong = True
 
                     if ((not ignore_strong) and strong is False) or (u is self):
-                        fwds.add(r_ref.get_forward_declaration(g))
+                        _fwd = r_ref.get_forward_declaration(g, r)
+                        assert _fwd
+                        fwds.add(_fwd)
                         continue
 
                     if u.is_translation(g):
@@ -200,7 +204,9 @@ class Unit:
 
                     # It is ok if this references itself.
                     r_ref = u.get_element_asserted(r)
-                    fwds.add(r_ref.get_forward_declaration(g))
+                    _fwd = r_ref.get_forward_declaration(g, r)
+                    assert _fwd
+                    fwds.add(_fwd)
 
                 else:
                     assert False
@@ -243,7 +249,7 @@ class Unit:
 
         reflexive_fwds: set[str] = set()
         for e in self.elements:
-            fwd = e.get_forward_declaration(g)
+            fwd = e.get_forward_declaration(g, '')
             if fwd is not None:
                 reflexive_fwds.add(fwd)
             continue

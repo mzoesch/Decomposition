@@ -267,7 +267,7 @@ class Cursor:
 
     def iter_no_syntax(self) -> Generator[str, Any, None]:
         line, col = self.line, self.column
-        while line < len(self.lines):
+        while line <= len(self.lines):
             if (
                     (self.end_line is not None)
                 and (self.end_line == line)
@@ -303,3 +303,14 @@ class Cursor:
 
         return
 
+    def get_default_itered_no_syntax(self) -> str:
+        result = ''
+        for c in self.iter_no_syntax():
+            if c is None:
+                result = result[:-1]
+                continue
+
+            result += c
+            continue
+
+        return result

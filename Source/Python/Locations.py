@@ -43,6 +43,22 @@ class SourceLocation:
     def is_header(self) -> bool:
         return not self.is_translation()
 
+    def __eq__(self, other):
+        if not isinstance(other, SourceLocation):
+            return NotImplemented
+        return (self.file == other.file and
+                self.line == other.line and
+                self.column == other.column)
+
+    def is_less(self, other) -> bool:
+        if not isinstance(other, SourceLocation):
+            return NotImplemented
+        if self.file != other.file:
+            return NotImplemented
+        if self.line != other.line:
+            return self.line < other.line
+        return self.column <= other.column
+
 
 def is_source_translation(f: str, con: SqlConnection) -> bool: # TODO Use the extensions form the database.
     return f.endswith('.c')

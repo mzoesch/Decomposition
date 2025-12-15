@@ -41,14 +41,12 @@ struct MyDecl : public MySymbol
 
 struct MyRecord : public MySymbol
 {
-    int64_t RBraceLine { INDEX_NONE };
-    int64_t RBraceColumn { INDEX_NONE };
+    int64_t RLine { INDEX_NONE };
+    int64_t RColumn { INDEX_NONE };
 
     std::string Type;
     std::set<MyRecordRef> Records;
     bool bAnonymous { false };
-
-    bool bKwInPpp { false };
 
     inline bool AddRecordRef(const MyRecordRef& InRecord);
     inline bool AddRecordRef(MyRecordRef&& InRecord);
@@ -56,14 +54,11 @@ struct MyRecord : public MySymbol
 
 struct MyTypeDef final : public MySymbol
 {
-    std::string What;
-    std::string Type;
+    std::string TagRecord;
+    std::string OStream;
     std::set<MyRecordRef> Records;
-    bool bNoTag { false };
-    int64_t NoTagLine { INDEX_NONE };
-    int64_t NoTagColumn { INDEX_NONE };
-    int64_t RNoTagLine { INDEX_NONE };
-    int64_t RNoTagColumn { INDEX_NONE };
+    int64_t RLine { INDEX_NONE };
+    int64_t RColumn { INDEX_NONE };
 
     DCP_API void AddRecordRef(const MyRecordRef& InRecord);
 };
@@ -80,12 +75,11 @@ struct MyFunction final : public MySymbol
         std::string Type;
     };
 
-    int64_t RBraceLine { INDEX_NONE };
-    int64_t RBraceColumn { INDEX_NONE };
+    int64_t RLine { INDEX_NONE };
+    int64_t RColumn { INDEX_NONE };
 
     bool bStatic { false };
     std::string Ret;
-    bool bRetInPpp { false };
     std::vector<Param> Params;
 
     std::set<MyRecordRef> Records;

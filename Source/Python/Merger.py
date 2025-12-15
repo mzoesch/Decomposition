@@ -92,7 +92,7 @@ def __trivial_merge_impl_header_impl_typedef(g: Globals, xs: list[Unit], out: li
 
         u_n: int = u.get_n_size(g)
 
-        if td.is_no_tag():
+        if (td.tag_record is None) and (td.ostream is None):
             if u.depends_only_on_trivials():
                 referenceless_typedefs.append(u)
             else:

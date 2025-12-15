@@ -10,8 +10,7 @@ class UnitElement:
     High level representation of an element that resides inside a unit.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation | None = None):
-        assert ident != ''
+    def __init__(self, ident: str | None, source: SourceLocation, rsource: SourceLocation | None = None):
         assert source is not None
 
         self.ident = ident
@@ -26,6 +25,9 @@ class UnitElement:
 
         self.record_refs: dict[str, bool] | None = None
         self.var_refs: set[str] | None = None
+
+    def get_human_readable_display_name(self) -> str:
+        return self.ident
 
     def is_rsource_valid(self) -> bool:
         return self.rsource is not None
@@ -45,7 +47,7 @@ class UnitElement:
     def is_header(self, g: Globals) -> bool:
         return not self.is_translation(g)
 
-    def get_forward_declaration(self, g: Globals) -> str | None:
+    def get_forward_declaration(self, g: Globals, target: str) -> str | None:
         assert False
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
@@ -122,12 +124,76 @@ class UnitElement:
         return None
 
 
+class UnitWrap(UnitElement):
+    """
+    Represents tightly coupled elements in the original project.
+    """
+
+    def __init__(self, subs: list[UnitElement]):
+        assert len(subs) > 1
+        source = subs[0].source
+
+        for unit_elem in subs:
+            assert unit_elem.source == source
+
+        rsource = subs[0].rsource
+        assert rsource is not None
+        for unit_elem in subs:
+            assert unit_elem.rsource is not None
+            if unit_elem.rsource.is_less(rsource):
+                rsource = unit_elem.rsource
+            continue
+
+        super().__init__(None, source, rsource)
+
+        self.subs: list[UnitElement] = subs
+
+    def get_human_readable_display_name(self) -> str:
+        idents = [sub.get_human_readable_display_name() for sub in self.subs]
+        return ', '.join(idents)
+
+    def is_translation(self, g: Globals) -> bool:
+        assert len(self.subs) > 1
+        return self.subs[0].is_translation(g)
+
+    def get_forward_declaration(self, g: Globals, target: str) -> str | None:
+        fwds: str = ''
+        for sub in self.subs:
+            fwd = sub.get_forward_declaration(g, target)
+            if fwd is not None:
+                fwds += fwd + '\n'
+            else:
+                if sub.get_human_readable_display_name() == target:
+                    return None
+            continue
+
+        if fwds == '':
+            return None
+
+        return fwds
+
+    def cache_content(self, g: Globals, con: SqlConnection) -> None:
+        super().cache_content(g, con)
+
+        cursor: Cursor = Cursor(
+            g.args,
+            _get_file_content(self.source.file.ident),
+            self.source.line, self.source.column,
+            self.rsource.line, self.rsource.column
+            )
+
+        self.content += cursor.get_default_itered_no_syntax()
+        self.content += ';'
+
+        return None
+
+
 class UnitRecord(UnitElement):
     """
     Represents a record in the original project.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, ty: str, enum: str | None, kw_ppp: bool):
+    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, ty: str, enum: str | None):
         assert rsource is not None
         assert (ty is not None) and ty != ''
         assert enum is None or enum != ''
@@ -137,12 +203,10 @@ class UnitRecord(UnitElement):
         self.ty: str = ty
         self.enum: str | None = enum
 
-        self.kw_ppp: bool = kw_ppp
-
     def is_translation(self, g: Globals) -> bool:
         return False
 
-    def get_forward_declaration(self, g: Globals) -> str | None:
+    def get_forward_declaration(self, g: Globals, target: str) -> str | None:
         assert self.ty == 'struct' or self.ty == 'union' or self.ty == 'enum'
 
         if self.ident.startswith('<'):
@@ -159,11 +223,11 @@ class UnitRecord(UnitElement):
             self.source.line,
             self.source.column,
             self.rsource.line,
-            self.rsource.column + 1
+            self.rsource.column
             )
 
-        if (not self.kw_ppp) and (self.ident.startswith('<') is False):
-            self.content += f'{self.ty} '
+        # if (not self.kw_ppp) and (self.ident.startswith('<') is False):
+        #     self.content += f'{self.ty} '
 
         for c in cursor.iter_no_syntax():
             if c is None:
@@ -184,90 +248,43 @@ class UnitTypedef(UnitElement):
     Represents a typedef in the original project.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, what: str | None, ty: str | None,
-                 no_tag: bool, no_tag_line: int | None, no_tag_column: int | None, r_no_tag_line: int, r_no_tag_column: int):
-        super().__init__(ident, source)
+    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation,
+         tag_record: str | None, ostream: str | None):
+        super().__init__(ident, source, rsource)
 
-        self.what = what
-        self.ty = ty
-        self.no_tag = no_tag
-
-        self.no_tag_line = no_tag_line
-        self.no_tag_column = no_tag_column
-        self.r_no_tag_line = r_no_tag_line
-        self.r_no_tag_column = r_no_tag_column
-
-        if self.no_tag_line:
-            assert self.no_tag_column
-            assert self.r_no_tag_line
-            assert self.r_no_tag_column
-
-        if self.is_no_tag():
-            assert (self.no_tag_line is not None) and (self.no_tag_column is not None)
-            assert (self.r_no_tag_line is not None) and (self.r_no_tag_column is not None)
+        self.tag_record: str | None = tag_record
+        self.ostream: str | None = ostream
 
     def is_translation(self, g: Globals) -> bool:
         return False
 
-    def is_no_tag(self) -> bool:
-        return self.no_tag
-
-    def get_forward_declaration(self, g: Globals) -> str | None:
-        if self.is_no_tag():
-            return f'typedef {self.ty} {self.get_no_tag_name()} {self.ident};'
+    def get_forward_declaration(self, g: Globals, _: str) -> str | None:
+        if self.tag_record is not None:
+            return f'typedef {self.tag_record} {self.ident};'
+        elif self.ostream is not None:
+            return f'typedef {self.ostream} {self.ident};'
         else:
-            return f'typedef {self.what};'
+            return None
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
         super().cache_content(g, con)
 
-        if self.is_no_tag():
-            self.finalize_content_not_tagged(g)
-        else:
-            self.finalize_content_tagged()
+        if self.ostream is not None:
+            self.content += f'typedef {self.ostream} {self.ident};'
+            return None
 
-        return None
-
-    def finalize_content_tagged(self) -> None:
-        self.content += f'typedef {self.what};'
-        return None
-
-    def finalize_content_not_tagged(self, g: Globals) -> None:
         cursor: Cursor = Cursor(
             g.args,
             _get_file_content(self.source.file.ident),
-            self.no_tag_line,
-            self.no_tag_column,
-            self.r_no_tag_line,
-            self.r_no_tag_column + 1
+            self.source.line, self.source.column,
+            self.rsource.line, self.rsource.column
             )
 
-        self.content += 'typedef '
-        for c in cursor.iter_no_syntax():
-            if c is None:
-                self.content = self.content[:-1]
-                continue
-            self.content += c
-            continue
+        self.content += cursor.get_default_itered_no_syntax()
         self.content += self.ident
         self.content += ';'
 
-        ty_index = self.content.find(self.ty)
-        if ty_index != -1:
-            ty_index += len(self.ty)
-            self.content = self.content[:ty_index] + ' ' + self.get_no_tag_name() + self.content[ty_index:]
-
-
         return None
-
-    def get_no_tag_name(self) -> str:
-        assert self.is_no_tag()
-        hasher = hashlib.sha256()
-        hasher.update(self.ident.encode('utf-8'))
-        hasher.update(self.ty.encode('utf-8'))
-        hasher.update(self.source.file.ident.encode('utf-8'))
-
-        return f'__no_tag_{hasher.hexdigest()[:16]}'
 
 
 class UnitVariable(UnitElement):
@@ -296,7 +313,7 @@ class UnitVariable(UnitElement):
     def is_extern(self) -> bool:
         return self.extern
 
-    def get_forward_declaration(self, g: Globals) -> str:
+    def get_forward_declaration(self, g: Globals, _: str) -> str:
         out: str = ''
         # if g.args.RespectStatic and self.is_static():
         #     out += 'static '
@@ -363,14 +380,13 @@ class UnitFunction(UnitElement):
     Represents a function in the original project.
     """
 
-    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, params: str, static: bool, ret: str, ret_ppp: bool):
+    def __init__(self, ident: str, source: SourceLocation, rsource: SourceLocation, params: str, static: bool, ret: str):
         assert rsource is not None
         super().__init__(ident, source, rsource)
 
         self.params: str = params
         self.static: bool = static
         self.ret: str = ret
-        self.ret_ppp: bool = ret_ppp
 
     def is_translation(self, g: Globals) -> bool:
         if g.args.ImplInHeader:
@@ -382,7 +398,7 @@ class UnitFunction(UnitElement):
     def is_static(self) -> bool:
         return self.static
 
-    def get_forward_declaration(self, g: Globals) -> str | None:
+    def get_forward_declaration(self, g: Globals, _: str) -> str | None:
         return f'{self.ret} {self.ident}({self.params});'
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
@@ -400,19 +416,7 @@ class UnitFunction(UnitElement):
         if g.args.RespectStatic and self.is_static():
             self.content += 'static '
 
-        if not self.ret_ppp:
-            self.content += f'{self.ret} '
-
-        for c in cursor.iter_no_syntax():
-            if c is None:
-                self.content = self.content[:-1]
-                continue
-
-            self.content += c
-            continue
-
-        if self.content[-1] != '}':
-            self.content += '}'
+        self.content += cursor.get_default_itered_no_syntax()
 
         return None
 
