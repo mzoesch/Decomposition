@@ -155,63 +155,63 @@ class Unit:
                         assert u.is_output_ident_valid()
                         r_ref = u.get_element_asserted(var_type)
                         _fwd = r_ref.get_forward_declaration(g, var_type)
-                        assert _fwd
-                        fwds.add(_fwd)
+                        if _fwd:
+                            fwds.add(_fwd)
+                        else:
+                            print(f'ERROR fwd var type {var_type}')
                         if u is not self:
                             inc.add(u.get_filename())
 
-            con.execute_ro("""
-            SELECT Ref, Type, bStrong FROM Refs
-            WHERE Source = ? AND Line = ? AND "Column" = ?
-            ;""", (e.source.file.ident, e.source.line, e.source.column))
+            if e.ident == 'yaml_node_t':
+                pass
 
-            rows = con.fetchall()
-            for r, ty, strong in rows:
-                strong = bool(strong)
+            for r, strong in list(self.record_refs.items()):
+                r = Unit.remove_quals_from_type(r)
+                if Unit.is_trivial_type(r):
+                    continue
 
-                if ty == 'record':
-                    r = Unit.remove_quals_from_type(r)
-                    if Unit.is_trivial_type(r):
-                        continue
+                u: Unit = ex.find_unit_from_element(r)
+                if u is None:
+                    continue
+                assert u.is_output_ident_valid()
 
-                    u: Unit = ex.find_unit_from_element(r)
-                    if u is None:
-                        continue
-                    assert u.is_output_ident_valid()
+                r_ref = u.get_element_asserted(r)
 
-                    r_ref = u.get_element_asserted(r)
+                # ignore_strong = False
+                # if isinstance(e, UnitTypedef):
+                #     if not e.tag_record is None:
+                #         ignore_strong = True
 
-                    ignore_strong = False
-                    if isinstance(e, UnitTypedef):
-                        if not e.tag_record is None:
-                            ignore_strong = True
-
-                    if ((not ignore_strong) and strong is False) or (u is self):
-                        _fwd = r_ref.get_forward_declaration(g, r)
-                        assert _fwd
-                        fwds.add(_fwd)
-                        continue
-
-                    if u.is_translation(g):
-                        assert False, 'Cannot reference another translation unit strongly.'
-
-                    inc.add(u.get_filename())
-
-                elif ty == 'variable':
-                    u: Unit = ex.find_unit_from_element(r)
-                    if u is None: # Std, <builtin>, ...
-                        continue
-
-                    # It is ok if this references itself.
-                    r_ref = u.get_element_asserted(r)
+                if (strong is False) or (u is self):
                     _fwd = r_ref.get_forward_declaration(g, r)
-                    assert _fwd
-                    fwds.add(_fwd)
+                    if _fwd:
+                        fwds.add(_fwd)
+                    else:
+                        print(f'ERROR fwd r {r}')
 
-                else:
-                    assert False
+                    continue
 
+                if u.is_translation(g):
+                    assert False, 'Cannot reference another translation unit strongly.'
+
+                inc.add(u.get_filename())
                 continue
+
+            for r in self.var_refs:
+                u: Unit = ex.find_unit_from_element(r)
+                if u is None: # Std, <builtin>, ...
+                    continue
+
+                # It is ok if this references itself.
+                r_ref = u.get_element_asserted(r)
+                _fwd = r_ref.get_forward_declaration(g, r)
+                if _fwd:
+                    fwds.add(_fwd)
+                else:
+                    print(f'ERROR fwd var {r}')
+                fwds.add(_fwd)
+                continue
+
             continue
 
         if len(inc) > 0:

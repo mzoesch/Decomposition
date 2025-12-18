@@ -59,6 +59,18 @@ class SourceLocation:
             return self.line < other.line
         return self.column <= other.column
 
+    def has_covered(self, other) -> bool:
+        if not isinstance(other, SourceLocation):
+            return NotImplemented
+        if self.file != other.file:
+            return False
+        if self.line > other.line:
+            return False
+        if self.line == other.line and self.column > other.column:
+            return False
+
+        return True
+
 
 def is_source_translation(f: str, con: SqlConnection) -> bool: # TODO Use the extensions form the database.
     return f.endswith('.c')

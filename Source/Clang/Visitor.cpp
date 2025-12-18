@@ -462,8 +462,18 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
     PrintingPolicy Policy(Td->getASTContext().getLangOpts());
     Policy.SuppressTagKeyword = false;
 
-    auto Range = ::GetFullyExpandedSourceRange(Sm, Context.getLangOpts(), Td->getBeginLoc(), Td->getEndLoc());
+    auto b = Td->getBeginLoc();
+    auto e = Td->getEndLoc();
+    SourceLocation semi = Lexer::findLocationAfterToken(
+        e,
+        tok::semi,
+        Sm,
+        Context.getLangOpts(),
+        /*SkipTrailingWhitespaceAndNewLine=*/true
+        );
+    if (semi.isValid()) e = semi.getLocWithOffset(-1);
 
+    auto Range = ::GetFullyExpandedSourceRange(Sm, Context.getLangOpts(), b, e);
     MyTypeDef Def;
     Def.Identifier = Td->getName();
     dcp_check( Def.Identifier.empty() == false )
@@ -518,6 +528,14 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
             }
         }
     }
+    else if (const TypedefType* Tt = Qt->getAs<TypedefType>(); Tt)
+    {
+        const TypedefNameDecl* Tnd = Tt->getDecl();
+        Def.TagRecord = Tnd->getName().str();
+        dcp_check( Def.TagRecord.empty() == false )
+
+        Def.AddRecordRef(MyRecordRef{Def.TagRecord, false});
+    }
     else if (const EnumType* Et = Qt->getAs<EnumType>(); Et)
     {
         const EnumDecl* Ed = Et->getDecl();
@@ -538,9 +556,19 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
             Def.TagRecord = "enum " + Ed->getName().str();
         }
     }
-    else if (Qt->isFunctionPointerType())
+    else if (Qt->isBuiltinType())
     {
-        const QualType QtNoSugar = Qt.getDesugaredType(Td->getASTContext());
+        Def.TagRecord = Qt.getAsString();
+    }
+    else if (Qt->isFunctionPointerType() || Qt->isFunctionType())
+    {
+        auto _Qt = Qt;
+        if (_Qt->isFunctionType())
+        {
+            _Qt = Context.getPointerType(_Qt);
+        }
+
+        const QualType QtNoSugar = _Qt.getDesugaredType(Td->getASTContext());
         if (const PointerType* PtrType = dyn_cast<PointerType>(QtNoSugar))
         {
             const Type* Pointee = PtrType->getPointeeType().getTypePtr();
@@ -571,7 +599,12 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
             }
         }
 
-        if (const PointerType* PtrType = Qt->getAs<PointerType>())
+        const PointerType* PtrType = Qt->getAs<PointerType>();
+        if (!PtrType)
+        {
+            PtrType = _Qt->getAs<PointerType>();
+        }
+        if (PtrType)
         {
             if (const FunctionProtoType* Proto = PtrType->getPointeeType()->getAs<FunctionProtoType>(); Proto)
             {
@@ -598,16 +631,6 @@ std::optional<Dcp::MyTypeDef> Dcp::MyAstVisitor::GetTypeDef(const TypedefDecl* T
             }
         }
 
-        std::string Buf;
-        llvm::raw_string_ostream OStream(Buf);
-        Qt.print(OStream, Policy, Td->getName());
-        OStream.flush();
-        Def.OStream = std::move(Buf);
-        dcp_check( Def.OStream.empty() == false )
-    }
-
-    if (Def.TagRecord.empty() == false && Def.OStream.empty() == false)
-    {
         std::string Buf;
         llvm::raw_string_ostream OStream(Buf);
         Qt.print(OStream, Policy, Td->getName());

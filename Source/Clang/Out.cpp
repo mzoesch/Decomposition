@@ -688,6 +688,15 @@ void Dcp::PutToIntermediate(const MyTypeDef& InTypeDef)
         }
     }
 
+    if (InTypeDef.TagRecord.empty() == false)
+    {
+        MyRecordRef TagRecordRef;
+        TagRecordRef.Ref = InTypeDef.TagRecord;
+        TagRecordRef.bStrong = true;
+
+        const_cast<MyTypeDef&>(InTypeDef).AddRecordRef(TagRecordRef);
+    }
+
     for (const auto& R : InTypeDef.Records)
     {
         const std::string Sql = "INSERT OR IGNORE INTO Refs ("

@@ -179,7 +179,7 @@ class UnitWrap(UnitElement):
             g.args,
             _get_file_content(self.source.file.ident),
             self.source.line, self.source.column,
-            self.rsource.line, self.rsource.column
+            self.rsource.line, self.rsource.column + 1
             )
 
         self.content += cursor.get_default_itered_no_syntax()
@@ -220,10 +220,8 @@ class UnitRecord(UnitElement):
         cursor: Cursor = Cursor(
             g.args,
             _get_file_content(self.source.file.ident),
-            self.source.line,
-            self.source.column,
-            self.rsource.line,
-            self.rsource.column
+            self.source.line, self.source.column,
+            self.rsource.line, self.rsource.column + 1
             )
 
         # if (not self.kw_ppp) and (self.ident.startswith('<') is False):
@@ -262,16 +260,12 @@ class UnitTypedef(UnitElement):
         if self.tag_record is not None:
             return f'typedef {self.tag_record} {self.ident};'
         elif self.ostream is not None:
-            return f'typedef {self.ostream} {self.ident};'
+            return f'typedef {self.ostream};'
         else:
             return None
 
     def cache_content(self, g: Globals, con: SqlConnection) -> None:
         super().cache_content(g, con)
-
-        if self.ostream is not None:
-            self.content += f'typedef {self.ostream} {self.ident};'
-            return None
 
         cursor: Cursor = Cursor(
             g.args,
@@ -281,8 +275,8 @@ class UnitTypedef(UnitElement):
             )
 
         self.content += cursor.get_default_itered_no_syntax()
-        self.content += self.ident
-        self.content += ';'
+        # self.content += self.ident
+        # self.content += ';'
 
         return None
 

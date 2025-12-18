@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from Source.Python.Elements import UnitWrap, UnitElement
+from Source.Python.Elements import UnitWrap, UnitElement, UnitTypedef
 from Source.Python.Globals import Globals
 from Source.Python.SqlConnection import SqlConnection
 from Source.Python.CMakeTargetLoader import load_cmake_targets, pretty_print_cmake_targets
@@ -136,6 +136,7 @@ def _split(g: Globals, display_name: str, directory: str, con: SqlConnection) ->
     collect_functions(g, e)
     print(f'done with [{e.stats.original_function_count}] functions.')
 
+    _remove_underlying_record_typedefs(g, e)
     _combine_tightly_coupled_units(g, e)
 
     e.gather_unit_content()
@@ -159,12 +160,87 @@ def _split(g: Globals, display_name: str, directory: str, con: SqlConnection) ->
     return None
 
 
+def _remove_underlying_record_typedefs(g: Globals, e: Exporter) -> None:
+    print('Removing underlying record typedefs ...', end=' ', flush=True)
+
+    i = 0
+    while i < len(e.units):
+        u = e.units[i]
+        assert len(u.elements) == 1
+        elem = u.elements[0]
+        if not isinstance(elem, UnitTypedef):
+            i += 1
+            continue
+
+        typedef: UnitTypedef = elem
+        if typedef.tag_record is None or typedef.tag_record == '':
+            i += 1
+            continue
+
+        if typedef.ident == 'yaml_token_t':
+            pass
+
+        tag_record_entry = e.find_unit_from_element(typedef.tag_record)
+        if tag_record_entry is None:
+            i += 1
+            continue
+
+        assert len(tag_record_entry.elements) == 1
+
+        if not typedef.source.has_covered(tag_record_entry.elements[0].source):
+            i += 1
+            continue
+
+        assert typedef.rsource
+        if not tag_record_entry.elements[0].source.has_covered(typedef.rsource):
+            i += 1
+            continue
+
+        i = 0
+
+        e.units.remove(tag_record_entry)
+
+        tag_record_entry.update_refs(g, e.con)
+        u.update_refs(g, e.con)
+
+        assert tag_record_entry.record_refs is not None
+        assert tag_record_entry.var_refs is not None
+        assert typedef.record_refs is not None
+        assert typedef.var_refs is not None
+
+        missing_record_refs = dict()
+        for record, strong in list(tag_record_entry.record_refs.items()):
+            if strong or (record not in typedef.record_refs):
+                missing_record_refs[record] = strong
+            continue
+
+        missing_var_refs = set()
+        for var in tag_record_entry.var_refs:
+            if var not in typedef.var_refs:
+                missing_var_refs.add(var)
+            continue
+
+        for record, strong in missing_record_refs.items():
+            typedef.record_refs[record] = strong
+        for var in missing_var_refs:
+            typedef.var_refs.add(var)
+
+        continue
+
+    return None
+
 def _combine_tightly_coupled_units(g: Globals, e: Exporter) -> None:
+    print('Combining tightly coupled units ...', end=' ', flush=True)
+
     units = e.units
     e.units = []
 
     while len(units) > 0:
         u = units.pop(0)
+
+        if u.elements[0].ident == 'yaml_token_t':
+            pass
+
         assert len(u.elements) == 1
 
         # Other tightly coupled units
