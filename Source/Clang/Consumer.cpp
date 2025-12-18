@@ -1,6 +1,7 @@
 #include "Consumer.h"
 #include "Out.h"
 #include "Visitor.h"
+#include <filesystem>
 
 using namespace clang;
 
@@ -118,6 +119,7 @@ void MyMacroCollector::InclusionDirective(
     /* The file that triggered the inclusion directive. */
     FileID DirectiveF = Sm.getFileID(HashLoc);
     std::string DirectiveStr = Sm.getFileEntryForID(DirectiveF)->tryGetRealPathName().str();
+    DirectiveStr = std::filesystem::absolute(DirectiveStr).string();
 
     /* We only care about headers that are part of this module that is being split. */
     if (!IsModuleHeader(DirectiveStr))
@@ -127,6 +129,7 @@ void MyMacroCollector::InclusionDirective(
 
     /* The actual absolute path to the included file. */
     std::string IncludedF = File->getName().str();
+    IncludedF = std::filesystem::absolute(IncludedF).string();
 
     if (this->Files_Incs.find(IncludedF) == this->Files_Incs.end())
     {
