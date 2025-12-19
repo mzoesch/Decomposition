@@ -120,6 +120,7 @@ void MyMacroCollector::InclusionDirective(
     FileID DirectiveF = Sm.getFileID(HashLoc);
     std::string DirectiveStr = Sm.getFileEntryForID(DirectiveF)->tryGetRealPathName().str();
     DirectiveStr = std::filesystem::absolute(DirectiveStr).string();
+    DirectiveStr = std::filesystem::canonical(DirectiveStr).string();
 
     /* We only care about headers that are part of this module that is being split. */
     if (!IsModuleHeader(DirectiveStr))
@@ -130,6 +131,7 @@ void MyMacroCollector::InclusionDirective(
     /* The actual absolute path to the included file. */
     std::string IncludedF = File->getName().str();
     IncludedF = std::filesystem::absolute(IncludedF).string();
+    IncludedF = std::filesystem::canonical(IncludedF).string();
 
     if (this->Files_Incs.find(IncludedF) == this->Files_Incs.end())
     {
