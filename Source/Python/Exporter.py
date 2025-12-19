@@ -145,6 +145,7 @@ class Unit:
             continue
 
         fwds: set[str] = set()
+        fwds_refs: dict[str, list[str]] = {}
         inc: set[str] = set()
         for e in self.elements:
             if isinstance(e, UnitVariable):
@@ -157,13 +158,8 @@ class Unit:
                         _fwd = r_ref.get_forward_declaration(g, var_type)
                         if _fwd:
                             fwds.add(_fwd)
-                        else:
-                            print(f'ERROR fwd var type {var_type}')
                         if u is not self:
                             inc.add(u.get_filename())
-
-            if e.ident == 'yaml_node_t':
-                pass
 
             for r, strong in list(self.record_refs.items()):
                 r = Unit.remove_quals_from_type(r)
@@ -185,11 +181,14 @@ class Unit:
                 if (strong is False) or (u is self):
                     _fwd = r_ref.get_forward_declaration(g, r)
                     if _fwd:
-                        fwds.add(_fwd)
-                    else:
-                        print(f'ERROR fwd r {r}')
-
-                    continue
+                        if not (_fwd in fwds_refs):
+                            fwds_refs[_fwd] = []
+                            for _ref in r_ref.record_refs.keys():
+                                fwds_refs[_fwd].append(_ref)
+                                continue
+                        continue
+                    if u is self:
+                        continue
 
                 if u.is_translation(g):
                     assert False, 'Cannot reference another translation unit strongly.'
@@ -214,12 +213,16 @@ class Unit:
 
             continue
 
+        # TODO: Fix forwards with references.
+        for _fwd, _refs in list(fwds_refs.items()):
+            fwds.add(_fwd)
+            continue
+
         if len(inc) > 0:
             self.ctx_content += '\n/* Includes */\n'
             for i in sorted(inc):
                 self.ctx_content += f'#include "{i}"\n'
                 continue
-
 
         seen_macros: set[tuple[str, str]] = set()
         for f in unique_source_files:
@@ -345,7 +348,7 @@ class Unit:
         return None
 
     def depends_only_on_trivials(self) -> bool:
-        for r in self.get_strong_record_refs():
+        for r, _ in list(self.record_refs.items()):
             if Unit.is_trivial_type(r):
                 continue
             return False
@@ -382,8 +385,19 @@ class Unit:
     @staticmethod
     def remove_quals_from_type(ty: str) -> str:
         ty = ty.strip()
+
         if ('[' in ty) and ty.endswith(']'):
             ty = ty[:ty.rfind('[')].strip()
+            return Unit.remove_quals_from_type(ty)
+
+        if ty.startswith('const '):
+            ty = ty[6:].strip()
+            return Unit.remove_quals_from_type(ty)
+
+        if ty.startswith('volatile '):
+            ty = ty[9:].strip()
+            return Unit.remove_quals_from_type(ty)
+
         return ty
 
     @staticmethod

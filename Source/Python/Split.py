@@ -161,7 +161,7 @@ def _split(g: Globals, display_name: str, directory: str, con: SqlConnection) ->
 
 
 def _remove_underlying_record_typedefs(g: Globals, e: Exporter) -> None:
-    print('Removing underlying record typedefs ...', end=' ', flush=True)
+    print('Removing underlying record typedefs ...', flush=True)
 
     i = 0
     while i < len(e.units):
@@ -176,9 +176,6 @@ def _remove_underlying_record_typedefs(g: Globals, e: Exporter) -> None:
         if typedef.tag_record is None or typedef.tag_record == '':
             i += 1
             continue
-
-        if typedef.ident == 'yaml_token_t':
-            pass
 
         tag_record_entry = e.find_unit_from_element(typedef.tag_record)
         if tag_record_entry is None:
@@ -229,17 +226,15 @@ def _remove_underlying_record_typedefs(g: Globals, e: Exporter) -> None:
 
     return None
 
+
 def _combine_tightly_coupled_units(g: Globals, e: Exporter) -> None:
-    print('Combining tightly coupled units ...', end=' ', flush=True)
+    print('Combining tightly coupled units ...', flush=True)
 
     units = e.units
     e.units = []
 
     while len(units) > 0:
         u = units.pop(0)
-
-        if u.elements[0].ident == 'yaml_token_t':
-            pass
 
         assert len(u.elements) == 1
 
