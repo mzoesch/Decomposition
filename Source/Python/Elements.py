@@ -140,7 +140,7 @@ class UnitWrap(UnitElement):
         assert rsource is not None
         for unit_elem in subs:
             assert unit_elem.rsource is not None
-            if unit_elem.rsource.is_less(rsource):
+            if not unit_elem.rsource.is_less(rsource):
                 rsource = unit_elem.rsource
             continue
 
@@ -184,6 +184,37 @@ class UnitWrap(UnitElement):
 
         self.content += cursor.get_default_itered_no_syntax()
         self.content += ';'
+
+        return None
+
+    def update_refs(self, g: Globals, con: SqlConnection) -> None:
+        assert len(self.subs) > 1
+
+        if self.record_refs is not None:
+            assert self.var_refs is not None
+            return None
+
+        for s in self.subs:
+            s.update_refs(g, con)
+            continue
+
+        self.record_refs = {}
+        self.var_refs = set()
+
+        for s in self.subs:
+            assert s.record_refs is not None
+            assert s.var_refs is not None
+
+            for record, strong in s.record_refs.items():
+                if strong:
+                    self.record_refs[record] = strong
+                elif record not in self.record_refs:
+                    self.record_refs[record] = strong
+                continue
+
+            for var in s.var_refs:
+                self.var_refs.add(var)
+            continue
 
         return None
 
