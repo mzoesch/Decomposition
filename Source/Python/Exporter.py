@@ -491,6 +491,25 @@ class Unit:
 
         return None
 
+    def get_deps_late(self, e: Exporter) -> dict[Unit, list[str]]:
+        """
+        !!Only meaningful very late. After merging.!!
+        """
+        out = {}
+        for elem in self.elements:
+            refs = list(elem.get_flat_refs()) # Deterministic order.
+            refs.sort()
+            for ref in refs:
+                u = e.find_unit_from_element(ref)
+                if u is None:
+                    continue
+                if not (u in out):
+                    out[u] = []
+                out[u].append(ref)
+                continue
+            continue
+        return out
+
 
 class Exporter:
 
@@ -634,6 +653,13 @@ class Exporter:
                         'Filename': u.get_filename(),
                         'ElementCount': len(u.elements),
                         'N': u.get_n_size(self.g),
+                        'Deps': [
+                            {
+                                'Unit': k.get_filename(),
+                                'Symbols': xs
+                            }
+                            for k, xs in u.get_deps_late(self).items()
+                        ]
                     }
                     for u in exp
                 ]

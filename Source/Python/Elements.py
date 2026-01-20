@@ -58,6 +58,14 @@ class UnitElement:
 
         return None
 
+    def get_flat_refs(self) -> set[str]:
+        out = set()
+        for r in self.var_refs:
+            out.add(r)
+        for r in self.record_refs:
+            out.add(r)
+        return out
+
     def update_n(self, g: Globals) -> None:
         assert self.decl_doc is not None
         assert self.content is not None
