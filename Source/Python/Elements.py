@@ -449,7 +449,15 @@ class UnitFunction(UnitElement):
         if g.args.RespectStatic and self.is_static():
             self.content += 'static '
 
-        self.content += cursor.get_default_itered_no_syntax()
+        if self.ret.startswith('const '):
+            unqualified_ret = self.ret[6:]
+
+            _content = cursor.get_default_itered_no_syntax()
+            if _content.startswith(unqualified_ret):
+                _content = 'const ' + _content
+            self.content += _content
+        else:
+            self.content += cursor.get_default_itered_no_syntax()
 
         return None
 
