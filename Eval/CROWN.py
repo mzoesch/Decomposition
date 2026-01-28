@@ -69,7 +69,7 @@ projects: list[Repository] = [
     # 3. Add to Makefile.in and to src/Makefile.in:
     #       CC=clang
     #       CXX=clang++
-    #       CFLAGS =-O0 -g -Xclang -load -Xclang /host/Binaries/Clang/libDecomposition.so -add-plugin -Xclang decomposition -Xclang -plugin-arg-decomposition -Xclang -IrPath=Saved/tar-MyLibrary
+    #       CFLAGS =-O0 -g -Xclang -load -Xclang /host/Binaries/Clang/libDecomposition.so -Xclang -add-plugin -Xclang decomposition -Xclang -plugin-arg-decomposition -Xclang -IrPath=Saved/tar-MyLibrary
     # 4. RUN: ./configure
     # 5. Remove in Makefile and src/Makefile (around line 220):
     #       LINE: CC = gcc
