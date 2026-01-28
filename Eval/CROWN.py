@@ -1,7 +1,7 @@
 from Repository import *
 
 
-common_args = ' -DoCompile'
+common_args = ''
 
 
 #
