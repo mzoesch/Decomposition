@@ -177,12 +177,13 @@ def _remove_underlying_record_typedefs(g: Globals, e: Exporter) -> None:
             i += 1
             continue
 
-        tag_record_entry = e.find_unit_from_element(typedef.tag_record)
+        tag_record_entry = e.find_unit_from_element_flatten(typedef.tag_record)
         if tag_record_entry is None:
             i += 1
             continue
 
         assert len(tag_record_entry.elements) == 1
+        removed_ident = tag_record_entry.elements[0].ident
 
         if not typedef.source.has_covered(tag_record_entry.elements[0].source):
             i += 1
@@ -196,6 +197,7 @@ def _remove_underlying_record_typedefs(g: Globals, e: Exporter) -> None:
         i = 0
 
         e.units.remove(tag_record_entry)
+        print(f'Removed typedefed tagged record [{removed_ident}] in favor of [{typedef.ident}].')
 
         tag_record_entry.update_refs(g, e.con)
         u.update_refs(g, e.con)
@@ -221,6 +223,9 @@ def _remove_underlying_record_typedefs(g: Globals, e: Exporter) -> None:
             typedef.record_refs[record] = strong
         for var in missing_var_refs:
             typedef.var_refs.add(var)
+
+        if removed_ident != typedef.ident:
+            e.redirected_permanently[removed_ident] = typedef.ident
 
         continue
 

@@ -51,17 +51,20 @@ enum : signed char
         #define DEBUG_TRAP()
     #endif /* !DCP_HAL_ALLOWS_WITH_GDB_LINUX */
 
+    #define PRIVATE_DCP_DEBUGGER_WAIT_BOILERPLATE()          \
+        ::llvm::outs() << "FAIL: Waiting for debugger...\n"; \
+        ::llvm::outs().flush();                              \
+        while (::Dcp::IsGdb() == false)                      \
+        {                                                    \
+            usleep(static_cast<int>(1 * (1e+6)));            \
+        }                                                    \
+        DEBUG_TRAP()                                         \
+
     #if DCP_WITH_GDB_LINUX
-        #define PRIVATE_DCP_FAIL_BOILERPLATE()                       \
-            if (::Dcp::bWaitForDebuggerOnFail)                       \
-            {                                                        \
-                ::llvm::outs() << "FAIL: Waiting for debugger...\n"; \
-                ::llvm::outs().flush();                              \
-                while (::Dcp::IsGdb() == false)                      \
-                {                                                    \
-                    usleep(static_cast<int>(1 * (1e+6)));            \
-                }                                                    \
-                DEBUG_TRAP()                                         \
+        #define PRIVATE_DCP_FAIL_BOILERPLATE()          \
+            if (::Dcp::bWaitForDebuggerOnFail)          \
+            {                                           \
+                PRIVATE_DCP_DEBUGGER_WAIT_BOILERPLATE() \
             }
     #else /* DCP_WITH_GDB_LINUX */
         #define PRIVATE_DCP_FAIL_BOILERPLATE()

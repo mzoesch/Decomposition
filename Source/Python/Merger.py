@@ -1,6 +1,6 @@
 from Source.Python.Globals import Globals
 from Source.Python.Exporter import Exporter, Unit
-from Source.Python.Elements import UnitTypedef
+from Source.Python.Elements import UnitTypedef, UnitFunction
 from Source.Python.SqlConnection import SqlConnection
 
 
@@ -25,18 +25,29 @@ def _trivial_merge(g: Globals, e: Exporter) -> None:
     """
 
     unmerged_headers: list[Unit] = []
-    unmerged_translations: list[Unit] = []
+    unmerged_impls: list[Unit] = []
     for u in e.units:
         if u.is_header(g):
             unmerged_headers.append(u)
         else:
-            unmerged_translations.append(u)
+            unmerged_impls.append(u)
         continue
 
     e.units = []
 
-    __trivial_merge_impl_header(g, unmerged_headers, e.units, e.con)
-    __trivial_merge_impl_translation(g, unmerged_translations, e.units, e.con)
+    if g.args.SkipHeaderMerge:
+        e.units.extend(unmerged_headers)
+    else:
+        __trivial_merge_impl_header(g, unmerged_headers, e.units, e.con)
+
+    if g.args.SkipImplMerge:
+        e.units.extend(unmerged_impls)
+    elif g.args.ImplMergeStrategy == 'Legacy':
+        __trivial_merge_impl_implementation(g, unmerged_impls.copy(), e.units, e.con)
+    elif g.args.ImplMergeStrategy == 'Tarjan':
+        __tarjan_reflexive_n_merge(g, e, unmerged_impls, e.units, e.con)
+    else:
+        raise ValueError(f'No such strategy [{g.args.ImplMergeStrategy}]')
 
     return None
 
@@ -221,7 +232,7 @@ def __trivial_merge_impl_header_impl_circle(g: Globals, xs: list[Unit], out: lis
     return None
 
 
-def __trivial_merge_impl_translation(g: Globals, xs: list[Unit], out: list[Unit], con: SqlConnection) -> None:
+def __trivial_merge_impl_implementation(g: Globals, xs: list[Unit], out: list[Unit], con: SqlConnection) -> None:
     out.extend(__trivial_reflexive_n_merge(g, xs, con))
     return None
 
@@ -252,6 +263,10 @@ def __trivial_reflexive_n_merge(g: Globals, xs: list[Unit], con: SqlConnection) 
             if u_n + other_u_n >= g.args.N:
                 continue
 
+            if g.args.MaxFunctions > 0:
+                if other_u.get_num_of(UnitFunction) + u.get_num_of(UnitFunction) > g.args.MaxFunctions:
+                    continue
+
             other_u.merge(g, u, con)
             u = None
             break
@@ -263,3 +278,106 @@ def __trivial_reflexive_n_merge(g: Globals, xs: list[Unit], con: SqlConnection) 
         continue
 
     return out
+
+
+def __tarjan_reflexive_n_merge(g: Globals, e: Exporter, xs: list[Unit], out: list[Unit], con: SqlConnection) -> None:
+    """Merging strategy that priorities SCC proximity."""
+
+    graphs = {}
+    for u in xs:
+        assert len(u.elements) > 0
+        if u.elements[0].source.file.ident in graphs:
+            graphs[u.elements[0].source.file.ident].append(u)
+        else:
+            graphs[u.elements[0].source.file.ident] = [u]
+
+    for k, v in graphs.items():
+        __tarjan_reflexive_n_merge_impl(g, e, v, out, con)
+        continue
+
+    return None
+
+
+def __tarjan_reflexive_n_merge_impl(g: Globals, e: Exporter, graph: list[Unit], out: list[Unit], con: SqlConnection) -> None:
+    def __is_in_dict(__it: dict[Unit, int], __s: str) -> bool:
+        for __k in __it.keys():
+            for __e in __k.elements:
+                if __e.ident == __s:
+                    return True
+        return False
+
+    def __is_in_set(__it: set[Unit], __s: str) -> bool:
+        for __k in __it:
+            for __e in __k.elements:
+                if __e.ident == __s:
+                    return True
+        return False
+
+    def __get_unit_if_reflexive(__s: str) -> Unit | None:
+        for __u in graph:
+            for __e in __u.elements:
+                if __e.ident == __s:
+                    return __u
+        return None
+
+    index = 0
+    stack: list[Unit] = []
+    on_stack: set[Unit] = set()
+    indices: dict[Unit, int] = {}
+    lowlink: dict[Unit, int] = {}
+
+    sccs: list[list[Unit]] = []
+
+    def connect(_u: Unit) -> None:
+        nonlocal index
+
+        assert _u not in indices
+        assert _u not in lowlink
+
+        indices[_u] = index
+        lowlink[_u] = index
+        index += 1
+
+        stack.append(_u)
+        on_stack.add(_u)
+
+        for w in _u.record_refs:
+            if not __is_in_dict(indices, w):
+                w_unit = __get_unit_if_reflexive(w)
+                if w_unit is not None:
+                    connect(w_unit)
+                    lowlink[_u] = min(lowlink[_u], lowlink[w_unit])
+            elif __is_in_set(on_stack, w):
+                w_unit = __get_unit_if_reflexive(w)
+                if w_unit is not None:
+                    lowlink[_u] = min(lowlink[_u], indices[w_unit])
+            continue
+
+        if lowlink[_u] == indices[_u]:
+            _scc: list[Unit] = []
+            while ...:
+                w = stack.pop()
+                on_stack.remove(w)
+                _scc.append(w)
+                if w == _u:
+                    break
+                continue
+            sccs.append(_scc)
+
+        return None
+
+    for u in graph:
+        if u not in indices:
+            connect(u)
+        continue
+
+    for scc in sccs:
+        # TODO: Merge non scc comps like tree...
+        if len(scc) > 1:
+            e.detected_builtin_sccs.append([elem.ident for u in scc for elem in u.elements])
+            print(f'SCC: [{', '.join(elem for elem in e.detected_builtin_sccs[-1])}].')
+            out.extend(__trivial_reflexive_n_merge(g, scc, con))
+        else:
+            out.extend(scc)
+
+    return None

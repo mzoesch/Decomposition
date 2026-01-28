@@ -1,8 +1,10 @@
 import hashlib
+import warnings
 from Source.Python.Globals import Globals
 from Source.Python.Cursor import Cursor
 from Source.Python.Locations import SourceLocation, is_source_translation
 from Source.Python.SqlConnection import SqlConnection
+from Source.Python.Utility import starts_content_with_qualified_type
 
 
 class UnitElement:
@@ -41,11 +43,15 @@ class UnitElement:
     def is_source_header(self) -> bool:
         return self.source.is_header()
 
+    @warnings.deprecated("Use is_impl_file")
     def is_translation(self, g: Globals) -> bool:
+        return self.is_impl_file(g)
+
+    def is_impl_file(self, g: Globals) -> bool:
         assert False
 
     def is_header(self, g: Globals) -> bool:
-        return not self.is_translation(g)
+        return not self.is_impl_file(g)
 
     def get_forward_declaration(self, g: Globals, target: str) -> str | None:
         assert False
@@ -160,9 +166,9 @@ class UnitWrap(UnitElement):
         idents = [sub.get_human_readable_display_name() for sub in self.subs]
         return ', '.join(idents)
 
-    def is_translation(self, g: Globals) -> bool:
+    def is_impl_file(self, g: Globals) -> bool:
         assert len(self.subs) > 1
-        return self.subs[0].is_translation(g)
+        return self.subs[0].is_impl_file(g)
 
     def get_forward_declaration(self, g: Globals, target: str) -> str | None:
         fwds: str = ''
@@ -242,7 +248,7 @@ class UnitRecord(UnitElement):
         self.ty: str = ty
         self.enum: str | None = enum
 
-    def is_translation(self, g: Globals) -> bool:
+    def is_impl_file(self, g: Globals) -> bool:
         return False
 
     def get_forward_declaration(self, g: Globals, target: str) -> str | None:
@@ -292,7 +298,7 @@ class UnitTypedef(UnitElement):
         self.tag_record: str | None = tag_record
         self.ostream: str | None = ostream
 
-    def is_translation(self, g: Globals) -> bool:
+    def is_impl_file(self, g: Globals) -> bool:
         return False
 
     def get_forward_declaration(self, g: Globals, _: str) -> str | None:
@@ -333,7 +339,7 @@ class UnitVariable(UnitElement):
         self.extern: bool = extern
         self.init: str | None = init
 
-    def is_translation(self, g: Globals) -> bool:
+    def is_impl_file(self, g: Globals) -> bool:
         if g.args.ImplInHeader:
             return True
         if self.static:
@@ -421,7 +427,7 @@ class UnitFunction(UnitElement):
         self.static: bool = static
         self.ret: str = ret
 
-    def is_translation(self, g: Globals) -> bool:
+    def is_impl_file(self, g: Globals) -> bool:
         if g.args.ImplInHeader:
             return True
         if self.static:
@@ -453,7 +459,7 @@ class UnitFunction(UnitElement):
             unqualified_ret = self.ret[6:]
 
             _content = cursor.get_default_itered_no_syntax()
-            if _content.startswith(unqualified_ret):
+            if starts_content_with_qualified_type(_content, unqualified_ret):
                 _content = 'const ' + _content
             self.content += _content
         else:

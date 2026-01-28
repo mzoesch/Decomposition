@@ -195,6 +195,23 @@ bool Dcp::MyRefCollector::VisitDeclRefExpr(const DeclRefExpr* Dre)
                 this->Refs.emplace(std::move(Ref));
             }
         }
+        else if (auto Name{Ed->getNameAsString()}; Name.empty() == false)
+        {
+            SourceLocation Sl = Ed->getLocation();
+            while (Sl.isMacroID())
+            {
+                Sl = Sm->getExpansionLoc(Sl);
+            }
+
+            MyRecordRef Ref;
+            Ref.Ref = "enum " + Name;
+            Ref.bStrong = true;
+
+            if (const auto R = this->Refs.find(Ref); R == this->Refs.end())
+            {
+                this->Refs.emplace(std::move(Ref));
+            }
+        }
         else
         {
             SourceLocation Sl = Ed->getLocation();

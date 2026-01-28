@@ -119,6 +119,8 @@ def default_entry() -> None:
     group.add_argument('-SplitNonCMakeTarName', type=str, default=None,                                     help='Name of the target to split. Only used if CMake is not used. Defaults to the pathname of the repository.')
     group.add_argument('-Report',               action='store_true',                                        help='Whether to do a report after splitting. Defaults to [False].')
     group.add_argument('-SkipMerge',            action='store_true',                                        help='Whether to skip the merge step. Defaults to [False].')
+    group.add_argument('-SkipHeaderMerge',      action='store_true',                                        help='Whether to skip the merge step for exported headers only. Defaults to [False].')
+    group.add_argument('-SkipImplMerge',        action='store_true',                                        help='Whether to skip the merge step for exported implementation files only. Defaults to [False].')
     group.add_argument('-OkIfExists',           action='store_true',                                        help='Whether to ignore if the out files already are existing. Development only.')
     group.add_argument('-PurgeDeclDocs',        action='store_true',                                        help='Whether to purge declaration documentation. Defaults to [False].')
     group.add_argument('-PurgeInlineDocs',      action='store_true',                                        help='Whether to purge inline documentation. Defaults to [False].')
@@ -127,6 +129,8 @@ def default_entry() -> None:
     group.add_argument('-CountDeclDocsToN',     action='store_true',                                        help='Whether to count declaration docs and comments to N. Defaults to [False].')
     group.add_argument('-CountDocsToN',         action='store_true',                                        help='Whether to count inline docs and comments to N. Defaults to [False].')
     group.add_argument('-ImplInHeader',         action='store_true',                                        help='Whether this is a header lib. Often the implementation is in the header files to be implemented in implementation files with a macro definition. Defaults to [False].')
+    group.add_argument('-MaxFunctions',         type=int, default=0,                                        help='Maximum number of functions that may be in an unit. Zero means no limit. Defaults to [0].')
+    group.add_argument('-ImplMergeStrategy',    type=str, default='Legacy',                                 help='Merging strategy to use for implementation files. Allowed values: [Legacy, Tarjan]. Defaults to [Legacy].')
 
     group = parser.add_argument_group('Step Three: Compile units')
     group.add_argument('-DoCompile',            action='store_true',                                        help='Whether to compile the output files. Defaults to [False].')

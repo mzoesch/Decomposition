@@ -836,6 +836,11 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
     Record.Identifier += "enum ";
 
     Record.Source = std::move(AbsF);
+    auto Range = ::GetFullyExpandedSourceRange(Sm, Context.getLangOpts(), Ed->getBeginLoc(), Ed->getEndLoc());
+    Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getBegin()));
+    Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getBegin()));
+    Record.RLine = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getEnd()));
+    Record.RColumn = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getEnd()));
 
     if (Ed->getIdentifier())
     {
@@ -882,13 +887,6 @@ std::optional<Dcp::MyEnumRecord> Dcp::MyAstVisitor::GetEnum(const EnumDecl* Ed)
             Record.AddRecordRef(std::move(Ref));
         }
     }
-
-
-    auto Range = ::GetFullyExpandedSourceRange(Sm, Context.getLangOpts(), Ed->getBeginLoc(), Ed->getEndLoc());
-    Record.Line = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getBegin()));
-    Record.Column = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getBegin()));
-    Record.RLine = static_cast<int64_t>(Sm.getSpellingLineNumber(Range.getEnd()));
-    Record.RColumn = static_cast<int64_t>(Sm.getSpellingColumnNumber(Range.getEnd()));
 
     return Record;
 }

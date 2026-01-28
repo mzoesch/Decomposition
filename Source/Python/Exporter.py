@@ -2,12 +2,13 @@ from __future__ import annotations
 import json
 import os
 import time
+import warnings
 from pathlib import Path
 from Source.Python.Globals import Globals
 from Source.Python.SqlConnection import SqlConnection
 from Source.Python.StatTrack import StatTrack
 from Source.Python.Locations import SourceFile
-from Source.Python.Elements import UnitElement, UnitTypedef, UnitVariable
+from Source.Python.Elements import UnitElement, UnitVariable, UnitWrap
 
 
 class Unit:
@@ -42,12 +43,16 @@ class Unit:
     def is_content_valid(self) -> bool:
         return self.content is not None
 
+    @warnings.deprecated("Use is_impl_file.")
     def is_translation(self, g: Globals) -> bool:
+        return self.is_impl_file(g)
+
+    def is_impl_file(self, g: Globals) -> bool:
         assert len(self.elements) > 0
-        return self.elements[0].is_translation(g)
+        return self.elements[0].is_impl_file(g)
 
     def is_header(self, g: Globals) -> bool:
-        return not self.is_translation(g)
+        return not self.is_impl_file(g)
 
     def get_filename(self) -> str:
         assert self.is_output_ident_valid()
@@ -151,8 +156,9 @@ class Unit:
             if isinstance(e, UnitVariable):
                 var_type = Unit.remove_quals_from_type(e.ty)
                 if not Unit.is_trivial_type(var_type):
-                    u: Unit = ex.find_unit_from_element(var_type)
-                    if u is not None:
+                    x = ex.find_unit_from_element(var_type)
+                    if x is not None:
+                        u, var_type = x
                         assert u.is_output_ident_valid()
                         r_ref = u.get_element_asserted(var_type)
                         _fwd = r_ref.get_forward_declaration(g, var_type)
@@ -166,9 +172,10 @@ class Unit:
                 if Unit.is_trivial_type(r):
                     continue
 
-                u: Unit = ex.find_unit_from_element(r)
-                if u is None:
+                x = ex.find_unit_from_element(r)
+                if x is None:
                     continue
+                u, r = x
                 assert u.is_output_ident_valid()
 
                 r_ref = u.get_element_asserted(r)
@@ -197,9 +204,10 @@ class Unit:
                 continue
 
             for r in self.var_refs:
-                u: Unit = ex.find_unit_from_element(r)
-                if u is None: # Std, <builtin>, ...
+                x = ex.find_unit_from_element(r)
+                if x is None: # Std, <builtin>, ...
                     continue
+                u, r = x
 
                 # It is ok if this references itself.
                 r_ref = u.get_element_asserted(r)
@@ -500,15 +508,42 @@ class Unit:
             refs = list(elem.get_flat_refs()) # Deterministic order.
             refs.sort()
             for ref in refs:
-                u = e.find_unit_from_element(ref)
-                if u is None:
+                x = e.find_unit_from_element(ref)
+                if x is None:
                     continue
+                u, ref = x
                 if not (u in out):
                     out[u] = []
                 out[u].append(ref)
                 continue
             continue
         return out
+
+    def has_any_of(self, typename) -> bool:
+        for e in self.elements:
+            if isinstance(e, typename):
+                return True
+            if isinstance(e, UnitWrap):
+                for wrapped in e.subs:
+                    if isinstance(wrapped, typename):
+                        return True
+                    continue
+            continue
+        return False
+
+    def get_num_of(self, typename) -> int:
+        assert typename is not UnitWrap
+        num = 0
+        for e in self.elements:
+            if isinstance(e, typename):
+                num += 1
+            elif isinstance(e, UnitWrap):
+                for wrapped in e.subs:
+                    if isinstance(wrapped, typename):
+                        num += 1
+                    continue
+            continue
+        return num
 
 
 class Exporter:
@@ -526,6 +561,11 @@ class Exporter:
 
         """The actual units we export."""
         self.units: list[Unit] = []
+
+        self.redirected_permanently: dict[str, str] = {}
+
+        """SCCs that are builtin the project and without AST transformations are impossible to get rid of."""
+        self.detected_builtin_sccs: list[list[str]] = []
 
     def get_source_file(self, ident: str) -> SourceFile | None:
         for sf in self.source_files:
@@ -545,12 +585,24 @@ class Exporter:
             self.source_files.append(sf)
         return sf
 
-    def find_unit_from_element(self, ident: str) -> Unit | None:
+    def find_unit_from_element_flatten(self, ident: str) -> Unit | None:
         for u in self.units:
             assert len(u.elements) != 0
             out = u.get_element(ident)
             if out is not None:
                 return u
+            continue
+        return None
+
+    def find_unit_from_element(self, ident: str) -> tuple[
+            Unit, str # Unit, redirect
+        ] | None:
+        u = self.find_unit_from_element_flatten(ident)
+        if u is not None:
+            return u, ident
+        for k, v in self.redirected_permanently.items():
+            if k == ident:
+                return self.find_unit_from_element(v)
             continue
         return None
 
@@ -662,7 +714,9 @@ class Exporter:
                         ]
                     }
                     for u in exp
-                ]
+                ],
+
+                'SymbolSCCs': self.detected_builtin_sccs,
             }
             f.write(json.dumps(data, indent=4))
             if self.g.args.Verbose:
