@@ -1,0 +1,12 @@
+*
+*.*
+
+# Ourselves
+!.gitignore
+
+# Eval
+!.GeneratedCMakeRepository.cmake
+!.HeaderOnlyTemplate.cmake
+!CROWN.py
+!GetDependencyGraph.py
+!Repository.py
