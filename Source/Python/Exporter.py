@@ -564,7 +564,7 @@ class Exporter:
 
         self.redirected_permanently: dict[str, str] = {}
 
-        """SCCs that are builtin the project and without AST transformations are impossible to get rid of."""
+        """SCCs that are builtin inside the project and without AST transformations are impossible to get rid of."""
         self.detected_builtin_sccs: list[list[str]] = []
 
     def get_source_file(self, ident: str) -> SourceFile | None:

@@ -43,7 +43,7 @@ def _trivial_merge(g: Globals, e: Exporter) -> None:
     if g.args.SkipImplMerge:
         e.units.extend(unmerged_impls)
     elif g.args.ImplMergeStrategy == 'Legacy':
-        __trivial_merge_impl_implementation(g, unmerged_impls.copy(), e.units, e.con)
+        __trivial_merge_impl_implementation(g, unmerged_impls, e.units, e.con)
     elif g.args.ImplMergeStrategy == 'Tarjan':
         __tarjan_reflexive_n_merge(g, e, unmerged_impls, e.units, e.con)
     else:
@@ -290,15 +290,25 @@ def __tarjan_reflexive_n_merge(g: Globals, e: Exporter, xs: list[Unit], out: lis
             graphs[u.elements[0].source.file.ident].append(u)
         else:
             graphs[u.elements[0].source.file.ident] = [u]
+        continue
 
     for k, v in graphs.items():
-        __tarjan_reflexive_n_merge_impl(g, e, v, out, con)
+        untouched: list[Unit] = []
+        sccs: list[list[Unit]] = []
+        __tarjan_reflexive_n_merge_impl(g, v, con, untouched, sccs, e.detected_builtin_sccs)
+        for scc in sccs:
+            e.units.extend(scc)
+        e.units.extend(__reflexive_sibling_merge(g, untouched, con))
         continue
 
     return None
 
 
-def __tarjan_reflexive_n_merge_impl(g: Globals, e: Exporter, graph: list[Unit], out: list[Unit], con: SqlConnection) -> None:
+def __tarjan_reflexive_n_merge_impl(g: Globals, graph: list[Unit], con: SqlConnection
+    , out_untouched: list[Unit]
+    , out_sccs
+    , out_builtin_sccs: list[list[str]]
+    ) -> None:
     def __is_in_dict(__it: dict[Unit, int], __s: str) -> bool:
         for __k in __it.keys():
             for __e in __k.elements:
@@ -372,12 +382,43 @@ def __tarjan_reflexive_n_merge_impl(g: Globals, e: Exporter, graph: list[Unit], 
         continue
 
     for scc in sccs:
-        # TODO: Merge non scc comps like tree...
         if len(scc) > 1:
-            e.detected_builtin_sccs.append([elem.ident for u in scc for elem in u.elements])
-            print(f'SCC: [{', '.join(elem for elem in e.detected_builtin_sccs[-1])}].')
-            out.extend(__trivial_reflexive_n_merge(g, scc, con))
+            out_builtin_sccs.append([elem.ident for u in scc for elem in u.elements])
+            print(f'SCC: [{', '.join(elem for elem in out_builtin_sccs[-1])}].')
+            out_sccs.append(__trivial_reflexive_n_merge(g, scc, con))
         else:
-            out.extend(scc)
+            out_untouched.extend(scc)
 
     return None
+
+
+def __reflexive_sibling_merge(g: Globals, graph: list[Unit], con: SqlConnection) -> list[Unit]:
+    out: list[Unit] = []
+
+    def is_leaf(_u: Unit) -> bool:
+        for _e in _u.elements:
+            for _e_ref in _e.record_refs.keys():
+                for _u2 in graph:
+                    if _u2 is _u:
+                        continue
+                    for _e2 in _u2.elements:
+                        if (_e2.ident is not None) and (_e2.ident == _e_ref):
+                            return False
+        return True
+
+    siblings: list[Unit] = []
+    unrelated: list[Unit] = []
+
+    for i in range(len(graph)):
+        n1 = graph[i]
+        if is_leaf(n1):
+            siblings.append(n1)
+        else:
+            unrelated.append(n1)
+        continue
+
+    if len(siblings) > 0:
+        out.extend(__trivial_reflexive_n_merge(g, siblings, con))
+    if len(unrelated) > 0:
+        out.extend(__reflexive_sibling_merge(g, unrelated, con))
+    return out
