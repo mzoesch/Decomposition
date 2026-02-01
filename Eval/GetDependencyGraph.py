@@ -45,10 +45,18 @@ def main() -> None:
         with open(f'.{_name}_scc.dot~', 'r') as _f:
             content =  _f.readlines()
         new_content = f'digraph G {{ranksep=3;nodesep=0.1;splines={splines};pack=false;packmode=clust;'
+        append_next = False
         for row in content:
-            row = row.strip()
-            if row.startswith('"Unit_'):
+            if append_next:
                 new_content += row
+                append_next = row.endswith('\\\n') or row.endswith('\\\r\n')
+                continue
+
+            stripped_row = row.strip()
+            if stripped_row.startswith('"Unit_'):
+                new_content += row
+                append_next = row.endswith('\\\n') or row.endswith('\\\r\n')
+            continue
         new_content += '}\n'
         with open(f'.{_name}_scc.dot', 'w') as _f:
             _f.write(new_content)
