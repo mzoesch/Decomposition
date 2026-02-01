@@ -361,6 +361,8 @@ class UnitVariable(UnitElement):
 
         if self.ty.endswith(']'):
             out += f'extern {self.ty[:self.ty.index('[')]} {self.ident}{self.ty[self.ty.index('['):]};'
+        elif '(*)(' in self.ty:
+            out += f'extern {self.ty[:self.ty.index('(*)(')]}(*{self.ident})({self.ty[self.ty.index('(*)(')+4:]};'
         else:
             out += f'extern {self._get_type_decl(g)} {self.ident};'
 
@@ -373,10 +375,17 @@ class UnitVariable(UnitElement):
             self.content += 'static '
 
         if self.init is None:
-            self.content += f'{self._get_type_decl(g)} {self.ident};'
+            if self.ty.endswith(']'):
+                self.content += f'{self.ty[:self.ty.index('[')]} {self.ident}{self.ty[self.ty.index('['):]};'
+            elif '(*)(' in self.ty:
+                self.content += f'{self.ty[:self.ty.index('(*)(')]}(*{self.ident})({self.ty[self.ty.index('(*)(')+4:]};'
+            else:
+                self.content += f'{self._get_type_decl(g)} {self.ident};'
         else:
             if self.ty.endswith(']'):
                 self.content += f'{self.ty[:self.ty.index('[')]} {self.ident}{self.ty[self.ty.index('['):]} = {self.init};'
+            elif '(*)(' in self.ty:
+                self.content += f'{self.ty[:self.ty.index('(*)(')]}(*{self.ident})({self.ty[self.ty.index('(*)(')+4:]} = {self.init};'
             else:
                 self.content += f'{self._get_type_decl(g)} {self.ident} = {self.init};'
         return None
