@@ -39,7 +39,20 @@ def main() -> None:
             for edge in _edges:
                 _f.write(edge)
             _f.write("}\n")
-        os.system(f'sccmap .{_name}.dot -o .{_name}_scc.dot > /dev/null')
+
+        os.system(f'sccmap .{_name}.dot -o .{_name}_scc.dot~ > /dev/null')
+        # Combine multiple digraph into one.
+        with open(f'.{_name}_scc.dot~', 'r') as _f:
+            content =  _f.readlines()
+        new_content = f'digraph G {{ranksep=3;nodesep=0.1;splines={splines};pack=false;packmode=clust;'
+        for row in content:
+            row = row.strip()
+            if row.startswith('"Unit_'):
+                new_content += row
+        new_content += '}\n'
+        with open(f'.{_name}_scc.dot', 'w') as _f:
+            _f.write(new_content)
+
         os.system(f'dot -Tsvg .{_name}.dot -o {_name}.svg > /dev/null')
         os.system(f'dot -Tsvg .{_name}_scc.dot -o {_name}_scc.svg > /dev/null')
         return
