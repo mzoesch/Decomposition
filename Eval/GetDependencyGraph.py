@@ -22,13 +22,21 @@ def main() -> None:
     nodes = []
     edges = []
     verbose_edges = []
+    # Impl files only
+    nodes_impl = []
+    edges_impl = []
     for unit in units:
         node_name = f'\"{unit['Filename']} ({unit['Name']})\"'
         nodes.append(f'{node_name};')
+        if unit['Filename'].endswith('.c'):
+            nodes_impl.append(node_name)
 
         for dep in unit["Deps"]:
             edges.append(f'{node_name} -> \"{dep["Unit"]} ({find_unit_name(dep["Unit"])})\";')
             verbose_edges.append(f'{node_name} -> \"{dep["Unit"]} ({find_unit_name(dep["Unit"])})\" [label=\"{', '.join(dep['Symbols'])}\"];')
+            if unit['Filename'].endswith('.c') and dep["Unit"].endswith('.c'):
+                edges_impl.append(f'{node_name} -> \"{dep["Unit"]} ({find_unit_name(dep["Unit"])})\";')
+
         continue
 
     def write(_name, _nodes, _edges, splines):
@@ -66,6 +74,7 @@ def main() -> None:
         return
 
     write('graph', nodes, edges, 'ortho')
+    write('graph_impl', nodes_impl, edges_impl, 'ortho')
     write('graph_verbose', nodes, verbose_edges, 'true')
 
     return None
