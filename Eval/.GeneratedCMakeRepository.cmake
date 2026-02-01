@@ -11,3 +11,7 @@ add_library(MyLibrary STATIC
 target_include_directories(MyLibrary PUBLIC
     @PUB_INCLUDES@
     )
+
+target_compile_definitions(MyLibrary PUBLIC
+    @PUB_COMPILE_DEFS@
+    )

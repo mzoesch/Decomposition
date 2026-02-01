@@ -12,7 +12,10 @@ common_args = ''
 #
 projects: list[Repository] = [
     # Avl                   ?                                               (   229 LoC)
-    # binn                  https://github.com/liteserver/binn              (  4426 LoC)
+
+    # binn: Binary serialization (4'426 LoC)
+    GeneratedCMakeRepository('https://github.com/liteserver/binn', ['src/binn.h', 'src/binn.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+
     # brotli                https://github.com/google/brotli.git            (537'723 LoC)
     # bst                   https://gist.github.com/chakrabortyr/9030348 | https://github.com/c-blake/bst ? (154 LoC)
     # buffer                https://github.com/clibs/buffer (maybe that, but LoC are not correct...)    (1207 LoC)
@@ -20,8 +23,11 @@ projects: list[Repository] = [
     # Bzip2: Lossless data compression (14'829 LoC)
     CMakeRepository('https://gitlab.com/bzip2/bzip2.git', 'bz2', additional_args=' -ImplMergeStrategy Tarjan'),
 
-    # genann                https://github.com/codeplea/genann.git (2410 LoC)
-    # heman                 https://github.com/prideout/heman.git (13'762 LoC)
+    # genann: Neural network library (2'410 LoC)
+    GeneratedCMakeRepository('https://github.com/codeplea/genann.git', ['genann.h', 'genann.c'], additional_args=' -ImplMergeStrategy Tarjan', pub_compile_defs=['genann_act=genann_act_sigmoid_cached']),
+
+    # heman: Heightmap utilities (13'762 LoC)
+    CMakeRepository('https://github.com/prideout/heman.git', 'heman', additional_args=' -ImplMergeStrategy Tarjan'),
 
     # Ht: Simple hash table (264 LoC)
     GeneratedCMakeRepository('https://github.com/benhoyt/ht.git', ['ht.h', 'ht.c'], additional_args=' -ImplMergeStrategy Tarjan'),
@@ -53,9 +59,25 @@ projects: list[Repository] = [
     #
     RemoteRepository('https://github.com/maandree/libzahl.git'),
 
-    # lil                   https://github.com/wsxiaoys/lil.git (5'670 LoC)
-    # lodepng               https://github.com/lvandeve/lodepng.git (14'153 LoC)
-    # quadtree              https://github.com/kutani/quadtree.git (1'216 LoC)
+    #
+    # CURRENTLY DOES NOT WORK!
+    #
+    # lil: Little interpreted language (5'670 LoC)
+    #
+    GeneratedCMakeRepository('https://github.com/wsxiaoys/lil.git', ['lil.h', 'lil.c']),
+
+    #
+    # lodepng: PNG encoder and decoder (14'153 LoC).
+    #
+    # To decompose run:
+    # 1. RUN: CROWN.py (or clone remote repository manually.)
+    # 2. RENAME: lodepng.cpp to lodepng.c (as stated in the README.md under **Compiling in C**.)
+    # 3. Rerun CROWN.py or decompose manually with Launch.py.
+    #
+    GeneratedCMakeRepository('https://github.com/lvandeve/lodepng.git', ['lodepng.h', 'lodepng.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+
+    # quadtree: Simple quadtree library (1'216 LoC)
+    GeneratedCMakeRepository('https://github.com/kutani/quadtree.git', ['aabb.h', 'aabb.c', 'quadtree.h', 'quadtree.c'], additional_args=' -ImplMergeStrategy Tarjan'),
 
     # rgba: RGBA parsing and formatting (1'855 LoC)
     GeneratedCMakeRepository('https://github.com/clibs/rgba.git', ['src/rgba.h', 'src/rgba.c'], additional_args=' -ImplMergeStrategy Tarjan'),
@@ -79,8 +101,9 @@ projects: list[Repository] = [
     #
     RemoteRepository('https://github.com/robotfindskitten/robotfindskitten.git', additional_args=' -ImplMergeStrategy Tarjan'),
 
-    # robotfindskitten      https://github.com/robotfindskitten/robotfindskitten.git (1'508 LoC)
-    # tulipindicators       https://github.com/TulipCharts/tulipindicators.git (22'363 LoC)
+    # tulipindicators: Technical analysis indicator function library (22'363 LoC)
+    GeneratedCMakeRepository('https://github.com/TulipCharts/tulipindicators.git', ['indicators.h', 'candles.h', 'tiamalgamation.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+
     # urlparser             https://github.com/b-sullender/url-parser.git | https://github.com/luongnv89/url-parser.git | https://github.com/nathanwiegand/urlparser | https://github.com/ximtech/URLParser ???
     ]
 

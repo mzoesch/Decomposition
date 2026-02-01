@@ -203,15 +203,19 @@ class GeneratedCMakeRepository(CMakeRepository):
          , branch: str | None = None
          , additional_args: str = ''
          , pub_include_dirs: list[str] = None
+         , pub_compile_defs: list[str] = None
          ):
         if pub_include_dirs is None:
             pub_include_dirs = []
+        if pub_compile_defs is None:
+            pub_compile_defs = []
         super().__init__(url=url, target='MyLibrary', cmake_args=cmake_args, name=name, branch=branch,
             additional_args=additional_args, on_analyse_and_decompose=self.analyse_hook
             )
         assert (sources is not None) and (len(sources) > 0)
         self.sources = sources
         self.pub_include_dirs = pub_include_dirs
+        self.pub_compile_defs = pub_compile_defs
 
     def analyse_hook(self, _) -> None:
         p = self.get_abs_path()
@@ -229,6 +233,7 @@ class GeneratedCMakeRepository(CMakeRepository):
                 content = f.read()
             content = content.replace('@SOURCES@', ' '.join(self.sources))
             content = content.replace('@PUB_INCLUDES@', ' '.join(self.pub_include_dirs))
+            content = content.replace('@PUB_COMPILE_DEFS@', ' '.join(self.pub_compile_defs))
             with open(f_cmake, 'w', encoding='utf-8') as f:
                 f.write(content)
 
