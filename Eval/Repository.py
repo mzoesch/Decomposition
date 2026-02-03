@@ -49,7 +49,7 @@ class Repository:
 
 class RemoteRepository(Repository):
     def __init__(self
-        , url: str
+        , url: str | None
         , name: str | None = None
         , branch: str | None = None
         , skip_prepare = False
@@ -64,6 +64,8 @@ class RemoteRepository(Repository):
             )
         self.url = url
         if name is None:
+            if self.url is None:
+                raise 'Name or url must be given.'
             self.name = self.url.split('/')[-1].replace('.git', '')
         else:
             self.name = name
@@ -83,6 +85,9 @@ class RemoteRepository(Repository):
         if p.exists():
             print(f'Repository [{p}] is already prepared, skipping clone.')
             return None
+
+        if self.url is None:
+            raise ValueError(f'No such repository [{p}].')
 
         print(f'Cloning repository [{self.name}] from [{self.url}] ...')
         cmd = f'git clone {self.url} {self.name} --depth=1'
@@ -111,7 +116,7 @@ class RemoteRepository(Repository):
 
 class CMakeRepository(RemoteRepository):
     def __init__(self
-        , url: str
+        , url: str | None
         , target: str
         , cmake_args: list[str] | None = None
         , name: str | None = None
@@ -146,7 +151,7 @@ class CMakeRepository(RemoteRepository):
 
 class HeaderOnlyRepository(CMakeRepository):
     def __init__(self
-        , url: str
+        , url: str | None
         , header: str
         , macro_impl_decl: str = ''
         , cmake_args: list[str] | None = None
@@ -196,7 +201,7 @@ class HeaderOnlyRepository(CMakeRepository):
 
 class GeneratedCMakeRepository(CMakeRepository):
     def __init__(self
-         , url
+         , url: str | None
          , sources: list[str]
          , cmake_args: list[str] | None = None
          , name: str | None = None

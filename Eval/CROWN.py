@@ -11,14 +11,20 @@ common_args = ''
 #   mkdir my_eval && cd my_eval && python3 ../Eval/CROWN.py
 #
 projects: list[Repository] = [
-    # Avl                   ?                                               (   229 LoC)
+
+    # Avl: Binary search tree (229 LoC)
+    GeneratedCMakeRepository(None, ['avl.c'], name='avl', additional_args=' -ImplMergeStrategy Tarjan'),
 
     # binn: Binary serialization (4'426 LoC)
     GeneratedCMakeRepository('https://github.com/liteserver/binn', ['src/binn.h', 'src/binn.c'], additional_args=' -ImplMergeStrategy Tarjan'),
 
     # brotli                https://github.com/google/brotli.git            (537'723 LoC)
-    # bst                   https://gist.github.com/chakrabortyr/9030348 | https://github.com/c-blake/bst ? (154 LoC)
-    # buffer                https://github.com/clibs/buffer (maybe that, but LoC are not correct...)    (1207 LoC)
+
+    # bst: Binary search tree (154 LoC)
+    GeneratedCMakeRepository(None, ['bst.c'], name='bst', additional_args=' -ImplMergeStrategy Tarjan'),
+
+    # buffer: Simpel buffer implementation (1'207 LoC)
+    GeneratedCMakeRepository(None, ['buffer.h', 'buffer.c'], name='buffer', additional_args=' -ImplMergeStrategy Tarjan'),
 
     # Bzip2: Lossless data compression (14'829 LoC)
     CMakeRepository('https://gitlab.com/bzip2/bzip2.git', 'bz2', additional_args=' -ImplMergeStrategy Tarjan'),
@@ -104,7 +110,8 @@ projects: list[Repository] = [
     # tulipindicators: Technical analysis indicator function library (22'363 LoC)
     GeneratedCMakeRepository('https://github.com/TulipCharts/tulipindicators.git', ['indicators.h', 'candles.h', 'tiamalgamation.c'], additional_args=' -ImplMergeStrategy Tarjan'),
 
-    # urlparser             https://github.com/b-sullender/url-parser.git | https://github.com/luongnv89/url-parser.git | https://github.com/nathanwiegand/urlparser | https://github.com/ximtech/URLParser ???
+    # urlparser: Header only url parser (1'379 LoC)
+    HeaderOnlyRepository(None, 'url.h', name='urlparser', additional_args=' -ImplMergeStrategy Tarjan'),
     ]
 
 

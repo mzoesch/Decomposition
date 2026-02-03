@@ -2,11 +2,22 @@
 *.*
 
 # Ourselves
-!.gitignore
+!/.gitignore
 
 # Eval
-!.GeneratedCMakeRepository.cmake
-!.HeaderOnlyTemplate.cmake
-!CROWN.py
-!GetDependencyGraph.py
-!Repository.py
+!/.GeneratedCMakeRepository.cmake
+!/.HeaderOnlyTemplate.cmake
+!/CROWN.py
+!/GetDependencyGraph.py
+!/Repository.py
+
+# Local CROWN
+!/avl/
+!/avl/avl.c
+!/bst/
+!/bst/bst.c
+!/buffer/
+!/buffer/buffer.c
+!/buffer/buffer.h
+!/urlparser/
+!/urlparser/url.h
