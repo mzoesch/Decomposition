@@ -154,7 +154,7 @@ class Unit:
         inc: set[str] = set()
         for e in self.elements:
             if isinstance(e, UnitVariable):
-                var_type = Unit.remove_quals_from_type(e.ty)
+                var_type = Unit.remove_cv_ptr_arr(e.ty)
                 if not Unit.is_trivial_type(var_type):
                     x = ex.find_unit_from_element(var_type)
                     if x is not None:
@@ -168,7 +168,7 @@ class Unit:
                             inc.add(u.get_filename())
 
             for r, strong in list(self.record_refs.items()):
-                r = Unit.remove_quals_from_type(r)
+                r = Unit.remove_cv_ptr_arr(r)
                 if Unit.is_trivial_type(r):
                     continue
 
@@ -391,6 +391,7 @@ class Unit:
         return out
 
     @staticmethod
+    @DeprecationWarning
     def remove_quals_from_type(ty: str) -> str:
         ty = ty.strip()
 
@@ -409,6 +410,23 @@ class Unit:
         return ty
 
     @staticmethod
+    def remove_cv_ptr_arr(ty: str) -> str:
+        ty = ty.strip()
+
+        if ty.startswith('const ') or ty.startswith('const*'):
+            return Unit.remove_cv_ptr_arr(ty[5:])
+        if ty.startswith('volatile ') or ty.startswith('volatile*'):
+            return Unit.remove_cv_ptr_arr(ty[8:])
+        if ty.endswith(']') and ('[' in ty):
+            return Unit.remove_cv_ptr_arr(ty[:ty.rfind('[')])
+        if ty.startswith('*'):
+            return Unit.remove_cv_ptr_arr(ty[1:])
+        if ty.endswith('*'):
+            return Unit.remove_cv_ptr_arr(ty[:-1])
+
+        return ty
+
+    @staticmethod
     def is_trivial_type(ty: str) -> bool:
         trivials = [
             'void',
@@ -421,24 +439,7 @@ class Unit:
             'size_t', 'ptrdiff_t', 'ssize_t', 'intptr_t', 'uintptr_t',
             'wchar_t', 'char16_t', 'char32_t',
             ]
-
-        ty = ty.strip()
-        while True:
-            if ty.startswith('*'):
-                ty = ty[1:].strip()
-                continue
-            if ty.endswith('*'):
-                ty = ty[:-1].strip()
-                continue
-            if ty.startswith('const ') or ty.startswith('volatile '):
-                ty = ty[ty.find(' ') + 1:].strip()
-                continue
-            if ty.endswith(']') and ('[' in ty):
-                ty = ty[:ty.rfind('[')].strip()
-                continue
-            break
-
-        return ty in trivials
+        return Unit.remove_cv_ptr_arr(ty) in trivials
 
     @staticmethod
     def create_macro_definition_directive(ident: str, function_like: bool, definition: str, params: str) -> str:
@@ -508,9 +509,12 @@ class Unit:
             refs = list(elem.get_flat_refs()) # Deterministic order.
             refs.sort()
             for ref in refs:
-                x = e.find_unit_from_element(ref)
+                x = e.find_unit_from_element(ref) # Only for backwards compatability.
                 if x is None:
-                    continue
+                    x = e.find_unit_from_element(Unit.remove_cv_ptr_arr(ref))
+                    if x is None:
+                        continue
+
                 u, ref = x
                 if not (u in out):
                     out[u] = []
