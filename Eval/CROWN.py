@@ -13,42 +13,42 @@ common_args = ''
 projects: list[Repository] = [
 
     # Avl: Binary search tree (229 LoC)
-    GeneratedCMakeRepository(None, ['avl.c'], name='avl', additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository(None, ['avl.c'], name='avl', additional_args=' -MergeStrategy Tarjan'),
 
     # binn: Binary serialization (4'426 LoC)
-    GeneratedCMakeRepository('https://github.com/liteserver/binn', ['src/binn.h', 'src/binn.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/liteserver/binn', ['src/binn.h', 'src/binn.c'], additional_args=' -MergeStrategy Tarjan'),
 
     # brotli                https://github.com/google/brotli.git            (537'723 LoC)
 
     # bst: Binary search tree (154 LoC)
-    GeneratedCMakeRepository(None, ['bst.c'], name='bst', additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository(None, ['bst.c'], name='bst', additional_args=' -MergeStrategy Tarjan'),
 
     # buffer: Simpel buffer implementation (1'207 LoC)
-    GeneratedCMakeRepository(None, ['buffer.h', 'buffer.c'], name='buffer', additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository(None, ['buffer.h', 'buffer.c'], name='buffer', additional_args=' -MergeStrategy Tarjan'),
 
     # Bzip2: Lossless data compression (14'829 LoC)
-    CMakeRepository('https://gitlab.com/bzip2/bzip2.git', 'bz2', additional_args=' -ImplMergeStrategy Tarjan'),
+    CMakeRepository('https://gitlab.com/bzip2/bzip2.git', 'bz2', additional_args=' -MergeStrategy Tarjan'),
 
     # genann: Neural network library (2'410 LoC)
-    GeneratedCMakeRepository('https://github.com/codeplea/genann.git', ['genann.h', 'genann.c'], additional_args=' -ImplMergeStrategy Tarjan', pub_compile_defs=['genann_act=genann_act_sigmoid_cached']),
+    GeneratedCMakeRepository('https://github.com/codeplea/genann.git', ['genann.h', 'genann.c'], additional_args=' -MergeStrategy Tarjan', pub_compile_defs=['genann_act=genann_act_sigmoid_cached']),
 
     # heman: Heightmap utilities (13'762 LoC)
-    CMakeRepository('https://github.com/prideout/heman.git', 'heman', additional_args=' -ImplMergeStrategy Tarjan'),
+    CMakeRepository('https://github.com/prideout/heman.git', 'heman', additional_args=' -MergeStrategy Tarjan'),
 
     # Ht: Simple hash table (264 LoC)
-    GeneratedCMakeRepository('https://github.com/benhoyt/ht.git', ['ht.h', 'ht.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/benhoyt/ht.git', ['ht.h', 'ht.c'], additional_args=' -MergeStrategy Tarjan'),
 
     # JSON.h: JSON library for C/C++ (3'860 LoC)
-    HeaderOnlyRepository('https://github.com/sheredom/json.h.git', 'json.h', additional_args=' -ImplMergeStrategy Tarjan'),
+    HeaderOnlyRepository('https://github.com/sheredom/json.h.git', 'json.h', additional_args=' -MergeStrategy Tarjan'),
 
     # libcsv: CSV library (976 LoC)
-    GeneratedCMakeRepository('https://github.com/rgamble/libcsv.git', ['csv.h', 'libcsv.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/rgamble/libcsv.git', ['csv.h', 'libcsv.c'], additional_args=' -MergeStrategy Tarjan'),
 
     # libtree: Collection of binary search treas (2'610 LoC)
-    GeneratedCMakeRepository('https://github.com/fbuihuu/libtree.git', ['libtree.h', 'avl.c'], name='libtree-avl', additional_args=' -ImplMergeStrategy Tarjan'),
-    GeneratedCMakeRepository('https://github.com/fbuihuu/libtree.git', ['libtree.h', 'bst.c'], name='libtree-bst', additional_args=' -ImplMergeStrategy Tarjan'),
-    GeneratedCMakeRepository('https://github.com/fbuihuu/libtree.git', ['libtree.h', 'rb.c'], name='libtree-rb', additional_args=' -ImplMergeStrategy Tarjan'),
-    GeneratedCMakeRepository('https://github.com/fbuihuu/libtree.git', ['libtree.h', 'splay.c'], name='libtree-splay', additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/fbuihuu/libtree.git', ['libtree.h', 'avl.c'], name='libtree-avl', additional_args=' -MergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/fbuihuu/libtree.git', ['libtree.h', 'bst.c'], name='libtree-bst', additional_args=' -MergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/fbuihuu/libtree.git', ['libtree.h', 'rb.c'], name='libtree-rb', additional_args=' -MergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/fbuihuu/libtree.git', ['libtree.h', 'splay.c'], name='libtree-splay', additional_args=' -MergeStrategy Tarjan'),
 
     #
     # CURRENTLY DOES NOT WORK!
@@ -80,13 +80,13 @@ projects: list[Repository] = [
     # 2. RENAME: lodepng.cpp to lodepng.c (as stated in the README.md under **Compiling in C**.)
     # 3. Rerun CROWN.py or decompose manually with Launch.py.
     #
-    GeneratedCMakeRepository('https://github.com/lvandeve/lodepng.git', ['lodepng.h', 'lodepng.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/lvandeve/lodepng.git', ['lodepng.h', 'lodepng.c'], additional_args=' -MergeStrategy Tarjan'),
 
     # quadtree: Simple quadtree library (1'216 LoC)
-    GeneratedCMakeRepository('https://github.com/kutani/quadtree.git', ['aabb.h', 'aabb.c', 'quadtree.h', 'quadtree.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/kutani/quadtree.git', ['aabb.h', 'aabb.c', 'quadtree.h', 'quadtree.c'], additional_args=' -MergeStrategy Tarjan'),
 
     # rgba: RGBA parsing and formatting (1'855 LoC)
-    GeneratedCMakeRepository('https://github.com/clibs/rgba.git', ['src/rgba.h', 'src/rgba.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/clibs/rgba.git', ['src/rgba.h', 'src/rgba.c'], additional_args=' -MergeStrategy Tarjan'),
 
     #
     # robotfindskitten (1'508 LoC)
@@ -103,15 +103,15 @@ projects: list[Repository] = [
     #       LINE: CC = gcc
     #       LINE: CFLAGS = -g -O2
     # 6. RUN: make
-    # 7. RUN: python ./Launch.py -Report -DoSplit -RepositoryLocation Eval/robotfindskitten -SplitNonCMakeTarName=MyLibrary -TargetBuildDir src -ImplMergeStrategy Tarjan
+    # 7. RUN: python ./Launch.py -Report -DoSplit -RepositoryLocation Eval/robotfindskitten -SplitNonCMakeTarName=MyLibrary -TargetBuildDir src -MergeStrategy Tarjan
     #
-    RemoteRepository('https://github.com/robotfindskitten/robotfindskitten.git', additional_args=' -ImplMergeStrategy Tarjan'),
+    RemoteRepository('https://github.com/robotfindskitten/robotfindskitten.git', additional_args=' -MergeStrategy Tarjan'),
 
     # tulipindicators: Technical analysis indicator function library (22'363 LoC)
-    GeneratedCMakeRepository('https://github.com/TulipCharts/tulipindicators.git', ['indicators.h', 'candles.h', 'tiamalgamation.c'], additional_args=' -ImplMergeStrategy Tarjan'),
+    GeneratedCMakeRepository('https://github.com/TulipCharts/tulipindicators.git', ['indicators.h', 'candles.h', 'tiamalgamation.c'], additional_args=' -MergeStrategy Tarjan'),
 
     # urlparser: Header only url parser (1'379 LoC)
-    HeaderOnlyRepository(None, 'url.h', name='urlparser', additional_args=' -ImplMergeStrategy Tarjan'),
+    HeaderOnlyRepository(None, 'url.h', name='urlparser', additional_args=' -MergeStrategy Tarjan'),
     ]
 
 
