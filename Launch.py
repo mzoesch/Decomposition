@@ -130,6 +130,10 @@ def default_entry() -> None:
     group.add_argument('-CountDocsToN',         action='store_true',                                        help='Whether to count inline docs and comments to N. Defaults to [False].')
     group.add_argument('-ImplInHeader',         action='store_true',                                        help='Whether this is a header lib. Often the implementation is in the header files to be implemented in implementation files with a macro definition. Defaults to [False].')
     group.add_argument('-MaxFunctions',         type=int, default=0,                                        help='Maximum number of functions that may be in an unit. Zero means no limit. Defaults to [0].')
+    group.add_argument('-ForceTypedefProximity',action='store_true',                                        help='Whether to force prioritizing typedef decl proximity with their associated record (if any) even if header merging is disabled [#SkipHeaderMerge]. Does not work if all merging steps are skipped [#SkipMerge]. Defaults to [False].')
+    group.add_argument('-NoTypedefProximity',   action='store_true',                                        help='Whether to not prioritize typedef decl proximity with their associated record (if any). Defaults to [False].')
+    group.add_argument('-MergeStrategy',        type=str, default=None,                                     help='Merging strategy to use for header and implementation files. Allowed values: [Legacy, Tarjan]. Defaults to [None].')
+    group.add_argument('-HeaderMergeStrategy',  type=str, default='Legacy',                                 help='Merging strategy to use for header files. Allowed values: [Legacy, Tarjan]. Defaults to [Legacy].')
     group.add_argument('-ImplMergeStrategy',    type=str, default='Legacy',                                 help='Merging strategy to use for implementation files. Allowed values: [Legacy, Tarjan]. Defaults to [Legacy].')
 
     group = parser.add_argument_group('Step Three: Compile units')

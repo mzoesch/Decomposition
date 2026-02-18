@@ -36,12 +36,38 @@ def _trivial_merge(g: Globals, e: Exporter) -> None:
     e.units = []
 
     if g.args.SkipHeaderMerge:
+        if g.args.ForceTypedefProximity:
+            temp = []
+            __reflexive_typedef_merge(g, e, unmerged_headers, temp, e.con)
+            unmerged_headers = temp
         e.units.extend(unmerged_headers)
     else:
-        __trivial_merge_impl_header(g, unmerged_headers, e.units, e.con)
+        if not g.args.NoTypedefProximity:
+            temp = []
+            __reflexive_typedef_merge(g, e, unmerged_headers, temp, e.con)
+            unmerged_headers = temp
+
+        if (g.args.MergeStrategy is not None) and g.args.MergeStrategy == 'Legacy':
+            __trivial_merge_impl_header(g, unmerged_headers, e.units, e.con)
+        elif (g.args.MergeStrategy is not None) and g.args.MergeStrategy == 'Tarjan':
+            __tarjan_reflexive_n_merge(g, e, unmerged_headers, e.units, e.con)
+        elif g.args.MergeStrategy is not None:
+            raise ValueError(f'No such strategy [{g.args.MergeStrategy}]')
+        elif g.args.HeaderMergeStrategy == 'Legacy':
+            __trivial_merge_impl_header(g, unmerged_headers, e.units, e.con)
+        elif g.args.HeaderMergeStrategy == 'Tarjan':
+            __tarjan_reflexive_n_merge(g, e, unmerged_headers, e.units, e.con)
+        else:
+            raise ValueError(f'No such strategy [{g.args.HeaderMergeStrategy}]')
 
     if g.args.SkipImplMerge:
         e.units.extend(unmerged_impls)
+    elif (g.args.MergeStrategy is not None) and g.args.MergeStrategy == 'Legacy':
+        __trivial_merge_impl_implementation(g, unmerged_impls, e.units, e.con)
+    elif (g.args.MergeStrategy is not None) and g.args.MergeStrategy == 'Tarjan':
+        __tarjan_reflexive_n_merge(g, e, unmerged_impls, e.units, e.con)
+    elif g.args.MergeStrategy is not None:
+        raise ValueError(f'No such strategy [{g.args.MergeStrategy}]')
     elif g.args.ImplMergeStrategy == 'Legacy':
         __trivial_merge_impl_implementation(g, unmerged_impls, e.units, e.con)
     elif g.args.ImplMergeStrategy == 'Tarjan':
@@ -229,6 +255,81 @@ def __trivial_merge_impl_header_impl_circle(g: Globals, xs: list[Unit], out: lis
 
         continue
 
+    return None
+
+
+def __reflexive_typedef_merge(g: Globals, e: Exporter, xs: list[Unit], out: list[Unit], con: SqlConnection) -> None:
+    def create_lookup(__xs: list[Unit]) -> dict[str, list[Unit]]:
+        __out: dict[str, list[Unit]] = {}
+        for __x in __xs:
+            __f: str = __x.elements[0].source.file.ident
+            if __f not in __out:
+                __out[__f] = []
+            __out[__f].append(__x)
+            continue
+        # Ensure a deterministic order.
+        return dict(sorted(__out.items(), key=lambda item: item[0]))
+
+    lookup = create_lookup(xs)
+    cache = []
+    while len(lookup) > 0:
+        _, units = lookup.popitem()
+        __merge_types_with_typedefs(g, e, units, cache, con)
+        continue
+
+    out.extend(cache)
+    return None
+
+
+def __merge_types_with_typedefs(g: Globals, e: Exporter, xs: list[Unit], out: list[Unit], con: SqlConnection) -> None:
+    def __find_elem(__ident: str, __xs) -> tuple[Unit, str] | None:
+        for __u in __xs:
+            assert len(__u.elements) > 0
+            __out = __u.get_element(__ident)
+            if __out is not None:
+                return __u, __ident
+            continue
+        for __k, __v in e.redirected_permanently.items():
+            if __k == __ident:
+                return __find_elem(__v, __xs)
+            continue
+        return None
+
+    typedefs: list[Unit] = []
+    others: list[Unit] = []
+    for u in xs:
+        if len(u.elements) == 1 and isinstance(u.elements[0], UnitTypedef):
+            typedefs.append(u)
+        else:
+            others.append(u)
+        continue
+
+    while len(typedefs) > 0:
+        u: Unit = typedefs.pop(0)
+        assert len(u.elements) == 1
+        td: UnitTypedef = u.elements[0] # type: ignore
+
+        if (td.tag_record is None) and (td.ostream is None):
+           others.append(u)
+           continue
+        if len(td.record_refs) == 0:
+            others.append(u)
+            continue
+
+        if len(td.record_refs) == 1:
+            r, s = next(iter(td.record_refs.items()))
+            if s:
+                other_tuple = __find_elem(r, others)
+                if other_tuple is not None:
+                    other_u, _ = other_tuple
+                    # We do not care about N here (intended). Should this be a flag??
+                    other_u.merge(g, u, con)
+                    continue
+
+        others.append(u)
+        continue
+
+    out.extend(others)
     return None
 
 
